@@ -169,3 +169,4 @@ if (Test-Interactive) {
 
 # Skip fastfetch for non-interactive shells
 if (Test-Interactive -and (Test-Command fastfetch) -and -not $env:FASTFETCH_DISABLE) { fastfetch }
+

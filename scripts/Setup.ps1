@@ -5,9 +5,9 @@
  - Creates idempotent links to config files and folders
  - Safer fallbacks for link creation (junction/hardlink/copy)
  Usage examples:
-   pwsh -ExecutionPolicy Bypass -File .\Setup.ps1
-   pwsh -File .\Setup.ps1 -SkipPackages
-   pwsh -File .\Setup.ps1 -DryRun
+   pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1
+   pwsh -File .\scripts\Setup.ps1 -SkipPackages
+   pwsh -File .\scripts\Setup.ps1 -DryRun
 =================================================================
 #>
 
@@ -39,6 +39,10 @@ function Invoke-IfNotDryRun {
     param([scriptblock]$Action)
     if ($DryRun) { return } else { & $Action }
 }
+
+# Resolve repo root regardless of invocation CWD
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+function RepoPath([string]$Relative) { return (Join-Path $RepoRoot $Relative) }
 
 # -----------------------
 # Package Installation
@@ -100,28 +104,6 @@ function Install-Packages {
     }
 
     Write-Info 'Package installation step complete.'
-}
-
-# ================================================================
-# Download and install fonts
-# ================================================================
-function Clone-AndInstall {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Name,
-
-        [Parameter(Mandatory)]
-        [string]$RepoUrl
-    )
-
-    $dest = Join-Path $env:TOOLS $Name
-    if (-not (Test-Path $dest)) {
-        Write-Host "Cloning $Name..."
-        git clone --depth=1 $RepoUrl $dest | Out-Null
-    }
-
-    Write-Host "Installing fonts from $dest..."
-    & powershell -ExecutionPolicy Bypass -File install_fonts.ps1 -fontFolder $dest | Out-Null
 }
 
 # -----------------------
@@ -216,15 +198,15 @@ function Ensure-Link($dest, $src) {
 }
 
 # -----------------------
-# Link Map
+# Link Map (paths from repo root)
 # -----------------------
 $linkMap = @{
-    ($PROFILE.CurrentUserAllHosts) = '.\Profile.ps1'
-    (Join-Path $HOME '.gitconfig') = '.\git\config'
+    ($PROFILE.CurrentUserAllHosts) = (RepoPath 'scripts\Profile.ps1')
+    (Join-Path $HOME '.gitconfig') = (RepoPath 'git\config')
     (Join-Path $HOME '.ideavimrc') = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
-    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = '.\terminal\settings.json'
+    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = (RepoPath 'terminal\settings.json')
     (Join-Path $env:LOCALAPPDATA 'direnv') = (Join-Path $HOME 'dotfiles\config\direnv')
-    (Join-Path $env:LOCALAPPDATA 'fastfetch') = '.\fastfetch'
+    (Join-Path $env:LOCALAPPDATA 'fastfetch') = (RepoPath 'fastfetch')
     (Join-Path $env:LOCALAPPDATA 'lazygit') = (Join-Path $HOME 'dotfiles\config\lazygit')
     (Join-Path $env:LOCALAPPDATA 'nvim') = (Join-Path $HOME 'dotfiles\config\lazyvim')
     (Join-Path $env:APPDATA '.spacemacs.d\config') = (Join-Path $HOME 'dotfiles\spacemacs\config')
@@ -245,22 +227,6 @@ function Create-Links {
 }
 
 # -----------------------
-# Fonts Map
-# -----------------------
-$fontsMap = @{
-    ("nerd-fonts") = "https://github.com/ryanoasis/nerd-fonts.git"
-    ("powerline-fonts") = "https://github.com/powerline/fonts.git"
-    ("icons-fonts") = "https://github.com/sebastiencs/icons-in-terminal.git"
-    ("all-icons-fonts") = "https://github.com/domtronn/all-the-icons.el.git"
-  }
-
-function Download-And-Install-Fonts {
-    foreach ($kvp in $fontsMap.GetEnumerator()) {
-        Clone-AndInstall -Name $kvp.Key -RepoUrl $kvp.Value
-    }
-}
-
-# -----------------------
 # Execution
 # -----------------------
 try {
@@ -270,9 +236,9 @@ try {
     Install-Packages
     Install-PowerShellModules
     Create-Links
-    Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
 } catch {
     Write-Err $_
     exit 1
 }
+
