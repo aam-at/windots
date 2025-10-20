@@ -14,7 +14,7 @@ Start-Process "winget" -ArgumentList "install --scope machine Git.Git HandBrake.
 Write-Host "Installing Scoop applications..."
 scoop bucket add extras | Out-Null
 scoop install extras/emacs extras/yasb extras/kanata extras/komorebi extras/komokana extras/winrar extras/autohotkey extras/activitywatch extras/mupdf
-scoop install main/aspell main/gitui main/fd main/fzf main/direnv main/wget main/yazi main/ripgrep main/ffmpeg main/delta main/gzip main/curl main/starship main/7zip main/yt-dlp main/bat main/ag main/sqlite main/tectonic main/texlab main/fastfetch
+scoop install main/aspell main/gitui main/fd main/fzf main/direnv main/wget main/yazi main/ripgrep main/ffmpeg main/delta main/gzip main/curl main/starship main/7zip main/yt-dlp main/bat main/ag main/sqlite main/tectonic main/texlab main/fastfetch main/sed
 Write-Host "Applications installation complete.`n"
 
 # ================================================================
@@ -22,6 +22,8 @@ Write-Host "Applications installation complete.`n"
 # ================================================================
 $CONFIG = Join-Path $HOME ".config"
 $TOOLS  = Join-Path $HOME "local\tools"
+
+git clone https://github.com/aam-at/spacemacs $env:APPDATA/.emacs.d
 
 # ================================================================
 #  Create symbolic and junction links
