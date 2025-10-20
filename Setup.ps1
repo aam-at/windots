@@ -196,7 +196,6 @@ function Ensure-Link($dest, $src) {
 # -----------------------
 $linkMap = @{
     ($PROFILE.CurrentUserAllHosts) = '.\Profile.ps1'
-    (Join-Path $HOME '.config/starship.toml') = (Join-Path $HOME 'dotfiles\config\starship.toml')
     (Join-Path $HOME '.gitconfig') = '.\git\config'
     (Join-Path $HOME '.ideavimrc') = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
     (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = '.\terminal\settings.json'
