@@ -1,58 +1,238 @@
 <#
-============================================================
- Windows Setup Script
-============================================================
+=================================================================
+ Windows Setup Script (refactored)
+ - Installs common tools (winget / scoop)
+ - Creates idempotent links to config files and folders
+ - Safer fallbacks for link creation (junction/hardlink/copy)
+ Usage examples:
+   pwsh -ExecutionPolicy Bypass -File .\Setup.ps1
+   pwsh -File .\Setup.ps1 -SkipPackages
+   pwsh -File .\Setup.ps1 -DryRun
+=================================================================
 #>
 
-# Enable strict mode
+param(
+    [switch]$SkipPackages,
+    [switch]$SkipLinks,
+    [switch]$DryRun,
+    [switch]$Force,
+    [switch]$InstallSpacemacs
+)
+
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
-Write-Host "Installing applications via Winget..."
-Start-Process "winget" -ArgumentList "install --scope machine Git.Git HandBrake.HandBrake Helix.Helix Hunspell Neovim.Neovim Notepad++ OpenJS.NodeJS.LTS vim.vim winfsp VideoLAN.VLC Ghisler.TotalCommander Microsoft.Sysinternals.Suite MSYS2.MSYS2 GnuPG.GnuPG GnuPG.Gpg4win FarManager.FarManager qtpass Dropbox.Dropbox Google.Chrome Microsoft.VisualStudioCode Microsoft.PowerToys Microsoft.WindowsTerminal Microsoft.PowerShell" -Verb RunAs
+function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
+function Write-Warn($msg) { Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
+function Write-Err ($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
-Write-Host "Installing Scoop applications..."
-scoop bucket add extras | Out-Null
-scoop install extras/emacs extras/yasb extras/kanata extras/komorebi extras/komokana extras/winrar extras/autohotkey extras/activitywatch extras/mupdf
-scoop install main/aspell main/gitui main/fd main/fzf main/direnv main/wget main/yazi main/ripgrep main/ffmpeg main/delta main/gzip main/curl main/starship main/7zip main/yt-dlp main/bat main/ag main/sqlite main/tectonic main/texlab main/fastfetch main/sed
-Write-Host "Applications installation complete.`n"
-
-# ================================================================
-#  Variables
-# ================================================================
-$CONFIG = Join-Path $HOME ".config"
-$TOOLS  = Join-Path $HOME "local\tools"
-
-git clone https://github.com/aam-at/spacemacs $env:APPDATA/.emacs.d
-
-# ================================================================
-#  Create symbolic and junction links
-# ================================================================
-
-$symlinks = @{
-    $PROFILE.CurrentUserAllHosts                                                                    = ".\Profile.ps1"
-    "$HOME\.gitconfig"                                                                              = ".\git\config"
-    "$HOME\.ideavimrc" = "$HOME\dotfiles\idea\ideavimrc"
-    "$HOME\.spacemacs.d\init.el" = "$HOME\dotfiles\spacemacs\spacemacs_full"
-    "$HOME\.spacemacs.d\config" = "$HOME\dotfiles\spacemacs\config"
-    "$env:LOCALAPPDATA\nvim"                                                                      = "$HOME\dotfiles\config\lazyvim"
-    "$env:LOCALAPPDATA\direnv"                                                                      = "$HOME\dotfiles\config\direnv"
-    "$env:LOCALAPPDATA\fastfetch"                                                                 = ".\fastfetch"
-    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json" = ".\terminal\settings.json"
-    "$env:LOCALAPPDATA\lazygit"                                                                 = "$HOME\dotfiles\config\lazygit"
-    "$env:APPDATA\helix" = "$HOME\dotfiles\config\helix"
-    "$env:APPDATA\yazi" = "$HOME\dotfiles\config\yazi"
-    "$env:APPDATA\gitui" = "$HOME\dotfiles\config\gitui"
+function Test-IsAdmin {
+    try {
+        $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch { return $false }
 }
 
-# Create Symbolic Links
-Write-Host "Creating Symbolic Links..."
-foreach ($symlink in $symlinks.GetEnumerator()) {
-	echo $symlink.Key
-	echo $symlink.Value
-    Get-Item -Path $symlink.Key -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-    New-Item -ItemType SymbolicLink -Path $symlink.Key -Target (Resolve-Path $symlink.Value) -Force | Out-Null
+function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
+
+function Invoke-IfNotDryRun {
+    param([scriptblock]$Action)
+    if ($DryRun) { return } else { & $Action }
 }
 
-Write-Host "Script completed successfully."
-Pause
+# -----------------------
+# Package Installation
+# -----------------------
+function Install-Packages {
+    if ($SkipPackages) { Write-Info 'Skipping package installation.'; return }
+
+    # Winget apps (install per-ID for clearer output and retries)
+    $wingetApps = @(
+        'Dropbox.Dropbox', 'FarManager.FarManager', 'Ghisler.TotalCommander', 'Git.Git', 'GnuPG.GnuPG',
+        'GnuPG.Gpg4win', 'Google.Chrome', 'HandBrake.HandBrake', 'Helix.Helix', 'Hunspell', 'MSYS2.MSYS2',
+        'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.Sysinternals.Suite', 'Microsoft.VisualStudioCode',
+        'Microsoft.WindowsTerminal', 'Neovim.Neovim', 'Notepad++', 'OpenJS.NodeJS.LTS', 'VideoLAN.VLC',
+        'qtpass', 'vim.vim', 'winfsp'
+    )
+
+    if (Test-Command 'winget') {
+        Write-Info 'Installing applications via winget...'
+        foreach ($id in $wingetApps) {
+            Write-Info "winget install -e --scope machine --id $id"
+            Invoke-IfNotDryRun { winget install -e --scope machine --id $id --silent --accept-source-agreements --accept-package-agreements } | Out-Null
+        }
+    } else {
+        Write-Warn 'winget not found; skipping winget apps.'
+    }
+
+    # Scoop apps and buckets
+    $scoopBuckets = @('extras')
+    $scoopApps1   = @('activitywatch', 'autohotkey', 'emacs', 'kanata', 'komokana', 'komorebi', 'lua', 'mupdf', 'winrar', 'yasb')
+    $scoopApps2   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'gzip', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
+
+    if (Test-Command 'scoop') {
+        Write-Info 'Ensuring scoop buckets and apps are installed...'
+        foreach ($b in $scoopBuckets) {
+            Write-Info "scoop bucket add $b"
+            Invoke-IfNotDryRun { scoop bucket add $b } | Out-Null
+        }
+        if ($scoopApps1.Count -gt 0) {
+            Write-Info ("scoop install " + ($scoopApps1 -join ' '))
+            Invoke-IfNotDryRun { scoop install $scoopApps1 } | Out-Null
+        }
+        if ($scoopApps2.Count -gt 0) {
+            Write-Info ("scoop install " + ($scoopApps2 -join ' '))
+            Invoke-IfNotDryRun { scoop install $scoopApps2 } | Out-Null
+        }
+    } else {
+        Write-Warn 'scoop not found; skipping scoop apps.'
+    }
+
+    if ($InstallSpacemacs) {
+        if (-not (Test-Command 'git')) { Write-Warn 'git not found; skip Spacemacs clone.' }
+        else {
+            $dest = Join-Path $env:APPDATA '.emacs.d'
+            if (-not (Test-Path -LiteralPath $dest)) {
+                Write-Info "Cloning Spacemacs to $dest"
+                Invoke-IfNotDryRun { git clone https://github.com/aam-at/spacemacs $dest }
+            } else { Write-Info "Spacemacs already present at $dest" }
+        }
+    }
+
+    Write-Info 'Package installation step complete.'
+}
+
+# -----------------------
+# PowerShell Modules
+# -----------------------
+function Install-PowerShellModules {
+    if ($SkipPackages) { return }
+    if (-not (Test-Command Install-Module)) { Write-Warn 'Install-Module not available; skipping PS module installs.'; return }
+
+    $psModules = @(
+        'CompletionPredictor',
+        'PSScriptAnalyzer'
+    )
+
+    try {
+        $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
+        if ($repo.InstallationPolicy -ne 'Trusted') {
+            Write-Info 'Trusting PSGallery repository'
+            Invoke-IfNotDryRun { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }
+        }
+    } catch {
+        Write-Warn 'PSGallery repository not found or PowerShellGet not loaded.'
+    }
+
+    foreach ($psModule in $psModules) {
+        if (-not (Get-Module -ListAvailable -Name $psModule)) {
+            Write-Info "Installing PS module: $psModule"
+            Invoke-IfNotDryRun { Install-Module -Name $psModule -Force -AcceptLicense -Scope CurrentUser -Repository PSGallery }
+        } else {
+            Write-Info "PS module already available: $psModule"
+        }
+    }
+}
+
+# -----------------------
+# Link Helpers
+# -----------------------
+function Remove-PathSafe($path) {
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    Write-Info "Removing existing path: $path"
+    Invoke-IfNotDryRun { Remove-Item -LiteralPath $path -Force -Recurse -ErrorAction SilentlyContinue }
+}
+
+function New-FileLink($path, $target) {
+    try {
+        Write-Info "Creating file symlink: $path -> $target"
+        Invoke-IfNotDryRun { New-Item -ItemType SymbolicLink -Path $path -Target $target -Force | Out-Null }
+    } catch {
+        try {
+            Write-Warn "Symlink failed; attempting hardlink: $path -> $target"
+            Invoke-IfNotDryRun { New-Item -ItemType HardLink -Path $path -Target $target -Force | Out-Null }
+        } catch {
+            Write-Warn "Hardlink failed; copying file: $path <- $target"
+            Invoke-IfNotDryRun { Copy-Item -LiteralPath $target -Destination $path -Force }
+        }
+    }
+}
+
+function New-DirectoryLink($path, $target) {
+    try {
+        Write-Info "Creating junction: $path -> $target"
+        Invoke-IfNotDryRun { New-Item -ItemType Junction -Path $path -Target $target -Force | Out-Null }
+    } catch {
+        Write-Warn "Junction failed; copying directory: $path <- $target"
+        Invoke-IfNotDryRun { Copy-Item -LiteralPath $target -Destination $path -Recurse -Force }
+    }
+}
+
+function Ensure-Link($dest, $src) {
+    # Resolve and validate source
+    try {
+        $resolved = Resolve-Path -LiteralPath $src -ErrorAction Stop
+        $srcPath = $resolved.ProviderPath
+    } catch {
+        Write-Warn "Target missing; skip link: $src"
+        return
+    }
+
+    if (Test-Path -LiteralPath $dest) { Remove-PathSafe $dest }
+
+    $srcIsDir = (Test-Path -LiteralPath $srcPath -PathType Container)
+    $destParent = Split-Path -Parent $dest
+    if (-not [string]::IsNullOrWhiteSpace($destParent) -and -not (Test-Path -LiteralPath $destParent)) {
+        Write-Info "Creating parent directory: $destParent"
+        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $destParent -Force | Out-Null }
+    }
+
+    if ($srcIsDir) { New-DirectoryLink -path $dest -target $srcPath }
+    else { New-FileLink -path $dest -target $srcPath }
+}
+
+# -----------------------
+# Link Map
+# -----------------------
+$linkMap = @{
+    ($PROFILE.CurrentUserAllHosts) = '.\Profile.ps1'
+    (Join-Path $HOME '.config/starship.toml') = (Join-Path $HOME 'dotfiles\config\starship.toml')
+    (Join-Path $HOME '.gitconfig') = '.\git\config'
+    (Join-Path $HOME '.ideavimrc') = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
+    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = '.\terminal\settings.json'
+    (Join-Path $env:LOCALAPPDATA 'direnv') = (Join-Path $HOME 'dotfiles\config\direnv')
+    (Join-Path $env:LOCALAPPDATA 'fastfetch') = '.\fastfetch'
+    (Join-Path $env:LOCALAPPDATA 'lazygit') = (Join-Path $HOME 'dotfiles\config\lazygit')
+    (Join-Path $env:LOCALAPPDATA 'nvim') = (Join-Path $HOME 'dotfiles\config\lazyvim')
+    (Join-Path $env:APPDATA '.spacemacs.d\config') = (Join-Path $HOME 'dotfiles\spacemacs\config')
+    (Join-Path $env:APPDATA '.spacemacs.d\init.el') = (Join-Path $HOME 'dotfiles\spacemacs\spacemacs_full')
+    (Join-Path $env:APPDATA 'gitui') = (Join-Path $HOME 'dotfiles\config\gitui')
+    (Join-Path $env:APPDATA 'helix') = (Join-Path $HOME 'dotfiles\config\helix')
+    (Join-Path $env:APPDATA 'yazi\config') = (Join-Path $HOME 'dotfiles\config\yazi')
+}
+
+function Create-Links {
+    if ($SkipLinks) { Write-Info 'Skipping link creation.'; return }
+    Write-Info 'Creating configuration links...'
+    foreach ($kvp in $linkMap.GetEnumerator()) {
+        Write-Info "Link: $($kvp.Key) -> $($kvp.Value)"
+        Ensure-Link -dest $kvp.Key -src $kvp.Value
+    }
+    Write-Info 'Link creation step complete.'
+}
+
+# -----------------------
+# Execution
+# -----------------------
+try {
+    if (-not (Test-IsAdmin)) {
+        Write-Warn 'Not running as Administrator. Some installs or links may require elevation.'
+    }
+    Install-Packages
+    Install-PowerShellModules
+    Create-Links
+    Write-Info 'Script completed successfully.'
+} catch {
+    Write-Err $_
+    exit 1
+}
