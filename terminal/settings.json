@@ -35,7 +35,11 @@
     {
         "defaults": 
         {
-            "colorScheme": "GruvboxDark"
+            "colorScheme": "GruvboxDark",
+            "font": 
+            {
+                "face": "JetBrainsMono Nerd Font Mono"
+            }
         },
         "list": 
         [

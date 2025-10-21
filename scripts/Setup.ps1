@@ -14,6 +14,7 @@
 param(
     [switch]$SkipPackages,
     [switch]$SkipLinks,
+    [switch]$SkipFonts,
     [switch]$DryRun,
     [switch]$Force,
     [switch]$InstallSpacemacs
@@ -21,6 +22,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$env:TOOLS = Join-Path $HOME 'local/tools'
 
 function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
 function Write-Warn($msg) { Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
@@ -104,6 +106,28 @@ function Install-Packages {
     }
 
     Write-Info 'Package installation step complete.'
+}
+
+# ================================================================
+# Download and install fonts
+# ================================================================
+function Clone-AndInstall {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [string]$RepoUrl
+    )
+
+    $dest = Join-Path $env:TOOLS $Name
+    if (-not (Test-Path $dest)) {
+        Write-Host "Cloning $Name..."
+        git clone --depth=1 "$RepoUrl" "$dest" | Out-Null
+    }
+
+    Write-Host "Installing fonts from $dest..."
+    & powershell -ExecutionPolicy Bypass -File install_fonts.ps1 -fontFolder $dest | Out-Null
 }
 
 # -----------------------
@@ -227,6 +251,25 @@ function Create-Links {
 }
 
 # -----------------------
+# Fonts Map
+# -----------------------
+$fontsMap = @{
+    ("nerd-fonts") = "https://github.com/ryanoasis/nerd-fonts.git"
+    ("powerline-fonts") = "https://github.com/powerline/fonts.git"
+    ("icons-fonts") = "https://github.com/sebastiencs/icons-in-terminal.git"
+    ("all-icons-fonts") = "https://github.com/domtronn/all-the-icons.el.git"
+  }
+
+function Download-And-Install-Fonts {
+  if ($SkipFonts) { Write-Info 'Skipping fonts installation.'; return }
+  Write-Info 'Downloading and installing fonts...'
+    foreach ($kvp in $fontsMap.GetEnumerator()) {
+      Clone-AndInstall -Name $kvp.Key -RepoUrl $kvp.Value
+    }
+  Write-Info 'Font installation step complete.'
+}
+
+# -----------------------
 # Execution
 # -----------------------
 try {
@@ -236,9 +279,9 @@ try {
     Install-Packages
     Install-PowerShellModules
     Create-Links
+    Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
 } catch {
     Write-Err $_
     exit 1
 }
-
