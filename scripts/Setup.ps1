@@ -47,6 +47,38 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 function RepoPath([string]$Relative) { return (Join-Path $RepoRoot $Relative) }
 
 # -----------------------
+# System Settings
+# -----------------------
+function Enable-LongPaths {
+    try {
+        Write-Info 'Enabling Win32 long paths support...'
+        Invoke-IfNotDryRun { New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWord -Force | Out-Null }
+    } catch {
+        Write-Warn 'Failed to enable long paths; try running as Administrator.'
+    }
+}
+
+function Ensure-HomeEnv {
+    try {
+        $desired = if (-not [string]::IsNullOrWhiteSpace($HOME)) { $HOME } else { $env:USERPROFILE }
+        if ([string]::IsNullOrWhiteSpace($desired)) { Write-Warn 'Unable to determine a value for HOME.'; return }
+
+        $currentUserHome = [Environment]::GetEnvironmentVariable('HOME', 'User')
+        if ($currentUserHome -ne $desired) {
+            Write-Info "Setting user environment variable HOME=$desired"
+            Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('HOME', $desired, 'User') }
+        } else {
+            Write-Info 'HOME already set at user scope.'
+        }
+
+        # Ensure current process sees it too
+        $env:HOME = $desired
+    } catch {
+        Write-Warn 'Failed to set HOME environment variable.'
+    }
+}
+
+# -----------------------
 # Package Installation
 # -----------------------
 function Install-Packages {
@@ -73,8 +105,8 @@ function Install-Packages {
 
     # Scoop apps and buckets
     $scoopBuckets = @('extras')
-    $scoopApps1   = @('activitywatch', 'autohotkey', 'emacs', 'kanata', 'komokana', 'komorebi', 'lua', 'mupdf', 'winrar', 'yasb')
-    $scoopApps2   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'gzip', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
+    $scoopAppsMain   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'gzip', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
+    $scoopAppsExtras   = @('activitywatch', 'autohotkey', 'emacs', 'kanata', 'komokana', 'komorebi', 'lua', 'mupdf', 'winrar', 'television', 'yasb', 'gitu')
 
     if (Test-Command 'scoop') {
         Write-Info 'Ensuring scoop buckets and apps are installed...'
@@ -82,13 +114,13 @@ function Install-Packages {
             Write-Info "scoop bucket add $b"
             Invoke-IfNotDryRun { scoop bucket add $b } | Out-Null
         }
-        if ($scoopApps1.Count -gt 0) {
-            Write-Info ("scoop install " + ($scoopApps1 -join ' '))
-            Invoke-IfNotDryRun { scoop install $scoopApps1 } | Out-Null
+        if ($scoopAppsMain.Count -gt 0) {
+            Write-Info ("scoop install " + ($scoopAppsMain -join ' '))
+            Invoke-IfNotDryRun { scoop install $scoopAppsMain } | Out-Null
         }
-        if ($scoopApps2.Count -gt 0) {
-            Write-Info ("scoop install " + ($scoopApps2 -join ' '))
-            Invoke-IfNotDryRun { scoop install $scoopApps2 } | Out-Null
+        if ($scoopAppsExtras.Count -gt 0) {
+            Write-Info ("scoop install " + ($scoopAppsExtras -join ' '))
+            Invoke-IfNotDryRun { scoop install $scoopAppsExtras } | Out-Null
         }
     } else {
         Write-Warn 'scoop not found; skipping scoop apps.'
@@ -233,11 +265,14 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'fastfetch') = (RepoPath 'fastfetch')
     (Join-Path $env:LOCALAPPDATA 'lazygit') = (Join-Path $HOME 'dotfiles\config\lazygit')
     (Join-Path $env:LOCALAPPDATA 'nvim') = (Join-Path $HOME 'dotfiles\config\lazyvim')
+    (Join-Path $env:LOCALAPPDATA 'television\config\config.toml') = (Join-Path $HOME 'dotfiles\config\television\config.toml')
     (Join-Path $env:APPDATA '.spacemacs.d\config') = (Join-Path $HOME 'dotfiles\spacemacs\config')
     (Join-Path $env:APPDATA '.spacemacs.d\init.el') = (Join-Path $HOME 'dotfiles\spacemacs\spacemacs_full')
+    (Join-Path $env:APPDATA 'gitu') = (Join-Path $HOME 'dotfiles\config\gitu')
     (Join-Path $env:APPDATA 'gitui') = (Join-Path $HOME 'dotfiles\config\gitui')
     (Join-Path $env:APPDATA 'helix') = (Join-Path $HOME 'dotfiles\config\helix')
     (Join-Path $env:APPDATA 'yazi\config') = (Join-Path $HOME 'dotfiles\config\yazi')
+    (Join-Path $env:APPDATA 'Zed') = (Join-Path $HOME 'dotfiles\config\zed')
 }
 
 function Create-Links {
@@ -276,6 +311,8 @@ try {
     if (-not (Test-IsAdmin)) {
         Write-Warn 'Not running as Administrator. Some installs or links may require elevation.'
     }
+    Enable-LongPaths
+    Ensure-HomeEnv
     Install-Packages
     Install-PowerShellModules
     Create-Links
