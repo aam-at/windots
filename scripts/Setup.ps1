@@ -328,6 +328,7 @@ function Ensure-Link($dest, $src) {
 # -----------------------
 $linkMap = @{
     ($PROFILE.CurrentUserAllHosts) = (RepoPath 'scripts\Profile.ps1')
+    (Join-Path $HOME '.config\yasb') = (RepoPath 'yasb')
     (Join-Path $HOME '.gitconfig') = (RepoPath 'git\config')
     (Join-Path $HOME '.ideavimrc') = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
     (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = (RepoPath 'terminal\settings.json')
