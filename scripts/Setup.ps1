@@ -210,6 +210,33 @@ function Ensure-KomorebiStartupPath {
 }
 
 # -----------------------
+# YASB Startup
+# -----------------------
+function Ensure-YasbStartup {
+    try {
+        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+        $name = 'YASB'
+
+        $exePath = $null
+        foreach ($candidate in @('yasb', 'yasb.exe')) {
+            $c = Get-Command $candidate -ErrorAction SilentlyContinue
+            if ($c -and $c.Path) { $exePath = $c.Path; break }
+        }
+
+        if (-not $exePath) {
+            Write-Warn 'yasb executable not found on PATH; skipping startup entry.'
+            return
+        }
+
+        $cmdLine = '"{0}"' -f $exePath
+        Write-Info "Configuring startup: $name -> $cmdLine"
+        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
+    } catch {
+        Write-Warn 'Failed to configure YASB startup entry.'
+    }
+}
+
+# -----------------------
 # Kanata Startup
 # -----------------------
 function Ensure-KanataStartup {
@@ -372,6 +399,7 @@ try {
     Install-PowerShellModules
     Create-Links
     Ensure-KomorebiStartupPath
+    Ensure-YasbStartup
     Ensure-KanataStartup
     Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
