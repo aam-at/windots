@@ -12,34 +12,34 @@ bars:
     class_name: "yasb-bar"
     animation:
       enabled: true
-      duration: 800
+      duration: 600
     alignment:
       position: "top"
-      center: false
+      center: true
     blur_effect:
-      enabled: false
+      enabled: true
     window_flags:
       always_on_top: false
       windows_app_bar: true
     dimensions:
       width: "100%"
-      height: 40
+      height: 38
     padding:
       top: 0
-      left: 20
-      bottom: -9
-      right: 20
+      left: 18
+      bottom: -8
+      right: 18
     widgets:
       left: ["komorebi_workspaces", "taskbar"]
       center: ["active_window"]
-      right: ["systray", "volume", "language", "clock", "notifications"]
+      right: ["wifi", "volume", "language", "clock", "notifications", "systray"]
 widgets:
   wifi:
     type: "yasb.wifi.WifiWidget"
     options:
       label: "<span>{wifi_icon}</span>"
       label_alt: "{wifi_name} {wifi_strength}%"
-      update_interval: 5000
+      update_interval: 4000
       callbacks:
         on_left: "toggle_label"
       wifi_icons: [
@@ -52,8 +52,8 @@ widgets:
   clock:
     type: "yasb.clock.ClockWidget"
     options:
-      label: "{%b %d, %H:%M}"
-      label_alt: "{%A, %d %B %Y %H:%M}"
+      label: "{%a, %d %b  %H:%M}"
+      label_alt: "{%A, %d %B %Y %H:%M:%S}"
       tooltip: false
       timezones: []
       callbacks:
@@ -61,16 +61,13 @@ widgets:
       calendar:
         blur: true
         round_corners: true
-        border_color: None
+        border_color: "system"
         distance: 4
         alignment: "left"
   komorebi_workspaces:
     type: "komorebi.workspaces.WorkspaceWidget"
     options:
-      label_offline: "Komorebi Offline"
-      label_workspace_btn: ""
-      label_workspace_active_btn: ""
-      label_workspace_populated_btn: ""
+      label_offline: ""
       label_default_name: "{index}"
       label_zero_index: false
       hide_empty_workspaces: false
@@ -144,7 +141,7 @@ widgets:
         on_middle: "do_nothing"
         on_right: "toggle_label"
       language_menu:
-        blur: false
+        blur: true
         round_corners: true
         round_corners_type: "normal"
         border_color: "system"
@@ -157,15 +154,16 @@ widgets:
       label_shadow:
         enabled: true
         color: "black"
-        radius: 3
+        radius: 2
         offset: [1, 1]
+
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
     options:
-      icon_size: 16
+      icon_size: 18
       animation:
         enabled: true
-        duration: 200
+        duration: 250
         type: "fadeInOut"
       title_label:
         enabled: false
@@ -178,10 +176,9 @@ widgets:
         classes: []
       container_padding:
         top: 0
-        left: 8
+        left: 6
         bottom: 0
-        right: 8
-        active_window:
+        right: 6
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
     options:
@@ -196,19 +193,15 @@ widgets:
       label_shadow:
         enabled: true
         color: "black"
-        radius: 3
+        radius: 2
         offset: [1, 1]
       rewrite:
         - pattern: "^(.+?)\\.exe$"
           replacement: "\\1"
           case: lower
         - pattern: "(.*)zen(.*)$"
-          replacement: "browser \\2"
-        - pattern: "(.*)applicationframehost(.*)$"
-          replacement: "notepad \\2"
-        - pattern: "(.*)microsoft.cmdpal.ui(.*)$"
-          replacement: "Drun \\2"
+          replacement: "Browser"
         - pattern: "(.*)imageglass(.*)$"
-          replacement: "Photos \\2"
+          replacement: "Photos"
         - pattern: "(.*)robloxplayerbeta(.*)$"
-          replacement: "Roblox \\2"
+          replacement: "Roblox"
