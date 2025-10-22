@@ -16,8 +16,7 @@ param(
     [switch]$SkipLinks,
     [switch]$SkipFonts,
     [switch]$DryRun,
-    [switch]$Force,
-    [switch]$InstallSpacemacs
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -90,7 +89,7 @@ function Install-Packages {
         'GnuPG.Gpg4win', 'Google.Chrome', 'HandBrake.HandBrake', 'Helix.Helix', 'Hunspell', 'MSYS2.MSYS2',
         'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.Sysinternals.Suite', 'Microsoft.VisualStudioCode',
         'Microsoft.WindowsTerminal', 'Neovim.Neovim', 'Notepad++', 'OpenJS.NodeJS.LTS', 'VideoLAN.VLC',
-        'qtpass', 'vim.vim', 'winfsp'
+        'qtpass', 'vim.vim', 'winfsp', 'LGUG2Z.masir'
     )
 
     if (Test-Command 'winget') {
@@ -105,8 +104,8 @@ function Install-Packages {
 
     # Scoop apps and buckets
     $scoopBuckets = @('extras')
-    $scoopAppsMain   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'gzip', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
-    $scoopAppsExtras   = @('activitywatch', 'autohotkey', 'emacs', 'kanata', 'komokana', 'komorebi', 'lua', 'mupdf', 'winrar', 'television', 'yasb', 'gitu')
+    $scoopAppsMain   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'glow', 'gzip', 'lua', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
+    $scoopAppsExtras   = @('activitywatch', 'autohotkey', 'gitu', 'kanata', 'komokana', 'komorebi', 'mupdf', 'television', 'winrar', 'yasb', 'zed')
 
     if (Test-Command 'scoop') {
         Write-Info 'Ensuring scoop buckets and apps are installed...'
@@ -124,17 +123,6 @@ function Install-Packages {
         }
     } else {
         Write-Warn 'scoop not found; skipping scoop apps.'
-    }
-
-    if ($InstallSpacemacs) {
-        if (-not (Test-Command 'git')) { Write-Warn 'git not found; skip Spacemacs clone.' }
-        else {
-            $dest = Join-Path $env:APPDATA '.emacs.d'
-            if (-not (Test-Path -LiteralPath $dest)) {
-                Write-Info "Cloning Spacemacs to $dest"
-                Invoke-IfNotDryRun { git clone https://github.com/aam-at/spacemacs $dest }
-            } else { Write-Info "Spacemacs already present at $dest" }
-        }
     }
 
     Write-Info 'Package installation step complete.'
@@ -191,6 +179,88 @@ function Install-PowerShellModules {
         } else {
             Write-Info "PS module already available: $psModule"
         }
+    }
+}
+
+# -----------------------
+# Startup Apps
+# -----------------------
+function Ensure-KomorebiStartup {
+    try {
+        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+        $name = 'Komorebic'
+        $exePath = Join-Path $env:USERPROFILE 'scoop\shims\komorebic-no-console.exe'
+        $cmd = '%USERPROFILE%\scoop\shims\komorebic-no-console.exe start --bar --ahk --masir'
+
+        if (-not (Test-Path -LiteralPath $exePath)) {
+            Write-Warn "komorebic shim not found at $exePath; creating startup entry anyway."
+        }
+
+        Write-Info "Configuring startup: $name"
+        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmd -PropertyType ExpandString -Force | Out-Null }
+    } catch {
+        Write-Warn 'Failed to configure Komorebi startup entry.'
+    }
+}
+
+function Ensure-KomorebiStartupPath {
+    try {
+        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+        $name = 'Komorebic'
+
+        $exePath = $null
+        foreach ($candidate in @('komorebic-no-console','komorebic')) {
+            $c = Get-Command $candidate -ErrorAction SilentlyContinue
+            if ($c -and $c.Path) { $exePath = $c.Path; break }
+        }
+
+        if (-not $exePath) {
+            Write-Warn 'komorebic executable not found on PATH; skipping startup entry.'
+            return
+        }
+
+        $cmdLine = '"{0}" start --bar --ahk --masir' -f $exePath
+        Write-Info "Configuring startup: $name -> $cmdLine"
+        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
+    } catch {
+        Write-Warn 'Failed to configure Komorebi startup entry.'
+    }
+}
+
+# -----------------------
+# Kanata Startup
+# -----------------------
+function Ensure-KanataStartup {
+    try {
+        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+        $name = 'Kanata'
+
+        $exePath = $null
+        foreach ($candidate in @('kanata_gui','kanata-gui','kanata')) {
+            $c = Get-Command $candidate -ErrorAction SilentlyContinue
+            if ($c -and $c.Path) { $exePath = $c.Path; break }
+        }
+
+        if (-not $exePath) {
+            Write-Warn 'kanata executable not found on PATH; skipping startup entry.'
+            return
+        }
+
+        $cfg = Join-Path $RepoRoot 'kanata\config.kbd'
+        if ((-not (Test-Path -LiteralPath $cfg)) -and $DebugPreference) {
+            Write-Warn "kanata config not found at $cfg; proceeding without -c argument."
+        }
+
+        if ($exePath -match 'kanata_gui|kanata-gui') {
+            $cmdLine = '"{0}"' -f $exePath
+        } else {
+            $cmdLine = if (Test-Path -LiteralPath $cfg) { '"{0}" -c "{1}"' -f $exePath, $cfg } else { '"{0}"' -f $exePath }
+        }
+
+        Write-Info "Configuring startup: $name -> $cmdLine"
+        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
+    } catch {
+        Write-Warn 'Failed to configure Kanata startup entry.'
     }
 }
 
@@ -266,8 +336,6 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'lazygit') = (Join-Path $HOME 'dotfiles\config\lazygit')
     (Join-Path $env:LOCALAPPDATA 'nvim') = (Join-Path $HOME 'dotfiles\config\lazyvim')
     (Join-Path $env:LOCALAPPDATA 'television\config\config.toml') = (Join-Path $HOME 'dotfiles\config\television\config.toml')
-    (Join-Path $env:APPDATA '.spacemacs.d\config') = (Join-Path $HOME 'dotfiles\spacemacs\config')
-    (Join-Path $env:APPDATA '.spacemacs.d\init.el') = (Join-Path $HOME 'dotfiles\spacemacs\spacemacs_full')
     (Join-Path $env:APPDATA 'gitu') = (Join-Path $HOME 'dotfiles\config\gitu')
     (Join-Path $env:APPDATA 'gitui') = (Join-Path $HOME 'dotfiles\config\gitui')
     (Join-Path $env:APPDATA 'helix') = (Join-Path $HOME 'dotfiles\config\helix')
@@ -289,11 +357,14 @@ function Create-Links {
 # Fonts Map
 # -----------------------
 $fontsMap = @{
-    ("nerd-fonts") = "https://github.com/ryanoasis/nerd-fonts.git"
-    ("powerline-fonts") = "https://github.com/powerline/fonts.git"
-    ("icons-fonts") = "https://github.com/sebastiencs/icons-in-terminal.git"
-    ("all-icons-fonts") = "https://github.com/domtronn/all-the-icons.el.git"
-  }
+  "nerd-fonts" = "https://github.com/ryanoasis/nerd-fonts.git"
+  "iawriter-fonts" = "https://github.com/iaolo/iA-Fonts.git"
+  "powerline-fonts" = "https://github.com/powerline/fonts.git"
+  "icons-fonts" = "https://github.com/sebastiencs/icons-in-terminal.git"
+  "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
+  "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
+  "adobe-fonts" = "https://github.com/adobe-fonts/source-code-pro.git"
+}
 
 function Download-And-Install-Fonts {
   if ($SkipFonts) { Write-Info 'Skipping fonts installation.'; return }
@@ -316,6 +387,8 @@ try {
     Install-Packages
     Install-PowerShellModules
     Create-Links
+    Ensure-KomorebiStartupPath
+    Ensure-KanataStartup
     Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
 } catch {
