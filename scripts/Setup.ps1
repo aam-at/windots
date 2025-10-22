@@ -89,7 +89,7 @@ function Install-Packages {
         'GnuPG.Gpg4win', 'Google.Chrome', 'HandBrake.HandBrake', 'Helix.Helix', 'Hunspell', 'MSYS2.MSYS2',
         'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.Sysinternals.Suite', 'Microsoft.VisualStudioCode',
         'Microsoft.WindowsTerminal', 'Neovim.Neovim', 'Notepad++', 'OpenJS.NodeJS.LTS', 'VideoLAN.VLC',
-        'qtpass', 'vim.vim', 'winfsp', 'LGUG2Z.masir'
+        'qtpass', 'vim.vim', 'wez.wezterm', 'winfsp', 'LGUG2Z.masir'
     )
 
     if (Test-Command 'winget') {
