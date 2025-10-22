@@ -260,11 +260,7 @@ function Ensure-KanataStartup {
             Write-Warn "kanata config not found at $cfg; proceeding without -c argument."
         }
 
-        if ($exePath -match 'kanata_gui|kanata-gui') {
-            $cmdLine = '"{0}"' -f $exePath
-        } else {
-            $cmdLine = if (Test-Path -LiteralPath $cfg) { '"{0}" -c "{1}"' -f $exePath, $cfg } else { '"{0}"' -f $exePath }
-        }
+        $cmdLine = if (Test-Path -LiteralPath $cfg) { '"{0}" -c "{1}"' -f $exePath, $cfg } else { '"{0}"' -f $exePath }
 
         Write-Info "Configuring startup: $name -> $cmdLine"
         Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
