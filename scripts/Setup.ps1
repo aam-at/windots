@@ -358,13 +358,13 @@ function Create-Links {
 # Fonts Map
 # -----------------------
 $fontsMap = @{
-  "nerd-fonts" = "https://github.com/ryanoasis/nerd-fonts.git"
-  "iawriter-fonts" = "https://github.com/iaolo/iA-Fonts.git"
-  "powerline-fonts" = "https://github.com/powerline/fonts.git"
-  "icons-fonts" = "https://github.com/sebastiencs/icons-in-terminal.git"
-  "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
-  "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
   "adobe-fonts" = "https://github.com/adobe-fonts/source-code-pro.git"
+  "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
+  "iawriter-fonts" = "https://github.com/iaolo/iA-Fonts.git"
+  "icons-fonts" = "https://github.com/sebastiencs/icons-in-terminal.git"
+  "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
+  "nerd-fonts" = "https://github.com/ryanoasis/nerd-fonts.git"
+  "powerline-fonts" = "https://github.com/powerline/fonts.git"
 }
 
 function Download-And-Install-Fonts {

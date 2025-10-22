@@ -9,12 +9,6 @@
   "border_width": 2,
   "border_offset": 0,
   "mouse_follows_focus": false,
-  "theme": {
-    "palette": "Base16",
-    "name": "TokyoNightDark",
-    "unfocused_border": "Base03",
-    "bar_accent": "Base0D"
-  },
   "border_colours": {
     "single": {
       "r": 22,
