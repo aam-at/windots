@@ -1,0 +1,110 @@
+(defcfg
+  concurrent-tap-hold yes
+  process-unmapped-keys yes
+)
+
+(defvar
+ tt 200
+ ht 200
+ left-hand-keys (
+   q w e r t
+   a s d f g
+   z x c v b
+   )
+ right-hand-keys (
+   y u i o p
+   h j k l ;
+   n m , . /
+   )
+ )
+
+(defsrc
+  esc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+;; Base layer
+(deflayermap (base)
+  grv @grl
+;;  caps @cap
+;;  esc caps
+  tab @tab
+;;  a @a
+;;  s @s
+;;  d @d
+;;  f @f
+;;  j @j
+;;  k @k
+;;  l @l
+;;  ; @;
+)
+
+;; No mods layer
+(deflayermap (nomods)
+  grv @grl
+  ;; caps @cap
+  ;; esc caps
+  tab @tab
+  a a
+  s s
+  d d
+  f f
+  j j
+  k k
+  l l
+  ; ;
+)
+
+;; Komorebi quick nav layer
+(deflayermap (komorebi)
+  h left
+  j down
+  k up
+  l right
+  q q
+)
+
+;; Extend general layer
+(deflayermap extend
+  r lrld
+  u C-S-tab
+  i C-tab
+  h left
+  j down
+  k up
+  l right
+  n home
+  m pgdn
+  , pgup
+  . end
+)
+;; Aliases for common actions
+(deffakekeys
+  to-base (layer-switch base)
+)
+(defalias
+  ;; tap: backtick (grave), hold: toggle switching to Komorebi nav layer
+  grl (tap-hold $tt $ht grv (multi (layer-while-held komorebi) lmet))
+  ;; tap: tab (grave), hold: toggle switching to extend layer
+  tab (tap-hold $tt $ht tab (layer-while-held extend))
+  ;; tap for capslk, hold for lctl
+  cap (tap-hold-press $tt $ht esc lctl)
+
+  ;; home row mode based on https://github.com/jtroo/kanata/blob/main/cfg_samples/home-row-mod-advanced.kbd
+  tap (multi
+    (layer-switch nomods)
+    (on-idle-fakekey to-base tap 20)
+    )
+  a (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi a @tap) lmet $left-hand-keys) break)
+  s (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi s @tap) lalt $left-hand-keys) break)
+  d (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi d @tap) lctl $left-hand-keys) break)
+  f (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi f @tap) lsft $left-hand-keys) break)
+  j (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi j @tap) rsft $right-hand-keys) break)
+  k (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi k @tap) rctl $right-hand-keys) break)
+  l (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi l @tap) ralt $right-hand-keys) break)
+  ; (switch ((key-timing 1 less-than $tt)) _ break () (tap-hold-release-keys $tt $ht (multi ; @tap) rmet $right-hand-keys) break)
+  )
