@@ -185,24 +185,6 @@ function Install-PowerShellModules {
 # -----------------------
 # Startup Apps
 # -----------------------
-function Ensure-KomorebiStartup {
-    try {
-        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-        $name = 'Komorebic'
-        $exePath = Join-Path $env:USERPROFILE 'scoop\shims\komorebic-no-console.exe'
-        $cmd = '%USERPROFILE%\scoop\shims\komorebic-no-console.exe start --bar --ahk --masir'
-
-        if (-not (Test-Path -LiteralPath $exePath)) {
-            Write-Warn "komorebic shim not found at $exePath; creating startup entry anyway."
-        }
-
-        Write-Info "Configuring startup: $name"
-        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmd -PropertyType ExpandString -Force | Out-Null }
-    } catch {
-        Write-Warn 'Failed to configure Komorebi startup entry.'
-    }
-}
-
 function Ensure-KomorebiStartupPath {
     try {
         $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -219,7 +201,7 @@ function Ensure-KomorebiStartupPath {
             return
         }
 
-        $cmdLine = '"{0}" start --bar --ahk --masir' -f $exePath
+        $cmdLine = '"{0}" start --ahk --masir' -f $exePath
         Write-Info "Configuring startup: $name -> $cmdLine"
         Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
     } catch {
