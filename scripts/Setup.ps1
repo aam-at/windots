@@ -85,11 +85,11 @@ function Install-Packages {
 
     # Winget apps (install per-ID for clearer output and retries)
     $wingetApps = @(
-        'Dropbox.Dropbox', 'FarManager.FarManager', 'Ghisler.TotalCommander', 'Git.Git', 'GnuPG.GnuPG',
-        'GnuPG.Gpg4win', 'Google.Chrome', 'HandBrake.HandBrake', 'Helix.Helix', 'Hunspell', 'MSYS2.MSYS2',
-        'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.Sysinternals.Suite', 'Microsoft.VisualStudioCode',
-        'Microsoft.WindowsTerminal', 'Neovim.Neovim', 'Notepad++', 'OpenJS.NodeJS.LTS', 'VideoLAN.VLC',
-        'qtpass', 'vim.vim', 'wez.wezterm', 'winfsp', 'LGUG2Z.masir'
+        'Bitwarden.Bitwarden', 'Bitwarden.CLI', 'Dropbox.Dropbox', 'FarManager.FarManager', 'Ghisler.TotalCommander',
+        'Git.Git', 'GnuPG.GnuPG', 'GnuPG.Gpg4win', 'Google.Chrome', 'HandBrake.HandBrake', 'Helix.Helix', 'Hunspell',
+        'LGUG2Z.masir', 'MSYS2.MSYS2', 'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.Sysinternals.Suite',
+        'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'Neovim.Neovim', 'Notepad++', 'OpenJS.NodeJS.LTS',
+        'VideoLAN.VLC', 'WinFsp.WinFsp', 'jtroo.kanata_gui', 'qtpass', 'vim.vim', 'wez.wezterm'
     )
 
     if (Test-Command 'winget') {
@@ -104,8 +104,8 @@ function Install-Packages {
 
     # Scoop apps and buckets
     $scoopBuckets = @('extras')
-    $scoopAppsMain   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gitui', 'glow', 'gzip', 'lua', 'ripgrep', 'sed', 'sqlite', 'starship', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
-    $scoopAppsExtras   = @('activitywatch', 'autohotkey', 'gitu', 'kanata', 'komokana', 'komorebi', 'mupdf', 'television', 'winrar', 'yasb', 'zed')
+    $scoopAppsMain   = @('7zip', 'ag', 'aspell', 'bat', 'curl', 'delta', 'direnv', 'dust', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gdu', 'gitui', 'glow', 'gzip', 'lua', 'ripgrep', 'sed', 'sqlite', 'starship', 'tealdeer', 'tectonic', 'texlab', 'wget', 'yazi', 'yt-dlp')
+    $scoopAppsExtras   = @('activitywatch', 'autohotkey', 'gitu', 'komokana', 'komorebi', 'mupdf', 'television', 'winrar', 'yasb', 'zed')
 
     if (Test-Command 'scoop') {
         Write-Info 'Ensuring scoop buckets and apps are installed...'
