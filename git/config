@@ -1,8 +1,13 @@
+[include]
+    path = ~/.config/theme/delta.gitconfig
 [core]
     editor = nvim
     filemode = false
     autocrlf = input
     pager = delta
+    fsmonitor = true
+[feature]
+    manyFiles = true
 [interactive]
     diffFilter = delta --color-only
 [delta]
@@ -10,7 +15,9 @@
     navigate = true
     side-by-side = true
 [merge]
-    conflictstyle = diff3
+    conflictstyle = zdiff3
+[rerere]
+    enabled = true
 [difftool]
     prompt = false
     trustExitCode = true
@@ -25,6 +32,7 @@
     textconv = sh -c 'pdftotext -layout -enc UTF-8 "$0" -'
 [push]
 	default = simple
+	autoSetupRemote = true
 [github]
 	user = alexander.matyasko@gmail.com
 [filter "lfs"]
