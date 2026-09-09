@@ -1,0 +1,17 @@
+{
+  "startup": true,
+  "enabled": {
+    "AlwaysOnTop": true,
+    "CmdPal": true,
+    "ColorPicker": true,
+    "FancyZones": false,
+    "File Explorer": true,
+    "File Locksmith": true,
+    "Peek": true,
+    "PowerRename": true,
+    "PowerToys Run": true,
+    "Shortcut Guide": true,
+    "TextExtractor": true,
+    "Workspaces": false
+  }
+}
