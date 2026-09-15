@@ -15,9 +15,11 @@ Windows dotfiles and setup scripts.
   distributions, PowerToys settings, and fonts. Once bootstrapped, you can
   re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1`
 
-- Run it elevated to install machine-scoped winget packages and enable long
-  paths. Existing non-link configuration paths are preserved unless `-Force`
-  is supplied. Use `-DryRun` to preview the setup without making changes.
+- Run it as a regular user; no need to launch it elevated. It prompts for UAC
+  approval only for the one step that needs admin rights (Developer Mode,
+  long paths, the agent power plan) and continues without it if you decline.
+  Existing non-link configuration paths are preserved unless `-Force` is
+  supplied. Use `-DryRun` to preview the setup without making changes.
 
 - The setup enables PowerToys FancyZones and Workspaces. Use
   `-SkipPowerToys` to leave existing PowerToys settings unchanged.

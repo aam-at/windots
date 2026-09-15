@@ -4,6 +4,9 @@
  - Installs common tools via winget and Scoop
  - Creates idempotent links to config files and folders
  - Safer fallbacks for link creation (junction/hardlink/copy)
+ Run as a regular user; it prompts for UAC approval only for the one
+ step that needs it (Developer Mode, long paths, the agent power
+ plan). Decline the prompt to skip just that step.
  Usage examples:
    pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1
    pwsh -File .\scripts\Setup.ps1 -SkipPackages
@@ -153,6 +156,36 @@ function Ensure-HomeEnv {
     }
 }
 
+function Invoke-ElevatedScript {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ScriptPath,
+
+        [hashtable]$Arguments = @{}
+    )
+
+    $argumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath)
+    foreach ($entry in $Arguments.GetEnumerator()) {
+        if ($entry.Value -is [switch] -or $entry.Value -is [bool]) {
+            if ($entry.Value) { $argumentList += "-$($entry.Key)" }
+        }
+        else {
+            $argumentList += "-$($entry.Key)", "$($entry.Value)"
+        }
+    }
+
+    $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
+
+    try {
+        $process = Start-Process -FilePath $shell.Source -ArgumentList $argumentList -Verb RunAs -Wait -PassThru
+        return $process.ExitCode -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
 function Configure-Registry {
     $registryScript = Join-Path $PSScriptRoot 'Configure-Registry.ps1'
     if (-not (Test-Path -LiteralPath $registryScript)) {
@@ -161,8 +194,16 @@ function Configure-Registry {
 
     $registryArgs = @{ LogLevel = $LogLevel }
     if ($DryRun) { $registryArgs['DryRun'] = $true }
+
     & $registryScript @registryArgs
     if (-not $?) { throw 'Registry configuration failed.' }
+
+    if (-not (Test-IsAdmin)) {
+        Write-Info 'Requesting administrator approval to enable Developer Mode, long paths, and the agent power plan...'
+        if (-not (Invoke-ElevatedScript -ScriptPath $registryScript -Arguments $registryArgs)) {
+            Write-Warn 'Admin-only registry and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
+        }
+    }
 }
 
 # -----------------------
@@ -538,9 +579,6 @@ function Install-Links {
 # Execution
 # -----------------------
 try {
-    if (-not (Test-IsAdmin)) {
-        Write-Warn 'Not running as Administrator. Some installs or links may require elevation.'
-    }
     Configure-Registry
     Ensure-HomeEnv
     Install-Packages
