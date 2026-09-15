@@ -8,6 +8,8 @@
    pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1
    pwsh -File .\scripts\Setup.ps1 -SkipPackages
    pwsh -File .\scripts\Setup.ps1 -DryRun
+   pwsh -File .\scripts\Setup.ps1 -LogLevel Debug
+   pwsh -File .\scripts\Setup.ps1 -DesktopMode Native
 =================================================================
 #>
 
@@ -18,30 +20,18 @@ param(
     [switch]$SkipPowerToys,
     [switch]$SkipEmacs,
     [switch]$DryRun,
-    [switch]$Force
+    [switch]$Force,
+    [ValidateSet('Native', 'Komorebi')]
+    [string]$DesktopMode = 'Native',
+    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
+    [string]$LogLevel = 'Info'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $env:TOOLS = Join-Path $HOME 'local/tools'
 
-function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
-function Write-Warn($msg) { Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
-function Write-Err ($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
-
-function Test-IsAdmin {
-    try {
-        $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-        return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch { return $false }
-}
-
-function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
-
-function Invoke-IfNotDryRun {
-    param([scriptblock]$Action)
-    if ($DryRun) { return } else { & $Action }
-}
+. (Join-Path $PSScriptRoot 'Common.ps1')
 
 function Invoke-NativeCommand {
     param(
@@ -49,18 +39,60 @@ function Invoke-NativeCommand {
         [string]$Description,
 
         [Parameter(Mandatory)]
-        [scriptblock]$Action
+        [scriptblock]$Action,
+
+        [int[]]$SuccessExitCodes = @(0)
     )
 
     if ($DryRun) { return $true }
 
-    & $Action
-    if ($LASTEXITCODE -ne 0) {
+    $nativeOutput = @(& $Action 2>&1)
+    if ($LASTEXITCODE -notin $SuccessExitCodes) {
+        $nativeOutput | Out-Host
         Write-Warn "$Description failed with exit code $LASTEXITCODE."
         return $false
     }
 
+    if (Test-LogLevel 'Debug') { $nativeOutput | Out-Host }
+
     return $true
+}
+
+function Install-WingetPackage {
+    param([Parameter(Mandatory)][string]$Id)
+
+    winget list -e --id $Id --accept-source-agreements *>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-DebugInfo "winget package is installed; checking for updates: $Id"
+        return Invoke-NativeCommand -Description "winget package update $Id" -SuccessExitCodes @(0, -1978335189) -Action {
+            winget upgrade -e --id $Id --silent --accept-source-agreements --accept-package-agreements
+        }
+    }
+
+    Write-Info "winget install -e --id $Id"
+    return Invoke-NativeCommand -Description "winget package $Id" -Action {
+        winget install -e --id $Id --silent --accept-source-agreements --accept-package-agreements
+    }
+}
+
+function Install-ScoopPackage {
+    param([Parameter(Mandatory)][string]$Name)
+
+    scoop prefix $Name *>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-DebugInfo "scoop package is installed; checking for updates: $Name"
+        return Invoke-NativeCommand -Description "Scoop package update $Name" -Action { scoop update $Name }
+    }
+
+    Write-Info "scoop install $Name"
+    return Invoke-NativeCommand -Description "Scoop package $Name" -Action { scoop install $Name }
+}
+
+function Install-BunPackage {
+    param([Parameter(Mandatory)][string]$Name)
+
+    Write-Info "bun add --global $Name"
+    return Invoke-NativeCommand -Description "Bun package $Name" -Action { bun add --global $Name }
 }
 
 # Resolve repo root regardless of invocation CWD
@@ -82,7 +114,8 @@ function Set-ObjectProperty {
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
-    } else {
+    }
+    else {
         $property.Value = $Value
     }
 }
@@ -102,47 +135,34 @@ function Merge-ObjectProperties {
             ($destinationProperty.Value -is [pscustomobject]) -and
             ($sourceProperty.Value -is [pscustomobject])) {
             Merge-ObjectProperties -Destination $destinationProperty.Value -Source $sourceProperty.Value
-        } else {
+        }
+        else {
             Set-ObjectProperty -Object $Destination -Name $sourceProperty.Name -Value $sourceProperty.Value
         }
     }
 }
 
-# -----------------------
-# System Settings
-# -----------------------
-function Enable-LongPaths {
-    if (-not (Test-IsAdmin)) {
-        Write-Warn 'Skipping Win32 long paths support; it requires an elevated session.'
-        return
+function Ensure-HomeEnv {
+    $currentUserHome = [Environment]::GetEnvironmentVariable('HOME', 'User')
+    if ($currentUserHome -ne $HOME) {
+        Write-Info "Setting user environment variable HOME=$HOME"
+        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('HOME', $HOME, 'User') }
     }
-
-    try {
-        Write-Info 'Enabling Win32 long paths support...'
-        Invoke-IfNotDryRun { New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWord -Force | Out-Null }
-    } catch {
-        Write-Warn 'Failed to enable long paths; try running as Administrator.'
+    else {
+        Write-Info 'HOME already set at user scope.'
     }
 }
 
-function Ensure-HomeEnv {
-    try {
-        $desired = if (-not [string]::IsNullOrWhiteSpace($HOME)) { $HOME } else { $env:USERPROFILE }
-        if ([string]::IsNullOrWhiteSpace($desired)) { Write-Warn 'Unable to determine a value for HOME.'; return }
-
-        $currentUserHome = [Environment]::GetEnvironmentVariable('HOME', 'User')
-        if ($currentUserHome -ne $desired) {
-            Write-Info "Setting user environment variable HOME=$desired"
-            Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('HOME', $desired, 'User') }
-        } else {
-            Write-Info 'HOME already set at user scope.'
-        }
-
-        # Ensure current process sees it too
-        $env:HOME = $desired
-    } catch {
-        Write-Warn 'Failed to set HOME environment variable.'
+function Configure-Registry {
+    $registryScript = Join-Path $PSScriptRoot 'Configure-Registry.ps1'
+    if (-not (Test-Path -LiteralPath $registryScript)) {
+        throw "Registry configuration script not found: $registryScript"
     }
+
+    $registryArgs = @{ LogLevel = $LogLevel }
+    if ($DryRun) { $registryArgs['DryRun'] = $true }
+    & $registryScript @registryArgs
+    if (-not $?) { throw 'Registry configuration failed.' }
 }
 
 # -----------------------
@@ -155,80 +175,99 @@ function Install-Packages {
 
     # Winget apps (install per-ID for clearer output and retries)
     $wingetApps = @(
-        'Dropbox.Dropbox', 'Hunspell', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
-        'Microsoft.Sysinternals.Suite', 'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'qtpass',
+        'DEVCOM.Lua', 'Dropbox.Dropbox', 'FSFhu.Hunspell', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
+        'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal',
         'WinFsp.WinFsp'
     )
 
     if (Test-Command 'winget') {
-        if (Test-IsAdmin) {
-            Write-Info 'Installing applications via winget...'
-            foreach ($id in $wingetApps) {
-                Write-Info "winget install -e --scope machine --id $id"
-                if (-not (Invoke-NativeCommand -Description "winget package $id" -Action { winget install -e --scope machine --id $id --silent --accept-source-agreements --accept-package-agreements | Out-Null })) {
-                    $packageFailures.Add("winget:$id")
-                }
+        Write-Info 'Installing applications via winget...'
+        foreach ($id in $wingetApps) {
+            if (-not (Install-WingetPackage -Id $id)) {
+                $packageFailures.Add("winget:$id")
             }
-        } else {
-            Write-Warn 'Skipping winget apps because --scope machine requires an elevated session.'
         }
-    } else {
+    }
+    else {
         Write-Warn 'winget not found; skipping winget apps.'
     }
 
-    if (-not (Test-Command 'scoop')) {
-        Write-Info 'Installing Scoop for the current user...'
-        Invoke-IfNotDryRun {
-            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-            Invoke-RestMethod -Uri 'https://get.scoop.sh' | Invoke-Expression
-        }
-    }
+    # Scoop is the primary package manager for portable applications. Run
+    # scripts\Bootstrap.ps1 first on a machine that doesn't have it yet.
 
-    # Scoop is the primary package manager for portable applications.
     $scoopBuckets = @('extras')
     $scoopAppsMain = @(
-        '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'claude-code', 'cmake', 'codex', 'curl',
+        '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'cmake', 'curl',
         'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gdu', 'gh', 'git', 'gitui',
-        'glow', 'gnupg', 'go', 'gping', 'gzip', 'helix', 'htop', 'httpie', 'jq', 'lsd', 'lua', 'mosh', 'msys2',
-        'navi', 'ncdu', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
-        'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'tealdeer', 'tectonic', 'texlab', 'tig',
-        'tar', 'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
+        'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'mosh-client', 'msys2',
+        'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
+        'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
+        'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
     )
     $scoopAppsExtras = @(
-        'activitywatch', 'autohotkey', 'bitwarden', 'emacs', 'googlechrome', 'gitu', 'gpg4win', 'handbrake', 'kanata',
+        'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'extras/chatgpt', 'extras/claude', 'emacs', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
         'komokana', 'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
-        'winrar', 'yasb', 'zed'
+        'quarto', 'winrar', 'yasb', 'zed'
+    )
+    $bunApps = @(
+        'antigravity-cli', 'copilot-cli', 'opencode-ai', 'oh-my-pi', 'pi-coding-agent',
+        '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest', '@marp-team/marp-cli',
+        '@openai/codex@latest', 'bibtex-tidy',
+        'dockerfile-language-server-nodejs', 'js-beautify', 'prettier',
+        'typescript', 'typescript-formatter', 'typescript-language-server', 'vim-language-server',
+        'vscode-json-languageserver', 'yaml-language-server'
     )
 
     if (Test-Command 'scoop') {
         Write-Info 'Ensuring scoop buckets and apps are installed...'
         foreach ($b in $scoopBuckets) {
             $bucketExists = (scoop bucket list | Out-String) -match "(?m)^$([regex]::Escape($b))\s"
+            $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
+            $bucketHealthy = (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\.git\config")) -and
+            (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\bucket"))
+            if ($bucketExists -and -not $bucketHealthy) {
+                Write-Warn "Scoop bucket $b is incomplete; recreating it."
+                if (-not (Invoke-NativeCommand -Description "Scoop bucket removal $b" -Action { scoop bucket rm $b })) {
+                    $packageFailures.Add("scoop bucket:$b")
+                    continue
+                }
+                $bucketExists = $false
+            }
             if (-not $bucketExists) {
                 Write-Info "scoop bucket add $b"
-                if (-not (Invoke-NativeCommand -Description "Scoop bucket $b" -Action { scoop bucket add $b | Out-Null })) {
+                if (-not (Invoke-NativeCommand -Description "Scoop bucket $b" -Action { scoop bucket add $b })) {
                     $packageFailures.Add("scoop bucket:$b")
                 }
             }
         }
         if ($scoopAppsMain.Count -gt 0) {
             foreach ($app in $scoopAppsMain) {
-                Write-Info "scoop install $app"
-                if (-not (Invoke-NativeCommand -Description "Scoop package $app" -Action { scoop install $app | Out-Null })) {
+                if (-not (Install-ScoopPackage -Name $app)) {
                     $packageFailures.Add("scoop:$app")
                 }
             }
         }
         if ($scoopAppsExtras.Count -gt 0) {
             foreach ($app in $scoopAppsExtras) {
-                Write-Info "scoop install $app"
-                if (-not (Invoke-NativeCommand -Description "Scoop package $app" -Action { scoop install $app | Out-Null })) {
+                if (-not (Install-ScoopPackage -Name $app)) {
                     $packageFailures.Add("scoop:$app")
                 }
             }
         }
-    } else {
-        Write-Warn 'scoop not found; skipping scoop apps.'
+
+        if (Test-Command 'bun') {
+            foreach ($app in $bunApps) {
+                if (-not (Install-BunPackage -Name $app)) {
+                    $packageFailures.Add("bun:$app")
+                }
+            }
+        }
+        else {
+            Write-Warn 'bun not found after Scoop installation; skipping Bun packages.'
+        }
+    }
+    else {
+        Write-Warn 'scoop not found; run scripts\Bootstrap.ps1 first. Skipping scoop apps.'
     }
 
     if ($packageFailures.Count -gt 0) {
@@ -262,7 +301,8 @@ function Configure-PowerToys {
         $template = Get-Content -Raw -LiteralPath $templatePath | ConvertFrom-Json
         if (Test-Path -LiteralPath $settingsPath) {
             $settings = Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
-        } else {
+        }
+        else {
             $settings = [pscustomobject]@{}
         }
 
@@ -282,7 +322,8 @@ function Configure-PowerToys {
         Write-Info 'Applying PowerToys productivity settings...'
         Invoke-IfNotDryRun { Set-Content -LiteralPath $settingsPath -Value $settingsJson -Encoding utf8 -NoNewline }
         Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'
-    } catch {
+    }
+    catch {
         Write-Warn "Failed to configure PowerToys: $_"
     }
 }
@@ -330,6 +371,10 @@ function Ensure-GitCheckout {
     return $true
 }
 
+function Install-Dotfiles {
+    [void](Ensure-GitCheckout -Name 'dotfiles' -Repository 'https://github.com/aam-at/dotfiles.git' -Destination (Join-Path $HOME 'dotfiles'))
+}
+
 function Install-EmacsDistributions {
     if ($SkipEmacs) { Write-Info 'Skipping Emacs distribution setup.'; return }
 
@@ -365,17 +410,18 @@ function Install-EmacsDistributions {
             throw "Doom profile launcher not found: $doomProfileScript"
         }
 
-        $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue
-        if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop }
+        $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
 
         Write-Info 'Installing Doom packages and generating its initial state...'
-        if (-not (Invoke-NativeCommand -Description 'Doom installation' -Action { & $shell.Source -NoProfile -ExecutionPolicy Bypass -File $doomProfileScript install })) {
+        if (-not (Invoke-NativeCommand -Description 'Doom installation' -Action { & $shell.Source -NoProfile -ExecutionPolicy Bypass -File $doomProfileScript install --force })) {
             throw 'Doom installation failed.'
         }
 
         New-Item -ItemType Directory -Path (Split-Path -Parent $doomMarker) -Force | Out-Null
         Set-Content -LiteralPath $doomMarker -Value 'Installed by windots Setup.ps1' -Encoding utf8 -NoNewline
-    } else {
+    }
+    else {
         Write-Info 'Doom initial installation already completed.'
     }
 
@@ -433,7 +479,8 @@ function Install-PowerShellModules {
             Write-Info 'Trusting PSGallery repository'
             Invoke-IfNotDryRun { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }
         }
-    } catch {
+    }
+    catch {
         Write-Warn 'PSGallery repository not found or PowerShellGet not loaded.'
     }
 
@@ -441,239 +488,50 @@ function Install-PowerShellModules {
         if (-not (Get-Module -ListAvailable -Name $psModule)) {
             Write-Info "Installing PS module: $psModule"
             Invoke-IfNotDryRun { Install-Module -Name $psModule -Force -AcceptLicense -Scope CurrentUser -Repository PSGallery }
-        } else {
+        }
+        else {
             Write-Info "PS module already available: $psModule"
         }
     }
 }
 
 # -----------------------
-# Startup Apps
-# -----------------------
-function Ensure-KomorebiStartupPath {
-    try {
-        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-        $name = 'Komorebic'
-
-        $exePath = $null
-        foreach ($candidate in @('komorebic-no-console','komorebic')) {
-            $c = Get-Command $candidate -ErrorAction SilentlyContinue
-            if ($c -and $c.Path) { $exePath = $c.Path; break }
-        }
-
-        if (-not $exePath) {
-            Write-Warn 'komorebic executable not found on PATH; skipping startup entry.'
-            return
-        }
-
-        $cmdLine = '"{0}" start --ahk --masir' -f $exePath
-        Write-Info "Configuring startup: $name -> $cmdLine"
-        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
-    } catch {
-        Write-Warn 'Failed to configure Komorebi startup entry.'
-    }
-}
-
-# -----------------------
-# YASB Startup
-# -----------------------
-function Ensure-YasbStartup {
-    try {
-        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-        $name = 'YASB'
-
-        $exePath = $null
-        foreach ($candidate in @('yasb', 'yasb.exe')) {
-            $c = Get-Command $candidate -ErrorAction SilentlyContinue
-            if ($c -and $c.Path) { $exePath = $c.Path; break }
-        }
-
-        if (-not $exePath) {
-            Write-Warn 'yasb executable not found on PATH; skipping startup entry.'
-            return
-        }
-
-        $cmdLine = '"{0}"' -f $exePath
-        Write-Info "Configuring startup: $name -> $cmdLine"
-        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
-    } catch {
-        Write-Warn 'Failed to configure YASB startup entry.'
-    }
-}
-
-# -----------------------
-# Kanata Startup
-# -----------------------
-function Ensure-KanataStartup {
-    try {
-        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-        $name = 'Kanata'
-
-        $exePath = $null
-        foreach ($candidate in @('kanata_gui','kanata-gui','kanata')) {
-            $c = Get-Command $candidate -ErrorAction SilentlyContinue
-            if ($c -and $c.Path) { $exePath = $c.Path; break }
-        }
-
-        if (-not $exePath) {
-            Write-Warn 'kanata executable not found on PATH; skipping startup entry.'
-            return
-        }
-
-        $cfg = Join-Path $RepoRoot 'kanata\config.kbd'
-        if ((-not (Test-Path -LiteralPath $cfg)) -and $DebugPreference) {
-            Write-Warn "kanata config not found at $cfg; proceeding without -c argument."
-        }
-
-        $cmdLine = if (Test-Path -LiteralPath $cfg) { '"{0}" -c "{1}"' -f $exePath, $cfg } else { '"{0}"' -f $exePath }
-
-        Write-Info "Configuring startup: $name -> $cmdLine"
-        Invoke-IfNotDryRun { New-ItemProperty -Path $runKey -Name $name -Value $cmdLine -PropertyType String -Force | Out-Null }
-    } catch {
-        Write-Warn 'Failed to configure Kanata startup entry.'
-    }
-}
-
-# -----------------------
-# Link Helpers
-# -----------------------
-function Remove-PathSafe($path) {
-    if (-not (Test-Path -LiteralPath $path)) { return $true }
-
-    $item = Get-Item -LiteralPath $path -Force
-    $isLink = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
-    if (-not $isLink -and -not $Force) {
-        Write-Warn "Existing path is not a link; preserving it. Re-run with -Force to replace: $path"
-        return $false
-    }
-
-    Write-Info "Removing existing path: $path"
-    Invoke-IfNotDryRun {
-        if ($isLink) { Remove-Item -LiteralPath $path -Force -ErrorAction Stop }
-        else { Remove-Item -LiteralPath $path -Force -Recurse -ErrorAction Stop }
-    }
-    return $true
-}
-
-function New-FileLink($path, $target) {
-    try {
-        Write-Info "Creating file symlink: $path -> $target"
-        Invoke-IfNotDryRun { New-Item -ItemType SymbolicLink -Path $path -Target $target -Force | Out-Null }
-    } catch {
-        try {
-            Write-Warn "Symlink failed; attempting hardlink: $path -> $target"
-            Invoke-IfNotDryRun { New-Item -ItemType HardLink -Path $path -Target $target -Force | Out-Null }
-        } catch {
-            Write-Warn "Hardlink failed; copying file: $path <- $target"
-            Invoke-IfNotDryRun { Copy-Item -LiteralPath $target -Destination $path -Force }
-        }
-    }
-}
-
-function New-DirectoryLink($path, $target) {
-    try {
-        Write-Info "Creating junction: $path -> $target"
-        Invoke-IfNotDryRun { New-Item -ItemType Junction -Path $path -Target $target -Force | Out-Null }
-    } catch {
-        Write-Warn "Junction failed; copying directory: $path <- $target"
-        Invoke-IfNotDryRun { Copy-Item -LiteralPath $target -Destination $path -Recurse -Force }
-    }
-}
-
-function Ensure-Link($dest, $src) {
-    # Resolve and validate source
-    try {
-        $resolved = Resolve-Path -LiteralPath $src -ErrorAction Stop
-        $srcPath = $resolved.ProviderPath
-    } catch {
-        Write-Warn "Target missing; skip link: $src"
-        return
-    }
-
-    if (Test-Path -LiteralPath $dest) {
-        if (-not (Remove-PathSafe $dest)) { return }
-    }
-
-    $srcIsDir = (Test-Path -LiteralPath $srcPath -PathType Container)
-    $destParent = Split-Path -Parent $dest
-    if (-not [string]::IsNullOrWhiteSpace($destParent) -and -not (Test-Path -LiteralPath $destParent)) {
-        Write-Info "Creating parent directory: $destParent"
-        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $destParent -Force | Out-Null }
-    }
-
-    if ($srcIsDir) { New-DirectoryLink -path $dest -target $srcPath }
-    else { New-FileLink -path $dest -target $srcPath }
-}
-
-# -----------------------
-# Link Map (paths from repo root)
-# -----------------------
-$linkMap = @{
-    ($PROFILE.CurrentUserAllHosts) = (RepoPath 'scripts\Profile.ps1')
-    (Join-Path $HOME '.config\wezterm') = (Join-Path $HOME 'dotfiles\config\wezterm')
-    (Join-Path $HOME '.config\yasb') = (RepoPath 'yasb')
-    (Join-Path $HOME '.gitconfig') = (RepoPath 'git\config')
-    (Join-Path $HOME '.ideavimrc') = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
-    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = (RepoPath 'terminal\settings.json')
-    (Join-Path $env:LOCALAPPDATA 'direnv') = (Join-Path $HOME 'dotfiles\config\direnv')
-    (Join-Path $env:LOCALAPPDATA 'fastfetch') = (Join-Path $HOME 'dotfiles\config\fastfetch')
-    (Join-Path $env:LOCALAPPDATA 'lazygit') = (Join-Path $HOME 'dotfiles\config\lazygit')
-    (Join-Path $HOME '.config\starship.toml') = (Join-Path $HOME 'dotfiles\config\starship.toml')
-    (Join-Path $HOME '.config\theme') = (Join-Path $HOME 'dotfiles\themes\gruvbox-dark')
-    (Join-Path $HOME '.claude\settings.json') = (Join-Path $HOME 'dotfiles\config\agents\claude\settings.json')
-    (Join-Path $HOME '.codex\config.toml') = (Join-Path $HOME 'dotfiles\config\agents\codex\config.toml')
-    (Join-Path $env:LOCALAPPDATA 'nvim') = (Join-Path $HOME 'dotfiles\config\lazyvim')
-    (Join-Path $env:LOCALAPPDATA 'television\config\config.toml') = (Join-Path $HOME 'dotfiles\config\television\config.toml')
-    (Join-Path $env:APPDATA 'gitu') = (Join-Path $HOME 'dotfiles\config\gitu')
-    (Join-Path $env:APPDATA 'gitui') = (Join-Path $HOME 'dotfiles\config\gitui')
-    (Join-Path $env:APPDATA 'helix') = (Join-Path $HOME 'dotfiles\config\helix')
-    (Join-Path $env:APPDATA 'yazi\config') = (Join-Path $HOME 'dotfiles\config\yazi')
-    (Join-Path $env:APPDATA 'Zed') = (Join-Path $HOME 'dotfiles\config\zed')
-    (Join-Path $HOME '.config\emacs\doom') = (Join-Path $HOME 'dotfiles\emacs\doom')
-    (Join-Path $HOME '.config\emacs\config') = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\funcs') = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs') = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\config') = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\funcs') = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\layers') = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\init.el') = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_full')
-    (Join-Path $HOME '.config\emacs\spacemacs-basic\init.el') = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_basic')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\config') = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\funcs') = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\layers') = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\init.el') = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_writing')
-}
-
-function Create-Links {
-    if ($SkipLinks) { Write-Info 'Skipping link creation.'; return }
-    Write-Info 'Creating configuration links...'
-    foreach ($kvp in $linkMap.GetEnumerator()) {
-        Write-Info "Link: $($kvp.Key) -> $($kvp.Value)"
-        Ensure-Link -dest $kvp.Key -src $kvp.Value
-    }
-    Write-Info 'Link creation step complete.'
-}
-
-# -----------------------
 # Fonts Map
 # -----------------------
 $fontsMap = @{
-  "adobe-fonts" = "https://github.com/adobe-fonts/source-code-pro.git"
-  "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
-  "iawriter-fonts" = "https://github.com/iaolo/iA-Fonts.git"
-  "icons-fonts" = "https://github.com/sebastiencs/icons-in-terminal.git"
-  "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
-  "nerd-fonts" = "https://github.com/ryanoasis/nerd-fonts.git"
-  "powerline-fonts" = "https://github.com/powerline/fonts.git"
+    "adobe-fonts"     = "https://github.com/adobe-fonts/source-code-pro.git"
+    "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
+    "iawriter-fonts"  = "https://github.com/iaolo/iA-Fonts.git"
+    "icons-fonts"     = "https://github.com/sebastiencs/icons-in-terminal.git"
+    "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
+    "nerd-fonts"      = "https://github.com/ryanoasis/nerd-fonts.git"
+    "powerline-fonts" = "https://github.com/powerline/fonts.git"
 }
 
 function Download-And-Install-Fonts {
-  if ($SkipFonts) { Write-Info 'Skipping fonts installation.'; return }
-  Write-Info 'Downloading and installing fonts...'
+    if ($SkipFonts) { Write-Info 'Skipping fonts installation.'; return }
+    Write-Info 'Downloading and installing fonts...'
     foreach ($kvp in $fontsMap.GetEnumerator()) {
-      Clone-AndInstall -Name $kvp.Key -RepoUrl $kvp.Value
+        Clone-AndInstall -Name $kvp.Key -RepoUrl $kvp.Value
     }
-  Write-Info 'Font installation step complete.'
+    Write-Info 'Font installation step complete.'
+}
+
+function Install-Links {
+    $linkScript = Join-Path $PSScriptRoot 'Install-Links.ps1'
+    if (-not (Test-Path -LiteralPath $linkScript)) {
+        throw "Link installer not found: $linkScript"
+    }
+
+    # Hashtable splat, not array splat: array elements bind positionally and
+    # silently drop these switches instead of raising a binding error.
+    $linkArgs = @{ LogLevel = $LogLevel; DesktopMode = $DesktopMode }
+    if ($SkipLinks) { $linkArgs['SkipConfigLinks'] = $true }
+    if ($DryRun) { $linkArgs['DryRun'] = $true }
+    if ($Force) { $linkArgs['Force'] = $true }
+
+    & $linkScript @linkArgs
+    if (-not $?) { throw 'Link installation failed.' }
 }
 
 # -----------------------
@@ -683,19 +541,25 @@ try {
     if (-not (Test-IsAdmin)) {
         Write-Warn 'Not running as Administrator. Some installs or links may require elevation.'
     }
-    Enable-LongPaths
+    Configure-Registry
     Ensure-HomeEnv
     Install-Packages
+    Install-Dotfiles
     Install-PowerShellModules
     Configure-PowerToys
-    Create-Links
+    Install-Links
     Install-EmacsDistributions
-    Ensure-KomorebiStartupPath
-    Ensure-YasbStartup
-    Ensure-KanataStartup
     Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
-} catch {
+}
+catch {
     Write-Err $_
     exit 1
+}
+finally {
+    if (($script:Warnings.Count -gt 0) -and (Test-LogLevel 'Warn')) {
+        Write-Host ''
+        Write-Host "[SUMMARY] Completed with $($script:Warnings.Count) warning(s):" -ForegroundColor Yellow
+        foreach ($w in $script:Warnings) { Write-Host "  - $w" -ForegroundColor Yellow }
+    }
 }

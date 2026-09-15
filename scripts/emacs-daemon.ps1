@@ -22,9 +22,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$configRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) { Join-Path $HOME '.config\emacs' } else { Join-Path $env:XDG_CONFIG_HOME 'emacs' }
-$dataRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) { Join-Path $HOME '.local\share\emacs' } else { Join-Path $env:XDG_DATA_HOME 'emacs' }
-$stateRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_STATE_HOME)) { Join-Path $HOME '.local\state\emacs' } else { Join-Path $env:XDG_STATE_HOME 'emacs' }
+. (Join-Path $PSScriptRoot 'Common.ps1')
+$roots = Get-EmacsRoots
+$configRoot = $roots.ConfigRoot
+$dataRoot = $roots.DataRoot
+$stateRoot = $roots.StateRoot
 
 function Get-RequiredCommand {
     param([Parameter(Mandatory)][string]$Name)
@@ -42,21 +44,21 @@ function Get-ProfilePaths {
     switch ($Name) {
         'doom' {
             return [pscustomobject]@{
-                Framework = Join-Path $dataRoot 'doom'
-                Profile = Join-Path $configRoot 'doom'
-                Local = Join-Path $stateRoot 'doom'
+                Framework   = Join-Path $dataRoot 'doom'
+                Profile     = Join-Path $configRoot 'doom'
+                Local       = Join-Path $stateRoot 'doom'
                 Environment = @{
-                    EMACSDIR = (Join-Path $dataRoot 'doom')
-                    DOOMDIR = (Join-Path $configRoot 'doom')
+                    EMACSDIR     = (Join-Path $dataRoot 'doom')
+                    DOOMDIR      = (Join-Path $configRoot 'doom')
                     DOOMLOCALDIR = (Join-Path $stateRoot 'doom')
                 }
             }
         }
         default {
             return [pscustomobject]@{
-                Framework = Join-Path $dataRoot 'spacemacs'
-                Profile = Join-Path $configRoot $Name
-                Local = $null
+                Framework   = Join-Path $dataRoot 'spacemacs'
+                Profile     = Join-Path $configRoot $Name
+                Local       = $null
                 Environment = @{ SPACEMACSDIR = (Join-Path $configRoot $Name) }
             }
         }
@@ -115,7 +117,8 @@ function Start-Daemon {
         }
 
         Start-Process -FilePath $EmacsPath -ArgumentList @("--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)") | Out-Null
-    } finally {
+    }
+    finally {
         foreach ($name in $ProfilePaths.Environment.Keys) {
             $previousValue = $savedEnvironment[$name]
             if ($null -eq $previousValue) { Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue }
@@ -183,7 +186,8 @@ switch ($Action) {
         Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
         if ($EmacsClientArgs.Count -gt 0) {
             & $clientPath "--socket-name=$EmacsProfile" --reuse-frame @EmacsClientArgs
-        } else {
+        }
+        else {
             & $clientPath "--socket-name=$EmacsProfile" --create-frame
         }
         exit $LASTEXITCODE
@@ -191,7 +195,8 @@ switch ($Action) {
     'status' {
         if (Test-DaemonRunning -ClientPath $clientPath) {
             Write-Host "Emacs profile '$EmacsProfile' is running."
-        } else {
+        }
+        else {
             Write-Host "Emacs profile '$EmacsProfile' is stopped."
             exit 3
         }
