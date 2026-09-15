@@ -5,8 +5,8 @@ Usage:
   pwsh -File .\scripts\Configure-Registry.ps1
   pwsh -File .\scripts\Configure-Registry.ps1 -DryRun
 
-Run from an elevated terminal to also configure the active power plan for
-closed-lid agent workloads.
+Run from an elevated terminal (or let Setup.ps1 prompt for UAC approval) to
+also enable Developer Mode, long paths, and the closed-lid agent power plan.
 #>
 
 param(
