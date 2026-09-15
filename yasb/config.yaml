@@ -1,37 +1,32 @@
-watch_stylesheet: true
-watch_config: true
+watch_stylesheet: false
+watch_config: false
 debug: false
-komorebi:
-  start_command: "komorebic-no-console.exe start --ahk --masir"
-  stop_command: "komorebic-no-console.exe stop --ahk --masir"
-  reload_command: "komorebic-no-console.exe stop --ahk --masir && komorebic-no-console.exe start --ahk --masir"
 bars:
   primary-bar:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
     animation:
-      enabled: true
-      duration: 600
+      enabled: false
     alignment:
       position: "top"
       center: true
     blur_effect:
-      enabled: true
+      enabled: false
     window_flags:
-      always_on_top: false
+      always_on_top: true
       windows_app_bar: true
     dimensions:
       width: "100%"
-      height: 38
+      height: 40
     padding:
       top: 0
-      left: 18
-      bottom: -8
-      right: 18
+      left: 8
+      bottom: 0
+      right: 8
     widgets:
-      left: ["komorebi_workspaces", "taskbar"]
-      center: ["active_window"]
+      left: ["active_window"]
+      center: ["taskbar"]
       right: ["wifi", "volume", "language", "clock", "notifications", "systray"]
 widgets:
   wifi:
@@ -39,7 +34,7 @@ widgets:
     options:
       label: "<span>{wifi_icon}</span>"
       label_alt: "{wifi_name} {wifi_strength}%"
-      update_interval: 4000
+      update_interval: 10000
       callbacks:
         on_left: "toggle_label"
       wifi_icons: [
@@ -59,20 +54,28 @@ widgets:
       callbacks:
         on_left: "toggle_calendar"
       calendar:
-        blur: true
+        blur: false
         round_corners: true
         border_color: "system"
         distance: 4
         alignment: "left"
-  komorebi_workspaces:
-    type: "komorebi.workspaces.WorkspaceWidget"
+  taskbar:
+    type: "yasb.taskbar.TaskbarWidget"
     options:
-      label_offline: ""
-      label_default_name: "{index}"
-      label_zero_index: false
-      hide_empty_workspaces: false
-      hide_if_offline: false
-      animation: true
+      icon_size: 18
+      animation:
+        enabled: false
+      title_label:
+        enabled: false
+      ignore_apps:
+        processes: []
+        titles: []
+        classes: []
+      container_padding:
+        top: 0
+        left: 6
+        bottom: 0
+        right: 6
   volume:
     type: "yasb.volume.VolumeWidget"
     options:
@@ -89,7 +92,7 @@ widgets:
         on_left: "toggle_volume_menu"
         on_right: "toggle_mute"
       audio_menu:
-        blur: True
+        blur: false
         round_corners: True
         border_color: None
         alignment: "right"
@@ -135,13 +138,13 @@ widgets:
     options:
       label: "{lang[country_code]}"
       label_alt: "{lang[full_name]}"
-      update_interval: 5
+      update_interval: 10
       callbacks:
         on_left: "toggle_menu"
         on_middle: "do_nothing"
         on_right: "toggle_label"
       language_menu:
-        blur: true
+        blur: false
         round_corners: true
         round_corners_type: "normal"
         border_color: "system"
@@ -151,34 +154,6 @@ widgets:
         offset_left: 0
         show_layout_icon: true
         layout_icon: "\uf11c"
-      label_shadow:
-        enabled: true
-        color: "black"
-        radius: 2
-        offset: [1, 1]
-
-  taskbar:
-    type: "yasb.taskbar.TaskbarWidget"
-    options:
-      icon_size: 18
-      animation:
-        enabled: true
-        duration: 250
-        type: "fadeInOut"
-      title_label:
-        enabled: false
-        show: "focused"
-        min_length: 10
-        max_length: 30
-      ignore_apps:
-        processes: []
-        titles: []
-        classes: []
-      container_padding:
-        top: 0
-        left: 6
-        bottom: 0
-        right: 6
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
     options:
@@ -190,11 +165,6 @@ widgets:
       max_length: 56
       max_length_ellipsis: "..."
       monitor_exclusive: true
-      label_shadow:
-        enabled: true
-        color: "black"
-        radius: 2
-        offset: [1, 1]
       rewrite:
         - pattern: "^(.+?)\\.exe$"
           replacement: "\\1"

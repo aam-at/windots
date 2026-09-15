@@ -41,14 +41,24 @@ Komorebic(cmd) {
 ; Manipulate windows
 !t::Komorebic("toggle-float")
 !f::Komorebic("toggle-monocle")
+!Space::Komorebic("toggle-float")
+!Enter::Komorebic("toggle-monocle")
+!+m::Komorebic("toggle-maximize")
+!+p::Komorebic("toggle-lock")
 
 ; Window manager options
-!+r::Komorebic("retile")
+!r::Komorebic("retile")
 !p::Komorebic("toggle-pause")
 
 ; Layouts
 !x::Komorebic("flip-layout horizontal")
 !y::Komorebic("flip-layout vertical")
+!b::Komorebic("change-layout bsp")
+!g::Komorebic("change-layout grid")
+!v::Komorebic("change-layout vertical-stack")
+!u::Komorebic("change-layout ultrawide-vertical-stack")
+!,::Komorebic("cycle-workspace previous")
+!.::Komorebic("cycle-workspace next")
 
 ; Workspaces
 !1::Komorebic("focus-workspace 0")
@@ -57,8 +67,6 @@ Komorebic(cmd) {
 !4::Komorebic("focus-workspace 3")
 !5::Komorebic("focus-workspace 4")
 !6::Komorebic("focus-workspace 5")
-!7::Komorebic("focus-workspace 6")
-!8::Komorebic("focus-workspace 7")
 
 ; Move windows across workspaces
 !+1::Komorebic("move-to-workspace 0")
@@ -67,8 +75,6 @@ Komorebic(cmd) {
 !+4::Komorebic("move-to-workspace 3")
 !+5::Komorebic("move-to-workspace 4")
 !+6::Komorebic("move-to-workspace 5")
-!+7::Komorebic("move-to-workspace 6")
-!+8::Komorebic("move-to-workspace 7")
 
 Capslock::Esc
 Esc::Capslock

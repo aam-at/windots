@@ -6,13 +6,15 @@ param(
     [switch]$CurrentUser
 )
 
+. (Join-Path $PSScriptRoot 'Common.ps1')
+
 # Load .NET drawing assembly
 Add-Type -AssemblyName System.Drawing
 
 # ────────────────────────────────────────────────
-# Define NativeMethods with a unique namespace
+# Define NativeMethods
 # ────────────────────────────────────────────────
-$namespace = "FontInstaller_" + [Guid]::NewGuid().ToString("N")
+$namespace = "WindotsFontInstaller"
 
 Add-Type -TypeDefinition @"
 using System;
@@ -43,7 +45,8 @@ function Test-FontFile {
         $fontName = $privateFont.Families[0].Name
         $privateFont.Dispose()
         return $true, $fontName
-    } catch {
+    }
+    catch {
         return $false, $_.Exception.Message
     }
 }
@@ -71,7 +74,8 @@ function Install-Font {
         if ($IsCurrentUser) {
             $fontPath = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts\$($FontFile.Name)"
             $registryPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
-        } else {
+        }
+        else {
             $fontPath = Join-Path $env:WINDIR "Fonts\$($FontFile.Name)"
             $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
         }
@@ -98,7 +102,8 @@ function Install-Font {
         }
 
         Write-Host "✅ Installed: $($FontFile.Name) [$fontName]"
-    } catch {
+    }
+    catch {
         Write-Host "❌ Failed: $($FontFile.Name)"
         Write-Host "   Error: $($_.Exception.Message)"
     }
@@ -109,12 +114,8 @@ function Install-Font {
 # ────────────────────────────────────────────────
 try {
     # Check privileges
-    if (-not $CurrentUser) {
-        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).
-            IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        if (-not $isAdmin) {
-            throw "Administrator privileges required. Re-run as admin or use -CurrentUser."
-        }
+    if (-not $CurrentUser -and -not (Test-IsAdmin)) {
+        throw "Administrator privileges required. Re-run as admin or use -CurrentUser."
     }
 
     # Find font files
@@ -137,15 +138,17 @@ try {
     foreach ($font in $fontFiles) {
         $counter++
         Write-Progress -Activity "Installing fonts..." `
-                       -Status "$counter / $($fontFiles.Count): $($font.Name)" `
-                       -PercentComplete (($counter / $fontFiles.Count) * 100)
+            -Status "$counter / $($fontFiles.Count): $($font.Name)" `
+            -PercentComplete (($counter / $fontFiles.Count) * 100)
         Install-Font $font $CurrentUser $Native
     }
 
     Write-Host "`n✅ Font installation completed successfully."
     Write-Host "📝 Log saved to: $logFile"
-} catch {
+}
+catch {
     Write-Host "⚠️ Error: $($_.Exception.Message)"
-} finally {
+}
+finally {
     Stop-Transcript | Out-Null
 }

@@ -1,12 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json",
-  "app_specific_configuration_path": "$Env:USERPROFILE/applications.json",
+  "app_specific_configuration_path": "$Env:USERPROFILE/.config/komorebi/applications.json",
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
-  "default_workspace_padding": 4,
-  "default_container_padding": 4,
+  "default_workspace_padding": 6,
+  "default_container_padding": 6,
   "border": true,
-  "border_width": 2,
+  "border_width": 1,
   "border_offset": 0,
   "mouse_follows_focus": false,
   "border_colours": {
@@ -30,37 +30,44 @@
     {
       "workspaces": [
         {
-          "name": "1",
+          "name": "web",
           "layout": "BSP"
         },
         {
-          "name": "2",
+          "name": "code",
           "layout": "UltrawideVerticalStack"
         },
         {
-          "name": "3",
+          "name": "terminal",
           "layout": "Grid"
         },
         {
-          "name": "4",
+          "name": "notes",
           "layout": "VerticalStack"
+        },
+        {
+          "name": "chat",
+          "layout": "BSP"
+        },
+        {
+          "name": "scratch",
+          "layout": "BSP"
         }
       ]
     }
   ],
   "stackbar": {
     "label": "Title",
-    "height": 25,
+    "height": 22,
     "mode": "OnStack",
     "tabs": {
       "focused_text": "#00a542",
       "unfocused_text": "#b3b3b3",
       "background": "#141414",
-      "font_size": 14
+      "font_size": 12
     }
   },
-  "transparency": true,
-  "transparency_alpha": 215,
+  "transparency": false,
   "animation": {
     "enabled": false,
     "duration": 300,

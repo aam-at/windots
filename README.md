@@ -3,21 +3,52 @@
 Windows dotfiles and setup scripts.
 
 ## Install
-- Run bootstrap to install apps and link configs:
+- Run this once, from a regular PowerShell prompt:
 
-  `pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1`
+  `irm https://raw.githubusercontent.com/aam-at/windots/master/scripts/Bootstrap.ps1 | iex`
+
+  This installs Scoop, reopens a shell so it's on PATH, installs Git, clones
+  this repo to `~/windots`, and runs `Setup.ps1`. Safe to re-run.
+
+- `Setup.ps1` expects Scoop and Git already on PATH (Bootstrap.ps1 handles
+  that) and does the rest: winget/scoop packages, config links, Emacs
+  distributions, PowerToys settings, and fonts. Once bootstrapped, you can
+  re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1`
 
 - Run it elevated to install machine-scoped winget packages and enable long
   paths. Existing non-link configuration paths are preserved unless `-Force`
   is supplied. Use `-DryRun` to preview the setup without making changes.
 
-- The setup configures PowerToys utilities that complement Komorebi. It leaves
-  FancyZones and Workspaces disabled; use `-SkipPowerToys` to leave existing
-  PowerToys settings unchanged.
+- The setup enables PowerToys FancyZones and Workspaces. Use
+  `-SkipPowerToys` to leave existing PowerToys settings unchanged.
+
+## Desktop modes
+
+The laptop display is too small for a useful multi-column tiling layout, while
+an external monitor benefits from it. The scripts below switch explicitly
+between those two working environments; automatic monitor detection is
+intentionally not used.
+
+- **Laptop / native Windows:**
+  `pwsh -File .\scripts\Use-Native-Desktop.ps1`
+
+  Stops Komorebi, enables the native Windows virtual-desktop workflow with
+  PowerToys Workspaces and FancyZones, hides the bottom taskbar, and starts
+  the compact translucent YASB top bar.
+
+- **External monitor / Komorebi:**
+  `pwsh -File .\scripts\Use-Komorebi-Desktop.ps1`
+
+  Stops the native desktop bindings, restores Komorebi's startup shortcuts,
+  starts its external-monitor tiling configuration, and launches its
+  AutoHotkey keybindings.
+
+Both scripts accept `-DryRun` to show their actions without changing the
+current desktop mode.
 
 ## Dependency
-- Requires my common dotfiles repo for shared configs: `aam-at/dotfiles`.
-  Clone it locally so `Setup.ps1` can link the common configs.
+- Uses my common dotfiles repo for shared configs: `aam-at/dotfiles`.
+  `Setup.ps1` clones it to `~/dotfiles` automatically if it's missing.
 
 ## PowerShell Profile
 - This repo includes `Profile.ps1`, used as the default PowerShell profile.
