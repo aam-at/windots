@@ -10,37 +10,38 @@ function Test-Interactive {
     try {
         if ([Environment]::GetCommandLineArgs().Contains('-NonInteractive')) { return $false }
         return $Host.Name -eq 'ConsoleHost'
-    } catch { return $true }
+    }
+    catch { return $true }
 }
 
 function Test-Command {
-    param([Parameter(Mandatory=$true)][string]$Name)
+    param([Parameter(Mandatory = $true)][string]$Name)
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
 if (Test-Interactive) {
     # Aliases (set conditionally to avoid breaking default tooling)
-    if (Test-Command bat) { Set-Alias -Name cat -Value bat }
-    if (Test-Command yazi) { Set-Alias -Name y -Value yazi }
-    Set-Alias -Name df -Value Get-Volume
-    Set-Alias -Name ff -Value Find-File
-    Set-Alias -Name grep -Value Find-String
-    Set-Alias -Name l -Value Get-ChildItemPretty
-    Set-Alias -Name la -Value Get-ChildItemPretty
-    Set-Alias -Name ll -Value Get-ChildItemPretty
-    Set-Alias -Name ls -Value Get-ChildItemPretty
-    Set-Alias -Name rm -Value Remove-ItemExtended
-    Set-Alias -Name su -Value Update-ShellElevation
-    Set-Alias -Name tif -Value Show-ThisIsFine
-    Set-Alias -Name touch -Value New-File
-    if (Test-Command nvim) { Set-Alias -Name vi -Value nvim; Set-Alias -Name vim -Value nvim }
-    Set-Alias -Name which -Value Show-Command
+    if (Test-Command bat) { Set-Alias -Name cat -Value bat -Option AllScope -Force }
+    if (Test-Command yazi) { Set-Alias -Name y -Value yazi -Option AllScope -Force }
+    Set-Alias -Name df -Value Get-Volume -Option AllScope -Force
+    Set-Alias -Name ff -Value Find-File -Option AllScope -Force
+    Set-Alias -Name grep -Value Find-String -Option AllScope -Force
+    Set-Alias -Name l -Value Get-ChildItemPretty -Option AllScope -Force
+    Set-Alias -Name la -Value Get-ChildItemPretty -Option AllScope -Force
+    Set-Alias -Name ll -Value Get-ChildItemPretty -Option AllScope -Force
+    Set-Alias -Name ls -Value Get-ChildItemPretty -Option AllScope -Force
+    Set-Alias -Name rm -Value Remove-ItemExtended -Option AllScope -Force
+    Set-Alias -Name su -Value Update-ShellElevation -Option AllScope -Force
+    Set-Alias -Name tif -Value Show-ThisIsFine -Option AllScope -Force
+    Set-Alias -Name touch -Value New-File -Option AllScope -Force
+    if (Test-Command nvim) { Set-Alias -Name vi -Value nvim -Option AllScope -Force; Set-Alias -Name vim -Value nvim -Option AllScope -Force }
+    Set-Alias -Name which -Value Show-Command -Option AllScope -Force
 }
 
 # Functions
 function Find-File {
     [CmdletBinding()]
-    param([Parameter(ValueFromPipeline,Mandatory=$true)][string]$SearchTerm)
+    param([Parameter(ValueFromPipeline, Mandatory = $true)][string]$SearchTerm)
     Write-Verbose "Searching for '$SearchTerm'"
     Get-ChildItem -Recurse -Filter "*$SearchTerm*" -ErrorAction SilentlyContinue | Format-Table -AutoSize
 }
@@ -56,13 +57,13 @@ function Update-ShellElevation {
 function Find-String {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true,Position=0)][string]$SearchTerm,
-        [Parameter(Position=1)][string]$Directory,
+        [Parameter(Mandatory = $true, Position = 0)][string]$SearchTerm,
+        [Parameter(Position = 1)][string]$Directory,
         [switch]$Recurse
     )
     if (Test-Command rg) {
-        $args = @('--hidden','--color','always','-n', $SearchTerm)
-        if (-not $Recurse) { $args += @('--max-depth','1') }
+        $args = @('--hidden', '--color', 'always', '-n', $SearchTerm)
+        if (-not $Recurse) { $args += @('--max-depth', '1') }
         if ($Directory) { $args += @($Directory) } else { $args += @('.') }
         rg @args
         return
@@ -78,20 +79,20 @@ function Find-String {
 
 function New-File {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][string]$Name)
+    param([Parameter(Mandatory = $true)][string]$Name)
     Write-Verbose "Creating file '$Name'"
     New-Item -ItemType File -Name $Name -Path $PWD -Force | Out-Null
 }
 
 function Show-Command {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][string]$Name)
+    param([Parameter(Mandatory = $true)][string]$Name)
     Get-Command $Name | Select-Object -ExpandProperty Definition
 }
 
 function Get-OrCreateSecret {
     [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][string]$secretName)
+    param([Parameter(Mandatory = $true)][string]$secretName)
     Write-Verbose "Getting secret $secretName"
     $secretValue = Get-Secret $secretName -AsPlainText -ErrorAction SilentlyContinue
     if (!$secretValue) {
@@ -100,7 +101,8 @@ function Get-OrCreateSecret {
             $secretValue = Read-Host -Prompt "Enter secret value for ($secretName)" -AsSecureString
             Set-Secret -Name $secretName -SecureStringSecret $secretValue
             $secretValue = Get-Secret $secretName -AsPlainText
-        } else { throw "Secret not found and not created, exiting" }
+        }
+        else { throw "Secret not found and not created, exiting" }
     }
     return $secretValue
 }
@@ -111,8 +113,9 @@ function Get-ChildItemPretty {
     Write-Host ""
     if (Test-Command eza) {
         eza -a -l --header --icons --hyperlink --time-style relative --group-directories-first --git $Path
-    } else {
-        Get-ChildItem -Force $Path | Format-Table Mode,Length,LastWriteTime,Name -AutoSize
+    }
+    else {
+        Get-ChildItem -Force $Path | Format-Table Mode, Length, LastWriteTime, Name -AutoSize
     }
     Write-Host ""
 }
@@ -125,8 +128,30 @@ function Show-ThisIsFine {
 
 function Remove-ItemExtended {
     [CmdletBinding()]
-    param([switch]$rf,[Parameter(Mandatory=$true)][string]$Path)
+    param([switch]$rf, [Parameter(Mandatory = $true)][string]$Path)
     Remove-Item $Path -Recurse:$rf -Force:$rf -ErrorAction Stop
+}
+
+function cc-personal {
+    $previousConfigDir = $env:CLAUDE_CONFIG_DIR
+    try {
+        $env:CLAUDE_CONFIG_DIR = "$HOME\.claude-personal"
+        & claude --dangerously-skip-permissions @args
+    }
+    finally {
+        $env:CLAUDE_CONFIG_DIR = $previousConfigDir
+    }
+}
+
+function cc-work {
+    $previousConfigDir = $env:CLAUDE_CONFIG_DIR
+    try {
+        $env:CLAUDE_CONFIG_DIR = "$HOME\.claude-work"
+        & claude --dangerously-skip-permissions @args
+    }
+    finally {
+        $env:CLAUDE_CONFIG_DIR = $previousConfigDir
+    }
 }
 
 # Environment Variables
@@ -145,7 +170,7 @@ if (Test-Interactive) {
         if (Get-Command Enable-TransientPrompt -ErrorAction SilentlyContinue) { Enable-TransientPrompt }
     }
     if (Test-Command zoxide) { Invoke-Expression (& { (zoxide init powershell | Out-String) }) }
-    if (Test-Command direnv) { Invoke-Expression (& { (direnv hook pwsh | Out-String) } ) }
+    if ((Test-Command direnv) -and ($PSVersionTable.PSVersion -ge [version]'7.2')) { Invoke-Expression (& { (direnv hook pwsh | Out-String) } ) }
 }
 
 if (Test-Interactive) {
@@ -164,7 +189,8 @@ if (Test-Interactive) {
         Set-PSReadLineOption -PredictionViewStyle InlineView
         Set-PSReadLineKeyHandler -Function AcceptSuggestion -Key Alt+l
         Import-Module -Name CompletionPredictor -ErrorAction SilentlyContinue
-    } catch { }
+    }
+    catch { }
 }
 
 # Skip fastfetch for non-interactive shells

@@ -156,6 +156,16 @@ function Ensure-HomeEnv {
     }
 }
 
+function Ensure-UserBinOnPath {
+    $binDirectory = Join-Path $HOME 'bin'
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $pathEntries = @($userPath -split ';' | Where-Object { $_ })
+    if ($pathEntries -notcontains $binDirectory) {
+        Write-Info "Adding $binDirectory to the user PATH"
+        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('Path', (($pathEntries + $binDirectory) -join ';'), 'User') }
+    }
+}
+
 function Invoke-ElevatedScript {
     param(
         [Parameter(Mandatory)]
@@ -216,7 +226,7 @@ function Install-Packages {
 
     # Winget apps (install per-ID for clearer output and retries)
     $wingetApps = @(
-        'DEVCOM.Lua', 'Dropbox.Dropbox', 'FSFhu.Hunspell', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
+        'Dropbox.Dropbox', 'FSFhu.Hunspell', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
         'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal',
         'WinFsp.WinFsp'
     )
@@ -239,10 +249,10 @@ function Install-Packages {
     $scoopBuckets = @('extras')
     $scoopAppsMain = @(
         '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'cmake', 'curl',
-        'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gdu', 'gh', 'git', 'gitui',
-        'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'mosh-client', 'msys2',
+        'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'file', 'ffmpeg', 'fzf', 'gdu', 'gh', 'git', 'gitui',
+        'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
         'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
-        'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
+        'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
         'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
     )
     $scoopAppsExtras = @(
@@ -499,7 +509,12 @@ function Clone-AndInstall {
     $fontInstaller = Join-Path $PSScriptRoot 'install_fonts.ps1'
     $fontArgs = @('-ExecutionPolicy', 'Bypass', '-File', $fontInstaller, '-fontFolder', $dest)
     if (-not (Test-IsAdmin)) { $fontArgs += '-CurrentUser' }
-    Invoke-IfNotDryRun { & powershell @fontArgs | Out-Null }
+    if ($DryRun) { return }
+
+    & powershell @fontArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Font installation failed for $Name."
+    }
 }
 
 # -----------------------
@@ -582,11 +597,12 @@ try {
     Configure-Registry
     Ensure-HomeEnv
     Install-Packages
+    Ensure-UserBinOnPath
     Install-Dotfiles
     Install-PowerShellModules
     Configure-PowerToys
     Install-Links
-    Install-EmacsDistributions
+    # Install-EmacsDistributions
     Download-And-Install-Fonts
     Write-Info 'Script completed successfully.'
 }
