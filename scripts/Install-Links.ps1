@@ -172,6 +172,8 @@ function Remove-StartupShortcut([string]$Name) {
 
 $linkMap = @{
     ($PROFILE.CurrentUserAllHosts)                                                                            = (RepoPath 'scripts\Profile.ps1')
+    (Join-Path $HOME 'bin\cc-personal.cmd')                                                                   = (RepoPath 'cmd\cc-personal.cmd')
+    (Join-Path $HOME 'bin\cc-work.cmd')                                                                       = (RepoPath 'cmd\cc-work.cmd')
     (Join-Path $HOME '.config\kanata')                                                                        = (RepoPath 'kanata')
     (Join-Path $HOME '.config\komorebi')                                                                      = (RepoPath 'komorebi')
     (Join-Path $HOME '.config\wezterm')                                                                       = (Join-Path $HOME 'dotfiles\config\wezterm')
@@ -206,6 +208,11 @@ $linkMap = @{
     (Join-Path $HOME '.config\emacs\spacemacs-writing\funcs')                                                 = (Join-Path $HOME 'dotfiles\emacs\funcs')
     (Join-Path $HOME '.config\emacs\spacemacs-writing\layers')                                                = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
     (Join-Path $HOME '.config\emacs\spacemacs-writing\init.el')                                               = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_writing')
+}
+
+$windowsPowerShellProfile = Join-Path $HOME 'Documents\WindowsPowerShell\profile.ps1'
+if ($PROFILE.CurrentUserAllHosts -ne $windowsPowerShellProfile) {
+    $linkMap[$windowsPowerShellProfile] = RepoPath 'scripts\Profile.ps1'
 }
 
 try {

@@ -1,154 +1,136 @@
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory)]
     [string]$FontFolder,
 
-    [Parameter(Mandatory = $false)]
     [switch]$CurrentUser
 )
 
-. (Join-Path $PSScriptRoot 'Common.ps1')
-
-# Load .NET drawing assembly
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-# ────────────────────────────────────────────────
-# Define NativeMethods
-# ────────────────────────────────────────────────
-$namespace = "WindotsFontInstaller"
-
-Add-Type -TypeDefinition @"
+$namespace = 'WindotsFontInstaller'
+if ($null -eq ("$namespace.NativeMethods" -as [type])) {
+    Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 namespace $namespace {
     public static class NativeMethods {
         [DllImport("gdi32.dll", EntryPoint="AddFontResourceW", CharSet=CharSet.Unicode, SetLastError=true)]
         public static extern int AddFontResource(string lpFileName);
-
         [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)]
         public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
     }
 }
 "@
+}
+$Native = ("$namespace.NativeMethods" -as [type])
 
-# Create a type reference dynamically
-$Native = ("{0}.NativeMethods" -f $namespace) -as [type]
+function Get-FontFamilyName {
+    param([Parameter(Mandatory)][System.IO.FileInfo]$FontFile)
 
-# ────────────────────────────────────────────────
-# Font validation function
-# ────────────────────────────────────────────────
-function Test-FontFile {
-    param([System.IO.FileInfo]$FontFile)
-
+    $privateFonts = [System.Drawing.Text.PrivateFontCollection]::new()
     try {
-        $privateFont = New-Object System.Drawing.Text.PrivateFontCollection
-        $privateFont.AddFontFile($FontFile.FullName)
-        $fontName = $privateFont.Families[0].Name
-        $privateFont.Dispose()
-        return $true, $fontName
+        $privateFonts.AddFontFile($FontFile.FullName)
+        if ($privateFonts.Families.Count -eq 0) { throw 'The file contains no font family.' }
+        return $privateFonts.Families[0].Name
     }
-    catch {
-        return $false, $_.Exception.Message
-    }
+    finally { $privateFonts.Dispose() }
 }
 
-# ────────────────────────────────────────────────
-# Font installation function
-# ────────────────────────────────────────────────
-function Install-Font {
+function Get-FontRegistryName {
     param(
-        [System.IO.FileInfo]$FontFile,
-        [bool]$IsCurrentUser,
-        [type]$Native
+        [Parameter(Mandatory)][string]$FamilyName,
+        [Parameter(Mandatory)][System.IO.FileInfo]$FontFile
     )
 
-    $isValid, $result = Test-FontFile $FontFile
-    if (-not $isValid) {
-        Write-Warning "Invalid font file: $($FontFile.Name)"
-        Write-Verbose "Error: $result"
-        return
-    }
+    # Family names alone are not unique: weights and styles would overwrite
+    # each other. The filename produces a stable, distinct value per face.
+    $fontKind = if ($FontFile.Extension -ieq '.otf') { 'OpenType' } else { 'TrueType' }
+    return "$FamilyName $($FontFile.BaseName) ($fontKind)"
+}
 
-    $fontName = $result
+function Test-FontRegistration {
+    param(
+        [Parameter(Mandatory)][string]$RegistryPath,
+        [Parameter(Mandatory)][string]$RegistryName,
+        [Parameter(Mandatory)][string]$ExpectedValue
+    )
+
+    $property = (Get-ItemProperty -Path $RegistryPath -ErrorAction SilentlyContinue).PSObject.Properties[$RegistryName]
+    return $null -ne $property -and $property.Value -eq $ExpectedValue
+}
+
+function Install-Font {
+    param(
+        [Parameter(Mandatory)][System.IO.FileInfo]$FontFile,
+        [Parameter(Mandatory)][bool]$IsCurrentUser
+    )
 
     try {
+        $familyName = Get-FontFamilyName -FontFile $FontFile
         if ($IsCurrentUser) {
-            $fontPath = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts\$($FontFile.Name)"
-            $registryPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts"
+            $fontsDirectory = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
+            $registryPath = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
         }
         else {
-            $fontPath = Join-Path $env:WINDIR "Fonts\$($FontFile.Name)"
-            $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+            $fontsDirectory = Join-Path $env:WINDIR 'Fonts'
+            $registryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
         }
 
-        if (Test-Path $fontPath) {
-            Write-Host "Font already installed: $($FontFile.Name)"
-            return
+        $fontPath = Join-Path $fontsDirectory $FontFile.Name
+        $registryName = Get-FontRegistryName -FamilyName $familyName -FontFile $FontFile
+        # Current-user fonts need an absolute registry path. Windows resolves
+        # machine-wide font filenames relative to %WINDIR%\Fonts.
+        $registryValue = if ($IsCurrentUser) { $fontPath } else { $FontFile.Name }
+
+        $copied = $false
+        if (-not (Test-Path -LiteralPath $fontPath)) {
+            New-Item -ItemType Directory -Path $fontsDirectory -Force | Out-Null
+            Copy-Item -LiteralPath $FontFile.FullName -Destination $fontPath -ErrorAction Stop
+            $copied = $true
         }
 
-        Copy-Item -Path $FontFile.FullName -Destination $fontPath -Force -ErrorAction Stop
-
-        $registryValue = if ($IsCurrentUser) { $FontFile.Name } else { $fontPath }
-        New-ItemProperty -Path $registryPath -Name $fontName -Value $registryValue -PropertyType String -Force -ErrorAction Stop | Out-Null
-
-        if (-not $IsCurrentUser) {
-            $result = $Native::AddFontResource($fontPath)
-            if ($result -eq 0) {
-                throw "AddFontResource failed for $fontPath"
-            }
-
-            $HWND_BROADCAST = [IntPtr]0xffff
-            $WM_FONTCHANGE = 0x001D
-            $Native::SendMessage($HWND_BROADCAST, $WM_FONTCHANGE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        if (-not (Test-FontRegistration -RegistryPath $registryPath -RegistryName $registryName -ExpectedValue $registryValue)) {
+            New-ItemProperty -Path $registryPath -Name $registryName -Value $registryValue -PropertyType String -Force | Out-Null
         }
 
-        Write-Host "✅ Installed: $($FontFile.Name) [$fontName]"
+        if ($Native::AddFontResource($fontPath) -eq 0) {
+            throw 'Windows could not load the registered font.'
+        }
+
+        $state = if ($copied) { 'Installed' } else { 'Registered' }
+        Write-Host "OK  ${state}: $($FontFile.Name) [$familyName]"
+        return $true
     }
     catch {
-        Write-Host "❌ Failed: $($FontFile.Name)"
-        Write-Host "   Error: $($_.Exception.Message)"
+        Write-Error "Failed: $($FontFile.Name): $($_.Exception.Message)"
+        return $false
     }
 }
 
-# ────────────────────────────────────────────────
-# Main script logic
-# ────────────────────────────────────────────────
 try {
-    # Check privileges
-    if (-not $CurrentUser -and -not (Test-IsAdmin)) {
-        throw "Administrator privileges required. Re-run as admin or use -CurrentUser."
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $isAdmin = ([Security.Principal.WindowsPrincipal] $identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $CurrentUser -and -not $isAdmin) {
+        throw 'Administrator privileges required. Re-run as administrator or use -CurrentUser.'
     }
 
-    # Find font files
-    $fontFiles = Get-ChildItem -Path $FontFolder -Include *.ttf, *.otf -Recurse -ErrorAction Stop
-    if (-not $fontFiles) {
-        Write-Host "No fonts found in $FontFolder."
-        exit
-    }
+    $fontFiles = @(Get-ChildItem -LiteralPath $FontFolder -File -Recurse |
+            Where-Object { $_.Extension -in '.ttf', '.otf' })
+    if ($fontFiles.Count -eq 0) { throw "No .ttf or .otf files found in $FontFolder." }
 
-    $logFile = Join-Path $PSScriptRoot "FontInstallation.log"
-    Start-Transcript -Path $logFile -Append | Out-Null
-
-    Write-Host "─────────────────────────────────────────────"
-    Write-Host "🖋️  Installing fonts from: $FontFolder"
-    Write-Host "📦 Total fonts found: $($fontFiles.Count)"
-    Write-Host "👤 Target: $(if ($CurrentUser) {'Current User'} else {'All Users'})"
-    Write-Host "─────────────────────────────────────────────"
-
-    $counter = 0
+    Write-Host "Installing $($fontFiles.Count) font files for $(if ($CurrentUser) { 'the current user' } else { 'all users' })..."
+    $failed = 0
     foreach ($font in $fontFiles) {
-        $counter++
-        Write-Progress -Activity "Installing fonts..." `
-            -Status "$counter / $($fontFiles.Count): $($font.Name)" `
-            -PercentComplete (($counter / $fontFiles.Count) * 100)
-        Install-Font $font $CurrentUser $Native
+        if (-not (Install-Font -FontFile $font -IsCurrentUser $CurrentUser)) { $failed++ }
     }
 
-    Write-Host "`n✅ Font installation completed successfully."
-    Write-Host "📝 Log saved to: $logFile"
+    [void]$Native::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero)
+    if ($failed -gt 0) { throw "$failed of $($fontFiles.Count) font files failed to install." }
+    Write-Host "Installed and registered $($fontFiles.Count) font files. Restart affected applications to refresh their font lists."
 }
 catch {
-    Write-Host "⚠️ Error: $($_.Exception.Message)"
-}
-finally {
-    Stop-Transcript | Out-Null
+    Write-Error $_.Exception.Message
+    exit 1
 }

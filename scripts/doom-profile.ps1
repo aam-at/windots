@@ -1,5 +1,7 @@
 <#
 Run Doom's CLI with the isolated paths used by emacs-daemon.ps1 doom.
+Always passes -! (--force) so a prompt Doom can't suppress doesn't hang
+waiting for a keypress that can't reach Emacs through this shell chain.
 
 Usage:
   .\doom-profile.ps1 [DOOM-ARG ...]
@@ -13,6 +15,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Fixes mojibake from Doom/Emacs writing UTF-8 (e.g. checkmarks) to a
+# console still on the legacy code page. [Console]::OutputEncoding alone
+# doesn't reliably reach the real Win32 console code page on every host
+# (it only governs what .NET itself writes, not a native child process's
+# direct console writes), so set it via chcp too.
+$null = chcp.com 65001
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 $roots = Get-EmacsRoots
@@ -29,6 +39,14 @@ if (-not (Test-Path -LiteralPath (Join-Path $framework 'bin'))) {
 }
 if (-not (Test-Path -LiteralPath (Join-Path $profileDirectory 'init.el'))) {
     throw "Doom profile is not installed at $profileDirectory"
+}
+
+if ($DoomArgs -notcontains '-!' -and $DoomArgs -notcontains '--force') {
+    # A prompt Doom can't suppress (e.g. straight.el asking to overwrite a
+    # locally-modified package) hangs forever here: the confirmation reaches
+    # Emacs through a pwsh -> bash -> emacs.exe chain that doesn't reliably
+    # forward keystrokes. -! auto-accepts prompts instead of asking.
+    $DoomArgs = @($DoomArgs) + '-!'
 }
 
 $doomCommand = @(
