@@ -209,11 +209,24 @@ function Configure-Registry {
     if (-not $?) { throw 'Registry configuration failed.' }
 
     if (-not (Test-IsAdmin)) {
-        Write-Info 'Requesting administrator approval to enable Developer Mode, long paths, and the agent power plan...'
+        Write-Info 'Requesting administrator approval to enable Developer Mode, long paths, persistent ssh-agent, and the agent power plan...'
         if (-not (Invoke-ElevatedScript -ScriptPath $registryScript -Arguments $registryArgs)) {
-            Write-Warn 'Admin-only registry and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
+            Write-Warn 'Admin-only registry, ssh-agent, and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
         }
     }
+}
+
+function Unlock-SshKey {
+    $unlockScript = Join-Path $PSScriptRoot 'Unlock-SshKey.ps1'
+    if (-not (Test-Path -LiteralPath $unlockScript)) {
+        throw "SSH key unlock script not found: $unlockScript"
+    }
+
+    $unlockArgs = @{ LogLevel = $LogLevel }
+    if ($DryRun) { $unlockArgs['DryRun'] = $true }
+
+    & $unlockScript @unlockArgs
+    if (-not $?) { throw 'SSH key unlock failed.' }
 }
 
 # -----------------------
@@ -595,6 +608,7 @@ function Install-Links {
 # -----------------------
 try {
     Configure-Registry
+    Unlock-SshKey
     Ensure-HomeEnv
     Install-Packages
     Ensure-UserBinOnPath
