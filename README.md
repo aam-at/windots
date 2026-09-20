@@ -56,6 +56,15 @@ current desktop mode.
 - This repo includes `Profile.ps1`, used as the default PowerShell profile.
   `Setup.ps1` links it into place.
 
+## SSH key at sign-in
+
+`Setup.ps1` enables the built-in Windows `ssh-agent` service and then asks once
+for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
+signed-in Windows account context, making it available at future sign-ins
+without putting the passphrase in a script or Startup shortcut. To add a
+different key later, run `pwsh -File .\scripts\Unlock-SshKey.ps1 -KeyPath
+<path-to-key>`.
+
 ## Emacs profiles
 - `scripts\emacs-daemon.ps1` manages named Doom and Spacemacs daemons. For
   example: `pwsh -File .\scripts\emacs-daemon.ps1 switch doom` starts Doom,
