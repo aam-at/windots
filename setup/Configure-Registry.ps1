@@ -2,12 +2,12 @@
 Applies the Windows registry settings used by this dotfiles setup.
 
 Usage:
-  pwsh -File .\scripts\Configure-Registry.ps1
-  pwsh -File .\scripts\Configure-Registry.ps1 -DryRun
+  pwsh -File .\setup\Configure-Registry.ps1
+  pwsh -File .\setup\Configure-Registry.ps1 -DryRun
 
 Run from an elevated terminal (or let Setup.ps1 prompt for UAC approval) to
-also enable Developer Mode, long paths, the closed-lid agent power plan, and
-the persistent Windows OpenSSH agent.
+also enable Windows Sudo, Developer Mode, long paths, the closed-lid agent
+power plan, and the persistent Windows OpenSSH agent.
 #>
 
 param(
@@ -24,6 +24,7 @@ $ErrorActionPreference = 'Stop'
 function Set-Dword([string]$Path, [string]$Name, [int]$Value) {
     Write-Info "Setting ${Path}\$Name=$Value"
     if (-not $DryRun) {
+        New-Item -Path $Path -Force | Out-Null
         New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
     }
 }
@@ -61,10 +62,11 @@ Set-Dword $explorerAdvanced 'ShowSuperHidden' 0
 Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 
 if (-not (Test-IsAdmin)) {
-    Write-Warn 'Skipping Developer Mode, Win32 long paths, persistent ssh-agent, and power-plan settings; they require an elevated session.'
+    Write-Warn 'Skipping Windows Sudo, Developer Mode, Win32 long paths, persistent ssh-agent, and power-plan settings; they require an elevated session.'
     exit 0
 }
 
+Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo' 'Enabled' 3
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' 'AllowDevelopmentWithoutDevLicense' 1
 Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' 'LongPathsEnabled' 1
 Enable-SshAgent

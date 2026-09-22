@@ -4,13 +4,13 @@ hands off to Setup.ps1. Setup.ps1 expects Scoop and Git already on PATH and
 clones the shared ~/dotfiles repo itself.
 
 Usage (fresh Windows box, from a regular PowerShell prompt):
-  irm https://raw.githubusercontent.com/aam-at/windots/master/scripts/Bootstrap.ps1 | iex
+  irm https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1 | iex
 #>
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$BootstrapUrl = 'https://raw.githubusercontent.com/aam-at/windots/master/scripts/Bootstrap.ps1'
+$BootstrapUrl = 'https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1'
 
 function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
 
@@ -40,4 +40,4 @@ if (-not (Test-Path -LiteralPath (Join-Path $windotsRoot '.git'))) {
 }
 
 Write-Host '[INFO] Running Setup.ps1...'
-& (Join-Path $windotsRoot 'scripts\Setup.ps1')
+& (Join-Path $windotsRoot 'setup\Setup.ps1')

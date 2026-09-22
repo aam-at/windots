@@ -1,6 +1,6 @@
 <#
 Switch to the external-monitor desktop: Komorebi tiling with its AutoHotkey
-bindings. Use scripts\Use-Native-Desktop.ps1 on the laptop display instead.
+bindings. Use shells\Use-Desktop.ps1 -DesktopMode Native on the laptop display instead.
 #>
 
 [CmdletBinding()]
@@ -9,10 +9,10 @@ param([switch]$DryRun)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Common.ps1')
+. (Join-Path $PSScriptRoot '..\..\setup\Common.ps1')
 
 try {
-    $linkInstaller = Join-Path $PSScriptRoot 'Install-Links.ps1'
+    $linkInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Links.ps1'
     if (-not (Test-Path -LiteralPath $linkInstaller)) {
         throw "Link installer not found: $linkInstaller"
     }
@@ -21,11 +21,12 @@ try {
     & $linkInstaller -SkipConfigLinks -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
-    $nativeBindings = Join-Path $PSScriptRoot 'Native-Desktop.ahk'
+    $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
     Invoke-IfNotDryRun { Stop-AutoHotkeyScript $nativeBindings }
+    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
 
-    $config = Join-Path $HOME '.config\komorebi\komorebi.json'
-    $bindings = Join-Path $HOME '.config\komorebi\komorebi.ahk'
+    $config = Join-Path $PSScriptRoot 'komorebi.json'
+    $bindings = Join-Path $PSScriptRoot 'komorebi.ahk'
     if (-not (Test-Path -LiteralPath $config)) { throw "Komorebi config not found: $config" }
     if (-not (Test-Path -LiteralPath $bindings)) { throw "Komorebi bindings not found: $bindings" }
 
@@ -43,6 +44,14 @@ try {
     }
     Invoke-IfNotDryRun {
         Start-Process -FilePath (Get-Command autohotkey.exe -CommandType Application).Source -ArgumentList ('"{0}"' -f $bindings)
+    }
+
+    $yasb = Get-Command yasb.exe -CommandType Application -ErrorAction SilentlyContinue
+    if ($yasb) {
+        Invoke-IfNotDryRun {
+            Get-Process -Name yasb -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Process -FilePath $yasb.Source -WindowStyle Hidden
+        }
     }
 
     $message = if ($DryRun) { 'Komorebi desktop mode validated.' } else { 'Komorebi desktop mode is active.' }
