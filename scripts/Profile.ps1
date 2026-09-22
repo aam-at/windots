@@ -32,7 +32,6 @@ if (Test-Interactive) {
     Set-Alias -Name ls -Value Get-ChildItemPretty -Option AllScope -Force
     Set-Alias -Name rm -Value Remove-ItemExtended -Option AllScope -Force
     Set-Alias -Name su -Value Update-ShellElevation -Option AllScope -Force
-    Set-Alias -Name tif -Value Show-ThisIsFine -Option AllScope -Force
     Set-Alias -Name touch -Value New-File -Option AllScope -Force
     if (Test-Command nvim) { Set-Alias -Name vi -Value nvim -Option AllScope -Force; Set-Alias -Name vim -Value nvim -Option AllScope -Force }
     Set-Alias -Name which -Value Show-Command -Option AllScope -Force
@@ -74,13 +73,7 @@ function Find-String {
         rg @args
         return
     }
-    # Fallback to Select-String
-    if ($Directory) {
-        if ($Recurse) { Get-ChildItem -Recurse $Directory | Select-String $SearchTerm; return }
-        Get-ChildItem $Directory | Select-String $SearchTerm; return
-    }
-    if ($Recurse) { Get-ChildItem -Recurse | Select-String $SearchTerm; return }
-    Get-ChildItem | Select-String $SearchTerm
+    Get-ChildItem $(if ($Directory) { $Directory } else { '.' }) -Recurse:$Recurse | Select-String $SearchTerm
 }
 
 function New-File {
@@ -96,23 +89,6 @@ function Show-Command {
     Get-Command $Name | Select-Object -ExpandProperty Definition
 }
 
-function Get-OrCreateSecret {
-    [CmdletBinding()]
-    param([Parameter(Mandatory = $true)][string]$secretName)
-    Write-Verbose "Getting secret $secretName"
-    $secretValue = Get-Secret $secretName -AsPlainText -ErrorAction SilentlyContinue
-    if (!$secretValue) {
-        $createSecret = Read-Host "No secret found matching $secretName, create one? Y/N"
-        if ($createSecret.ToUpper() -eq 'Y') {
-            $secretValue = Read-Host -Prompt "Enter secret value for ($secretName)" -AsSecureString
-            Set-Secret -Name $secretName -SecureStringSecret $secretValue
-            $secretValue = Get-Secret $secretName -AsPlainText
-        }
-        else { throw "Secret not found and not created, exiting" }
-    }
-    return $secretValue
-}
-
 function Get-ChildItemPretty {
     [CmdletBinding()]
     param([string]$Path = $PWD)
@@ -126,42 +102,13 @@ function Get-ChildItemPretty {
     Write-Host ""
 }
 
-function Show-ThisIsFine {
-    [CmdletBinding()]
-    param()
-    if (Test-Command Show-ColorScript) { Show-ColorScript -Name thisisfine } else { Write-Host "(colorscript not installed)" }
-}
-
 function Remove-ItemExtended {
     [CmdletBinding()]
     param([switch]$rf, [Parameter(Mandatory = $true)][string]$Path)
     Remove-Item $Path -Recurse:$rf -Force:$rf -ErrorAction Stop
 }
 
-function cc-personal {
-    $previousConfigDir = $env:CLAUDE_CONFIG_DIR
-    try {
-        $env:CLAUDE_CONFIG_DIR = "$HOME\.claude-personal"
-        & claude --dangerously-skip-permissions @args
-    }
-    finally {
-        $env:CLAUDE_CONFIG_DIR = $previousConfigDir
-    }
-}
-
-function cc-work {
-    $previousConfigDir = $env:CLAUDE_CONFIG_DIR
-    try {
-        $env:CLAUDE_CONFIG_DIR = "$HOME\.claude-work"
-        & claude --dangerously-skip-permissions @args
-    }
-    finally {
-        $env:CLAUDE_CONFIG_DIR = $previousConfigDir
-    }
-}
-
 # Environment Variables
-$ENV:HOME = $HOME
 $ENV:DotsLocalRepo = "$HOME\dotfiles"
 $ENV:WindotsLocalRepo = "$HOME\windots"
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
@@ -177,9 +124,7 @@ if (Test-Interactive) {
     }
     if (Test-Command zoxide) { Invoke-Expression (& { (zoxide init powershell | Out-String) }) }
     if ((Test-Command direnv) -and ($PSVersionTable.PSVersion -ge [version]'7.2')) { Invoke-Expression (& { (direnv hook pwsh | Out-String) } ) }
-}
 
-if (Test-Interactive) {
     try {
         $colors = @{
             'Operator'         = "`e[35m"
@@ -200,4 +145,4 @@ if (Test-Interactive) {
 }
 
 # Skip fastfetch for non-interactive shells
-if (Test-Interactive -and (Test-Command fastfetch) -and -not $env:FASTFETCH_DISABLE) { fastfetch }
+if ((Test-Interactive) -and (Test-Command fastfetch) -and -not $env:FASTFETCH_DISABLE) { fastfetch }

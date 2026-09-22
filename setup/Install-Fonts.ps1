@@ -60,29 +60,6 @@ function Get-FontFamilyName {
     finally { $privateFonts.Dispose() }
 }
 
-function Get-FontRegistryName {
-    param(
-        [Parameter(Mandatory)][string]$FamilyName,
-        [Parameter(Mandatory)][System.IO.FileInfo]$FontFile
-    )
-
-    # Family names alone are not unique: weights and styles would overwrite
-    # each other. The filename produces a stable, distinct value per face.
-    $fontKind = if ($FontFile.Extension -ieq '.otf') { 'OpenType' } else { 'TrueType' }
-    return "$FamilyName $($FontFile.BaseName) ($fontKind)"
-}
-
-function Test-FontRegistration {
-    param(
-        [Parameter(Mandatory)][string]$RegistryPath,
-        [Parameter(Mandatory)][string]$RegistryName,
-        [Parameter(Mandatory)][string]$ExpectedValue
-    )
-
-    $property = (Get-ItemProperty -Path $RegistryPath -ErrorAction SilentlyContinue).PSObject.Properties[$RegistryName]
-    return $null -ne $property -and $property.Value -eq $ExpectedValue
-}
-
 function Install-Font {
     param(
         [Parameter(Mandatory)][System.IO.FileInfo]$FontFile,
@@ -101,7 +78,10 @@ function Install-Font {
         }
 
         $fontPath = Join-Path $fontsDirectory $FontFile.Name
-        $registryName = Get-FontRegistryName -FamilyName $familyName -FontFile $FontFile
+        # Family names alone are not unique: weights and styles would overwrite
+        # each other. The filename produces a stable, distinct value per face.
+        $fontKind = if ($FontFile.Extension -ieq '.otf') { 'OpenType' } else { 'TrueType' }
+        $registryName = "$familyName $($FontFile.BaseName) ($fontKind)"
         # Current-user fonts need an absolute registry path. Windows resolves
         # machine-wide font filenames relative to %WINDIR%\Fonts.
         $registryValue = if ($IsCurrentUser) { $fontPath } else { $FontFile.Name }
@@ -113,9 +93,7 @@ function Install-Font {
             $copied = $true
         }
 
-        if (-not (Test-FontRegistration -RegistryPath $registryPath -RegistryName $registryName -ExpectedValue $registryValue)) {
-            New-ItemProperty -Path $registryPath -Name $registryName -Value $registryValue -PropertyType String -Force | Out-Null
-        }
+        New-ItemProperty -Path $registryPath -Name $registryName -Value $registryValue -PropertyType String -Force | Out-Null
 
         if ($Native::AddFontResource($fontPath) -eq 0) {
             throw 'Windows could not load the registered font.'

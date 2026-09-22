@@ -13,6 +13,46 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
+function Ensure-GitCheckout {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [string]$Repository,
+
+        [Parameter(Mandatory)]
+        [string]$Destination
+    )
+
+    if (Test-Path -LiteralPath $Destination) {
+        if (Test-Path -LiteralPath (Join-Path $Destination '.git')) {
+            Write-Info "$Name framework already present: $Destination"
+            return $false
+        }
+
+        Write-Warn "$Name destination exists but is not a Git checkout; preserving it: $Destination"
+        return $false
+    }
+
+    if (-not (Test-Command 'git')) {
+        throw "Git is required to install the $Name framework."
+    }
+
+    $parent = Split-Path -Parent $Destination
+    if (-not (Test-Path -LiteralPath $parent)) {
+        Write-Info "Creating framework directory: $parent"
+        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+    }
+
+    Write-Info "Cloning $Name framework..."
+    if (-not (Invoke-NativeCommand -Description "$Name framework" -Action { git clone --depth=1 $Repository $Destination | Out-Null })) {
+        throw "Unable to clone the $Name framework."
+    }
+
+    return $true
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $dotfilesEmacs = Join-Path $HOME 'dotfiles\emacs'
 if (-not (Test-Path -LiteralPath $dotfilesEmacs)) {

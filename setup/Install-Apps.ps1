@@ -50,13 +50,6 @@ function Install-ScoopPackage {
     return Invoke-NativeCommand -Description "Scoop package $Name" -Action { scoop install $Name }
 }
 
-function Install-BunPackage {
-    param([Parameter(Mandatory)][string]$Name)
-
-    Write-Info "bun add --global $Name"
-    return Invoke-NativeCommand -Description "Bun package $Name" -Action { bun add --global $Name }
-}
-
 $packageFailures = [System.Collections.Generic.List[string]]::new()
 
 # Winget apps (install per-ID for clearer output and retries)
@@ -103,9 +96,9 @@ $bunApps = @(
 
 if (Test-Command 'scoop') {
     Write-Info 'Ensuring scoop buckets and apps are installed...'
+    $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
     foreach ($b in $scoopBuckets) {
         $bucketExists = (scoop bucket list | Out-String) -match "(?m)^$([regex]::Escape($b))\s"
-        $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
         $bucketHealthy = (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\.git\config")) -and
         (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\bucket"))
         if ($bucketExists -and -not $bucketHealthy) {
@@ -123,24 +116,16 @@ if (Test-Command 'scoop') {
             }
         }
     }
-    if ($scoopAppsMain.Count -gt 0) {
-        foreach ($app in $scoopAppsMain) {
-            if (-not (Install-ScoopPackage -Name $app)) {
-                $packageFailures.Add("scoop:$app")
-            }
-        }
-    }
-    if ($scoopAppsExtras.Count -gt 0) {
-        foreach ($app in $scoopAppsExtras) {
-            if (-not (Install-ScoopPackage -Name $app)) {
-                $packageFailures.Add("scoop:$app")
-            }
+    foreach ($app in $scoopAppsMain + $scoopAppsExtras) {
+        if (-not (Install-ScoopPackage -Name $app)) {
+            $packageFailures.Add("scoop:$app")
         }
     }
 
     if (Test-Command 'bun') {
         foreach ($app in $bunApps) {
-            if (-not (Install-BunPackage -Name $app)) {
+            Write-Info "bun add --global $app"
+            if (-not (Invoke-NativeCommand -Description "Bun package $app" -Action { bun add --global $app })) {
                 $packageFailures.Add("bun:$app")
             }
         }
