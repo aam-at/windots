@@ -52,7 +52,7 @@ try {
     Set-TaskbarAutoHide
     Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     $linkInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Links.ps1'
-    & $linkInstaller -SkipConfigLinks -DesktopMode Native -DryRun:$DryRun
+    & $linkInstaller -SkipLinks -DesktopMode Native -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
 
     if (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue) {

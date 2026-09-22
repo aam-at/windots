@@ -1,0 +1,358 @@
+PackageName: windots.Komorebi
+Name: Komorebi (windots)
+WindowFilter: "komorebi.exe"
+BackgroundProcess: true
+Shortcuts:
+  - SectionName: Window Manager
+    Properties:
+      - Name: Close window
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Q
+      - Name: Minimize window
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - M
+      - Name: Retile
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - R
+      - Name: Toggle pause
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - P
+
+  - SectionName: Focus
+    Properties:
+      - Name: Focus left
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - H
+      - Name: Focus down
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - J
+      - Name: Focus up
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - K
+      - Name: Focus right
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - L
+      - Name: Cycle focus previous
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - "["
+      - Name: Cycle focus next
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - "]"
+
+  - SectionName: Move Windows
+    Properties:
+      - Name: Move window left
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - H
+      - Name: Move window down
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - J
+      - Name: Move window up
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - K
+      - Name: Move window right
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - L
+
+  - SectionName: Stacking
+    Properties:
+      - Name: Stack left
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Left>"
+      - Name: Stack down
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Down>"
+      - Name: Stack up
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Up>"
+      - Name: Stack right
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Right>"
+      - Name: Unstack
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - ";"
+      - Name: Cycle stack previous
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "["
+      - Name: Cycle stack next
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "]"
+
+  - SectionName: Resize
+    Properties:
+      - Name: Increase width
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Plus
+      - Name: Decrease width
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Minus
+      - Name: Increase height
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - Plus
+      - Name: Decrease height
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - Minus
+
+  - SectionName: Window State
+    Properties:
+      - Name: Toggle float
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - T
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Space
+      - Name: Toggle monocle
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - F
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Enter>"
+      - Name: Toggle maximize
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - M
+      - Name: Toggle lock
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - P
+
+  - SectionName: Layouts
+    Properties:
+      - Name: Flip layout horizontal
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - X
+      - Name: Flip layout vertical
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Y
+      - Name: Layout BSP
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - B
+      - Name: Layout grid
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - G
+      - Name: Layout vertical stack
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - V
+      - Name: Layout ultrawide vertical stack
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - U
+
+  - SectionName: Workspaces
+    Properties:
+      - Name: Previous workspace
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - ","
+      - Name: Next workspace
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "."
+      - Name: Focus workspace 1-6
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "1"
+      - Name: Move window to workspace 1-6
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - "1"

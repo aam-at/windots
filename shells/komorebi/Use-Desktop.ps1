@@ -18,7 +18,7 @@ try {
     }
 
     # Creates the Komorebi startup shortcuts and removes the native-mode one.
-    & $linkInstaller -SkipConfigLinks -DesktopMode Komorebi -DryRun:$DryRun
+    & $linkInstaller -SkipLinks -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'

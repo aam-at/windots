@@ -27,6 +27,7 @@ ToggleMaximize() {
 <!n::Send "#n"
 <!y::Run "ms-settings:personalization-background"
 <!,::Run "ms-settings:personalization"
+<!s::Send "#h"
 
 ; Window controls
 <!q::WinClose "A"
@@ -46,19 +47,35 @@ ToggleMaximize() {
 
 ; Windows virtual desktops: U/I mirrors Niri's workspace down/up bindings.
 ; Alt+1..9 are registered by Windows Virtual Desktop Helper as direct desktop
-; jumps. Alt+Shift+1..9 moves the active window to that numbered desktop.
-; Windows only exposes adjacent-window moves, so normalize at the left edge
-; first; extra left presses are harmless at desktop 1.
+; jumps. Alt+Shift+1..9 moves the active window to that numbered desktop and
+; follows it there. Windows has no built-in shortcut or public API for moving
+; another process's window between desktops, so this uses
+; VirtualDesktopAccessor.dll (https://github.com/Ciantic/VirtualDesktopAccessor).
+hVirtualDesktopAccessor := DllCall("LoadLibrary", "Str", A_ScriptDir "\VirtualDesktopAccessor.dll", "Ptr")
+VDA_GoToDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
+VDA_MoveWindowToDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
+VDA_GetCurrentDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
+VDA_GetDesktopCount := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
+
 MoveWindowToDesktop(target) {
-    Loop 20 {
-        Send "#^+{Left}"
-        Sleep 15
-    }
-    rightMoves := target - 1
-    Loop rightMoves {
-        Send "#^+{Right}"
-        Sleep 15
-    }
+    global VDA_GoToDesktopNumber, VDA_MoveWindowToDesktopNumber
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    DllCall(VDA_MoveWindowToDesktopNumber, "Ptr", hwnd, "Int", target - 1, "Int")
+    DllCall(VDA_GoToDesktopNumber, "Int", target - 1, "Int")
+}
+
+MoveWindowToRelativeDesktop(delta) {
+    global VDA_GoToDesktopNumber, VDA_MoveWindowToDesktopNumber, VDA_GetCurrentDesktopNumber, VDA_GetDesktopCount
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    current := DllCall(VDA_GetCurrentDesktopNumber, "Int")
+    count := DllCall(VDA_GetDesktopCount, "Int")
+    target := Mod(current + delta + count, count)
+    DllCall(VDA_MoveWindowToDesktopNumber, "Ptr", hwnd, "Int", target, "Int")
+    DllCall(VDA_GoToDesktopNumber, "Int", target, "Int")
 }
 
 <!+1::MoveWindowToDesktop(1)
@@ -72,5 +89,16 @@ MoveWindowToDesktop(target) {
 <!+9::MoveWindowToDesktop(9)
 <!u::Send "#^{Right}"
 <!i::Send "#^{Left}"
-<!^u::Send "#^+{Right}"
-<!^i::Send "#^+{Left}"
+<!^u::MoveWindowToRelativeDesktop(1)
+<!^i::MoveWindowToRelativeDesktop(-1)
+<!WheelDown::Send "#^{Right}"
+<!WheelUp::Send "#^{Left}"
+<!^WheelDown::MoveWindowToRelativeDesktop(1)
+<!^WheelUp::MoveWindowToRelativeDesktop(-1)
+
+; Power off the display without locking or sleeping (niri: power-off-monitors)
+MonitorOff() {
+    hwnd := DllCall("FindWindow", "Str", "Progman", "Ptr", 0, "Ptr")
+    PostMessage(0x0112, 0xF170, 2, , "ahk_id " hwnd)
+}
+<!+p::MonitorOff()
