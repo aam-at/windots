@@ -2,10 +2,10 @@
 Creates the Windows dotfile links and Startup-folder shortcuts.
 
 Usage:
-  pwsh -File .\scripts\Install-Links.ps1
-  pwsh -File .\scripts\Install-Links.ps1 -Force
-  pwsh -File .\scripts\Install-Links.ps1 -DryRun
-  pwsh -File .\scripts\Install-Links.ps1 -DesktopMode Native
+  pwsh -File .\setup\Install-Links.ps1
+  pwsh -File .\setup\Install-Links.ps1 -Force
+  pwsh -File .\setup\Install-Links.ps1 -DryRun
+  pwsh -File .\setup\Install-Links.ps1 -DesktopMode Native
 #>
 
 param(
@@ -28,9 +28,8 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 function RepoPath([string]$Relative) { Join-Path $RepoRoot $Relative }
 
 function Remove-PathSafe([string]$Path) {
-    if (-not (Test-Path -LiteralPath $Path)) { return $true }
-
-    $item = Get-Item -LiteralPath $Path -Force
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return $true }
     $isLink = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
     if (-not $isLink -and -not $Force) {
         Write-Warn "Existing path is not a link; preserving it. Re-run with -Force to replace: $Path"
@@ -82,7 +81,7 @@ function Ensure-Link([string]$Destination, [string]$Source) {
         return
     }
 
-    if ((Test-Path -LiteralPath $Destination) -and -not (Remove-PathSafe $Destination)) { return }
+    if ((Get-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue) -and -not (Remove-PathSafe $Destination)) { return }
 
     $parent = Split-Path -Parent $Destination
     if (-not (Test-Path -LiteralPath $parent)) {
@@ -113,6 +112,12 @@ function Resolve-KanataGui {
     Get-ChildItem -LiteralPath $kanataAppRoot -Filter 'kanata_windows_gui_winIOv2_*.exe' -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notlike '*cmd_allowed*' } |
         Select-Object -First 1 -ExpandProperty FullName
+}
+
+function Resolve-VirtualDesktopHelper {
+    $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
+    $helper = Join-Path $scoopRoot 'apps\windows-virtualdesktop-helper\current\WindowsVirtualDesktopHelper.exe'
+    if (Test-Path -LiteralPath $helper -PathType Leaf) { return $helper }
 }
 
 function Ensure-StartupShortcut {
@@ -175,7 +180,8 @@ $linkMap = @{
     (Join-Path $HOME 'bin\cc-personal.cmd')                                                                   = (RepoPath 'cmd\cc-personal.cmd')
     (Join-Path $HOME 'bin\cc-work.cmd')                                                                       = (RepoPath 'cmd\cc-work.cmd')
     (Join-Path $HOME '.config\kanata')                                                                        = (RepoPath 'kanata')
-    (Join-Path $HOME '.config\komorebi')                                                                      = (RepoPath 'komorebi')
+    (Join-Path $HOME '.config\komorebi')                                                                      = (RepoPath 'shells\komorebi')
+    (Join-Path $env:APPDATA 'WindowsVirtualDesktopHelper\WindowsVirtualDesktopHelper.exe.config')             = (RepoPath 'shells\native\WindowsVirtualDesktopHelper.exe.config')
     (Join-Path $HOME '.config\wezterm')                                                                       = (Join-Path $HOME 'dotfiles\config\wezterm')
     (Join-Path $HOME '.config\yasb')                                                                          = (RepoPath 'yasb')
     (Join-Path $HOME '.gitconfig')                                                                            = (RepoPath 'git\config')
@@ -226,32 +232,41 @@ try {
             # any more): it prints a deprecation notice and never actually starts
             # AutoHotkey, so we launch it ourselves against the real script path.
             Remove-StartupShortcut 'NativeDesktop'
-            $komorebiConfig = Join-Path $HOME '.config\komorebi\komorebi.json'
+            $komorebiConfig = RepoPath 'shells\komorebi\komorebi.json'
             $komorebiArguments = 'start --clean-state --config "{0}"' -f $komorebiConfig
             if (Ensure-StartupShortcut -Name 'Komorebi' -Candidates @('komorebic-no-console', 'komorebic') -Arguments $komorebiArguments -RunningProcessName 'komorebi') {
                 Remove-LegacyStartupEntry 'Komorebic'
             }
-            $komorebiAhk = Join-Path $HOME '.config\komorebi\komorebi.ahk'
+            $komorebiAhk = RepoPath 'shells\komorebi\komorebi.ahk'
             if (Test-Path -LiteralPath $komorebiAhk) {
                 [void](Ensure-StartupShortcut -Name 'KomorebiAHK' -Candidates @('autohotkey', 'AutoHotkey64', 'AutoHotkey') -Arguments ('"{0}"' -f $komorebiAhk) -RunningProcessName 'AutoHotkeyUX')
             }
             else {
                 Write-Warn "komorebi.ahk not found at $komorebiAhk; skipping AutoHotkey startup shortcut."
             }
+            if (Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb', 'yasb.exe') -Arguments '') {
+                Remove-LegacyStartupEntry 'YASB'
+            }
+            Remove-StartupShortcut 'VirtualDesktopHelper'
+            Remove-LegacyStartupEntry 'VirtualDesktopHelper'
+            if (-not $DryRun) { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
         }
         else {
             Remove-StartupShortcut 'Komorebi'
             Remove-StartupShortcut 'KomorebiAHK'
-            $nativeDesktop = Join-Path $PSScriptRoot 'Native-Desktop.ahk'
+            Remove-StartupShortcut 'YASB'
+            $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper', 'WindowsVirtualDesktopHelper.exe') | Where-Object { $_ }
+            $virtualDesktopHelperArguments = '--feature.useHotKeyToJumpToDesktopNumber true --feature.useHotKeyToJumpToDesktopNumber.hotkey "Alt"'
+            if (Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments $virtualDesktopHelperArguments -RunningProcessName 'WindowsVirtualDesktopHelper') {
+                Remove-LegacyStartupEntry 'VirtualDesktopHelper'
+            }
+            $nativeDesktop = RepoPath 'shells\native\Native-Desktop.ahk'
             if (Test-Path -LiteralPath $nativeDesktop) {
                 [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64', 'AutoHotkey') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
             }
             else {
                 Write-Warn "Native desktop bindings not found at $nativeDesktop; skipping AutoHotkey startup shortcut."
             }
-        }
-        if (Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb', 'yasb.exe') -Arguments '') {
-            Remove-LegacyStartupEntry 'YASB'
         }
         $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
         $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }

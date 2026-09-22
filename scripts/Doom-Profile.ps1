@@ -1,10 +1,10 @@
 <#
-Run Doom's CLI with the isolated paths used by emacs-daemon.ps1 doom.
+Run Doom's CLI with the isolated paths used by Emacs-Daemon.ps1 doom.
 Always passes -! (--force) so a prompt Doom can't suppress doesn't hang
 waiting for a keypress that can't reach Emacs through this shell chain.
 
 Usage:
-  .\doom-profile.ps1 [DOOM-ARG ...]
+  .\Doom-Profile.ps1 [DOOM-ARG ...]
 #>
 
 [CmdletBinding()]
@@ -24,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 $null = chcp.com 65001
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
-. (Join-Path $PSScriptRoot 'Common.ps1')
+. (Join-Path $PSScriptRoot '..\setup\Common.ps1')
 $roots = Get-EmacsRoots
 $configRoot = $roots.ConfigRoot
 $dataRoot = $roots.DataRoot

@@ -2,7 +2,7 @@
 Manage named Emacs daemons for the profiles in the shared dotfiles repository.
 
 Usage:
-  .\emacs-daemon.ps1 {switch|start|stop|restart|open|status} PROFILE [EMACSCLIENT-ARG ...]
+  .\Emacs-Daemon.ps1 {switch|start|stop|restart|open|status} PROFILE [EMACSCLIENT-ARG ...]
 #>
 
 [CmdletBinding()]
@@ -22,7 +22,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Common.ps1')
+. (Join-Path $PSScriptRoot '..\setup\Common.ps1')
 $roots = Get-EmacsRoots
 $configRoot = $roots.ConfigRoot
 $dataRoot = $roots.DataRoot

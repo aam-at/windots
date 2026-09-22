@@ -50,8 +50,14 @@ function Update-ShellElevation {
     [CmdletBinding()]
     param()
     Write-Verbose "Elevating shell to administrator"
-    if (Test-Command sudo) { sudo -E pwsh -NoLogo -Interactive -NoExit -c "Clear-Host" }
-    else { Start-Process pwsh -Verb RunAs }
+    if (Test-Command sudo) {
+        $sudoProbe = @(& sudo --help 2>&1) -join "`n"
+        if ($sudoProbe -notmatch 'Sudo is disabled on this machine') {
+            & sudo -E pwsh -NoLogo -Interactive -NoExit -c "Clear-Host"
+            if ($LASTEXITCODE -eq 0) { return }
+        }
+    }
+    Start-Process pwsh -Verb RunAs
 }
 
 function Find-String {
@@ -195,4 +201,3 @@ if (Test-Interactive) {
 
 # Skip fastfetch for non-interactive shells
 if (Test-Interactive -and (Test-Command fastfetch) -and -not $env:FASTFETCH_DISABLE) { fastfetch }
-

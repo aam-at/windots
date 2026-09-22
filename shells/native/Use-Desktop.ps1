@@ -10,7 +10,7 @@ param([switch]$DryRun)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Common.ps1')
+. (Join-Path $PSScriptRoot '..\..\setup\Common.ps1')
 
 function Set-PowerToysSetting([string]$Path, [string[]]$EnabledUtilities) {
     if (-not (Test-Path -LiteralPath $Path)) { throw "PowerToys settings not found: $Path" }
@@ -45,25 +45,15 @@ function Set-TaskbarAutoHide {
     }
 }
 
-function Set-NativeStartupShortcut {
-    $startupDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
-    foreach ($name in 'Komorebi.lnk', 'KomorebiAHK.lnk') {
-        $path = Join-Path $startupDirectory $name
-        if (Test-Path -LiteralPath $path) { Invoke-IfNotDryRun { Remove-Item -LiteralPath $path -Force } }
-    }
-
-    $autoHotkey = (Get-Command autohotkey.exe -CommandType Application -ErrorAction Stop).Source
-    $scriptPath = Join-Path $PSScriptRoot 'Native-Desktop.ahk'
-    $shortcutPath = Join-Path $startupDirectory 'NativeDesktop.lnk'
-    Invoke-IfNotDryRun { New-Shortcut -Path $shortcutPath -Target $autoHotkey -Arguments ('"{0}"' -f $scriptPath) -WorkingDirectory $PSScriptRoot }
-}
-
 try {
     $powerToysRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys'
     Set-PowerToysSetting -Path (Join-Path $powerToysRoot 'settings.json') -EnabledUtilities @('FancyZones', 'Workspaces')
     Set-FancyZonesSettings -Path (Join-Path $powerToysRoot 'FancyZones\settings.json')
     Set-TaskbarAutoHide
-    Set-NativeStartupShortcut
+    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
+    $linkInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Links.ps1'
+    & $linkInstaller -SkipConfigLinks -DesktopMode Native -DryRun:$DryRun
+    if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
 
     if (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue) {
         Invoke-IfNotDryRun { komorebic stop 2>$null }
@@ -75,13 +65,7 @@ try {
     $nativeScript = Join-Path $PSScriptRoot 'Native-Desktop.ahk'
     Invoke-IfNotDryRun { Start-Process -FilePath (Get-Command autohotkey.exe -CommandType Application).Source -ArgumentList ('"{0}"' -f $nativeScript) }
 
-    $yasb = Get-Command yasb.exe -CommandType Application -ErrorAction SilentlyContinue
-    if ($yasb) {
-        Invoke-IfNotDryRun {
-            Get-Process -Name yasb -ErrorAction SilentlyContinue | Stop-Process -Force
-            Start-Process -FilePath $yasb.Source -WindowStyle Hidden
-        }
-    }
+    Invoke-IfNotDryRun { Get-Process -Name yasb -ErrorAction SilentlyContinue | Stop-Process -Force }
 
     $powerToys = Join-Path $env:ProgramFiles 'PowerToys\PowerToys.exe'
     if (Test-Path -LiteralPath $powerToys) {
