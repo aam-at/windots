@@ -5,7 +5,7 @@ Windows dotfiles and setup scripts.
 ## Install
 - Run this once, from a regular PowerShell prompt:
 
-  `irm https://raw.githubusercontent.com/aam-at/windots/master/scripts/Bootstrap.ps1 | iex`
+  `irm https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1 | iex`
 
   This installs Scoop, reopens a shell so it's on PATH, installs Git, clones
   this repo to `~/windots`, and runs `Setup.ps1`. Safe to re-run.
@@ -13,11 +13,12 @@ Windows dotfiles and setup scripts.
 - `Setup.ps1` expects Scoop and Git already on PATH (Bootstrap.ps1 handles
   that) and does the rest: winget/scoop packages, config links, Emacs
   distributions, PowerToys settings, and fonts. Once bootstrapped, you can
-  re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\scripts\Setup.ps1`
+  re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\setup\Setup.ps1`
 
 - Run it as a regular user; no need to launch it elevated. It prompts for UAC
-  approval only for the one step that needs admin rights (Developer Mode,
-  long paths, the agent power plan) and continues without it if you decline.
+  approval only for the one step that needs admin rights (Sudo, Developer
+  Mode, long paths, the agent power plan) and continues without it if you
+  decline.
   Existing non-link configuration paths are preserved unless `-Force` is
   supplied. Use `-DryRun` to preview the setup without making changes.
 
@@ -27,26 +28,29 @@ Windows dotfiles and setup scripts.
 ## Desktop modes
 
 The laptop display is too small for a useful multi-column tiling layout, while
-an external monitor benefits from it. The scripts below switch explicitly
-between those two working environments; automatic monitor detection is
-intentionally not used.
+an external monitor benefits from it. `shells` contains the two explicit
+desktop options; automatic monitor detection is intentionally not used.
 
 - **Laptop / native Windows:**
-  `pwsh -File .\scripts\Use-Native-Desktop.ps1`
+  `pwsh -File .\shells\Use-Desktop.ps1 -DesktopMode Native`
 
   Stops Komorebi, enables the native Windows virtual-desktop workflow with
-  PowerToys Workspaces and FancyZones, hides the bottom taskbar, and starts
-  the compact translucent YASB top bar.
+  PowerToys Workspaces and FancyZones, and hides the bottom taskbar.
+  In this mode, `Alt+1` through `Alt+9` jump to numbered virtual desktops;
+  add Shift to move the focused window to that desktop. Caps Lock taps as
+  Escape (or holds as Left Ctrl), while Escape is Caps Lock.
+  Native mode uses the Scoop-installed Windows Virtual Desktop Helper for
+  numbered desktop jumps.
 
 - **External monitor / Komorebi:**
-  `pwsh -File .\scripts\Use-Komorebi-Desktop.ps1`
+  `pwsh -File .\shells\Use-Desktop.ps1 -DesktopMode Komorebi`
 
   Stops the native desktop bindings, restores Komorebi's startup shortcuts,
   starts its external-monitor tiling configuration, and launches its
-  AutoHotkey keybindings.
+  AutoHotkey keybindings and YASB top bar.
 
-Both scripts accept `-DryRun` to show their actions without changing the
-current desktop mode.
+The selector accepts `-DryRun` to show its actions without changing the current
+desktop mode.
 
 ## Dependency
 - Uses my common dotfiles repo for shared configs: `aam-at/dotfiles`.
@@ -58,19 +62,19 @@ current desktop mode.
 
 ## SSH key at sign-in
 
-`Setup.ps1` enables the built-in Windows `ssh-agent` service and then asks once
-for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
+`Setup.ps1` enables Windows Sudo and the built-in Windows `ssh-agent` service,
+then asks once for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
 signed-in Windows account context, making it available at future sign-ins
 without putting the passphrase in a script or Startup shortcut. To add a
-different key later, run `pwsh -File .\scripts\Unlock-SshKey.ps1 -KeyPath
+different key later, run `pwsh -File .\setup\Unlock-SshKey.ps1 -KeyPath
 <path-to-key>`.
 
 ## Emacs profiles
-- `scripts\emacs-daemon.ps1` manages named Doom and Spacemacs daemons. For
-  example: `pwsh -File .\scripts\emacs-daemon.ps1 switch doom` starts Doom,
+- `scripts\Emacs-Daemon.ps1` manages named Doom and Spacemacs daemons. For
+  example: `pwsh -File .\scripts\Emacs-Daemon.ps1 switch doom` starts Doom,
   stops the other managed profiles, and makes Doom start at sign-in.
-- `scripts\doom-profile.ps1` runs Doom commands with the isolated Doom paths;
-  for example: `pwsh -File .\scripts\doom-profile.ps1 sync`.
+- `scripts\Doom-Profile.ps1` runs Doom commands with the isolated Doom paths;
+  for example: `pwsh -File .\scripts\Doom-Profile.ps1 sync`.
 - Setup installs Emacs, Doom, and Spacemacs from Scoop and their upstream
   repositories, then links the shared profiles from `~/dotfiles/emacs`.
   Spacemacs completes package installation the first time a profile opens;
