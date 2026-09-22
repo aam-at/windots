@@ -1,177 +1,256 @@
-watch_stylesheet: false
-watch_config: false
+watch_stylesheet: true
+watch_config: true
 debug: false
+update_check: true
 bars:
   primary-bar:
     enabled: true
-    screens: ["*"]
+    screens: ["primary"]
     class_name: "yasb-bar"
-    animation:
-      enabled: false
     alignment:
       position: "top"
-      center: true
+    animation:
+      enabled: true
+      duration: 400
     blur_effect:
-      enabled: false
+      enabled: true
+      dark_mode: false
+      round_corners: false
+      round_corners_type: "normal"
+      border_color: "system"
     window_flags:
-      always_on_top: true
+      always_on_top: false
       windows_app_bar: true
     dimensions:
       width: "100%"
-      height: 40
+      height: 32
     padding:
       top: 0
-      left: 8
+      left: 0
       bottom: 0
-      right: 8
+      right: 0
     widgets:
-      left: ["active_window"]
-      center: ["taskbar"]
-      right: ["wifi", "volume", "language", "clock", "notifications", "systray"]
+      left:
+      - "home"
+      - "quick_launch"
+      center:
+      - "clock"
+      right:
+      - "systray"
+      - "cpu"
+      - "memory"
+      - "open_meteo"
+      - "volume"
+      - "notifications"
+      - "power_menu"
 widgets:
-  wifi:
-    type: "yasb.wifi.WifiWidget"
+  home:
+    type: "yasb.home.HomeWidget"
     options:
-      label: "<span>{wifi_icon}</span>"
-      label_alt: "{wifi_name} {wifi_strength}%"
-      update_interval: 10000
+      label: "<span>\ue700</span>"
+      menu_list:
+      - { title: "User Home", path: "~" }
+      - { title: "Download", path: "~\\Downloads" }
+      - { title: "Documents", path: "~\\Documents" }
+      - { title: "Pictures", path: "~\\Pictures" }
+      system_menu: true
+      power_menu: true
+      blur: true
+      round_corners: true
+      round_corners_type: "normal"
+      border_color: "System"
+      alignment: "center"
+  quick_launch:
+    type: "yasb.quick_launch.QuickLaunchWidget"
+    options:
+      label: "<span>\ue721</span>"
+      search_placeholder: "Search applications..."
+      max_results: 30
+      show_icons: true
+      icon_size: 16
+      compact_text: true
+      providers:
+        apps:
+          enabled: true
+          prefix: "*"
+          priority: 0
+          show_recent: true
+          max_recent: 5
+          show_description: true
+      popup:
+        width: 720
+        height: 480
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "system"
+        dark_mode: true
       callbacks:
-        on_left: "toggle_label"
-      wifi_icons: [
-          "\udb82\udd2e", # Icon for 0% strength
-          "\udb82\udd1f", # Icon for 1-20% strength
-          "\udb82\udd22", # Icon for 21-40% strength
-          "\udb82\udd25", # Icon for 41-80% strength
-          "\udb82\udd28", # Icon for 81-100% strength
-        ]
+        on_left: "toggle_quick_launch"
+      keybindings:
+        - keys: "alt+space"
+          action: "toggle_quick_launch"
+          screen: "primary"
   clock:
     type: "yasb.clock.ClockWidget"
     options:
-      label: "{%a, %d %b  %H:%M}"
-      label_alt: "{%A, %d %B %Y %H:%M:%S}"
-      tooltip: false
+      label: "{%a, %d %b %H:%M}"
+      label_alt: "{%A, %d %B %Y %H:%M}"
       timezones: []
+      calendar: 
+        blur: true
+        round_corners: true
+        alignment: "center"
+        direction: "down"
+        extended: false
+        show_years: true
+        show_holidays: false
+        show_week_numbers: true
       callbacks:
         on_left: "toggle_calendar"
-      calendar:
-        blur: false
-        round_corners: true
-        border_color: "system"
-        distance: 4
-        alignment: "left"
-  taskbar:
-    type: "yasb.taskbar.TaskbarWidget"
+        on_middle: "toggle_label"
+        on_right: "context_menu"
+  systray:
+    type: yasb.systray.SystrayWidget
     options:
-      icon_size: 18
-      animation:
-        enabled: false
-      title_label:
-        enabled: false
-      ignore_apps:
-        processes: []
-        titles: []
-        classes: []
-      container_padding:
-        top: 0
-        left: 6
-        bottom: 0
-        right: 6
+      class_name: systray
+      label_collapsed: "\ue70d"
+      label_expanded: "\ue70e"
+      label_position: right
+      pin_click_modifier: ctrl
+      show_unpinned: false
+      show_battery: false
+      show_volume: false 
+      icon_size: 16
+      use_hook: true
+      show_in_popup: true
+      icons_per_row: 5
+      popup:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: None
+        alignment: "center"
+        direction: "down"
+        offset_top: 6
+        offset_left: 0
+  open_meteo:
+    type: "yasb.open_meteo.OpenMeteoWidget"
+    options:
+      label: "<span>\ue706</span>{temp}"
+      label_alt: "{location}: Min {min_temp}, Max {max_temp}, Humidity {humidity}"
+      tooltip: true
+      update_interval: 600
+      hide_decimal: true
+      units: "metric"
+      callbacks:
+        on_left: "toggle_card"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+      icons:
+        sunnyDay: "\ue706"
+        clearNight: "\uec46"
+      weather_card:
+        blur: true
+        alignment: "right"
+        direction: "down"
+        icon_size: 32
+        show_hourly_forecast: true
+        time_format: "24h"
+        hourly_point_spacing: 76
+        hourly_icon_size: 16
+        icon_smoothing: true
+        temp_line_width: 2
+        current_line_color: "#8EAEE8"
+        current_line_width: 1
+        current_line_style: "dot"
+        hourly_forecast_buttons:
+          enabled: false
+        weather_animation:
+          enabled: true
+          snow_overrides_rain: true
+          temp_line_animation_style: both
+          rain_effect_intensity: 1.0
+          snow_effect_intensity: 1.0
+          scale_with_chance: true
   volume:
     type: "yasb.volume.VolumeWidget"
     options:
-      label: "<span>{icon}</span> {level}"
-      label_alt: "{volume}"
-      tooltip: false
-      volume_icons:
-        - "\ueee8" # Icon for muted
-        - "\uf026" # Icon for 0-10% volume
-        - "\uf027" # Icon for 11-30% volume
-        - "\uf027" # Icon for 31-60% volume
-        - "\uf028" # Icon for 61-100% volume
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span>{level}"
+      tooltip: true
+      icons:
+        - "\ue74f"
+        - "\ue992"
+        - "\ue993"
+        - "\ue994"
+        - "\ue995"
       callbacks:
         on_left: "toggle_volume_menu"
         on_right: "toggle_mute"
-      audio_menu:
-        blur: false
-        round_corners: True
-        border_color: None
-        alignment: "right"
-        direction: "down"
-        distance: 4
-  notifications:
-    type: "yasb.notifications.NotificationsWidget"
+  cpu:
+    type: "yasb.cpu.CpuWidget"
     options:
-      label: "{count} <span>\uf476</span>"
-      label_alt: "{count} notifications"
-      hide_empty: true
-      tooltip: true
+      label: "<span>\ueea1</span> {info[percent][total]}%"
+      label_alt: "<span>\ueea1</span> {info[freq][current]} MHz"
+      update_interval: 2000
+      menu:
+        enabled: true
+        show_graph: true
+        show_graph_grid: true
+        graph_history_size: 60
       callbacks:
-        on_left: "toggle_notification"
-        on_right: "toggle_label"
-        on_middle: "do_nothing"
-  systray:
-    type: "yasb.systray.SystrayWidget"
+        on_left: toggle_menu
+        on_middle: do_nothing
+        on_right: toggle_label
+  memory:
+    type: "yasb.memory.MemoryWidget"
     options:
-      class_name: "systray"
-      label_collapsed: "▼"
-      label_expanded: "▶"
-      label_position: "left" # Can be "left" or "right"
-      icon_size: 16 # Can be any integer between 8 and 64
-      pin_click_modifier: "alt" # Can be "ctrl", "alt" or "shift"
-      show_unpinned: False
-      show_unpinned_button: true
-      show_battery: false
-      show_volume: false
-      show_network: false
-      container_padding:
-        left: 0
-        top: 0
-        right: 0
-        bottom: 0
-      btn_shadow:
-        enabled: false
-        color: "black"
-        radius: 3
-        offset: [1, 1]
-  language:
-    type: "yasb.language.LanguageWidget"
-    options:
-      label: "{lang[country_code]}"
-      label_alt: "{lang[full_name]}"
-      update_interval: 10
+      label: "<span>\ueea1</span> {virtual_mem_free}"
+      label_alt: "<span>\ueea1</span> VIRT: {virtual_mem_percent}% SWAP: {swap_mem_percent}%"
+      update_interval: 5000
       callbacks:
         on_left: "toggle_menu"
         on_middle: "do_nothing"
         on_right: "toggle_label"
-      language_menu:
-        blur: false
+      menu:
+        enabled: true
+        show_graph: true
+        show_graph_grid: true
+        graph_history_size: 60
+  power_menu:
+    type: "yasb.power_menu.PowerMenuWidget"
+    options:
+      label: "<span>\ue712</span>"
+      uptime: true
+      show_user: true
+      menu_style: "popup"
+      popup:
+        blur: true
         round_corners: true
         round_corners_type: "normal"
-        border_color: "system"
+        border_color: "System"
         alignment: "right"
         direction: "down"
         offset_top: 6
         offset_left: 0
-        show_layout_icon: true
-        layout_icon: "\uf11c"
-  active_window:
-    type: "yasb.active_window.ActiveWindowWidget"
+      profile_image_size: 64
+      buttons:
+        lock: ["\ue72e", "Lock"]
+        signout: ["\uf3b1", "Sign out"]
+        sleep: ["\uec46", "Sleep"]
+        hibernate: ["\ue66d", "Hibernate"]
+        restart: ["\ue72c", "Restart"]
+        shutdown: ["\ue7e8", "Shut Down"]
+        cancel: ["", "Cancel"]
+  notifications:
+    type: "yasb.notifications.NotificationsWidget"
     options:
-      label: "{win[process][name]}"
-      label_alt: "{win[title]}"
-      label_no_window: ""
-      label_icon: true
-      label_icon_size: 16
-      max_length: 56
-      max_length_ellipsis: "..."
-      monitor_exclusive: true
-      rewrite:
-        - pattern: "^(.+?)\\.exe$"
-          replacement: "\\1"
-          case: lower
-        - pattern: "(.*)zen(.*)$"
-          replacement: "Browser"
-        - pattern: "(.*)imageglass(.*)$"
-          replacement: "Photos"
-        - pattern: "(.*)robloxplayerbeta(.*)$"
-          replacement: "Roblox"
+      label: "<span>\uf2a3</span>"
+      label_alt: "{count} notifications"
+      hide_empty: true
+      tooltip: false
+      callbacks:
+        on_left: "toggle_notification"
+        on_right: "do_nothing"
+        on_middle: "do_nothing"
