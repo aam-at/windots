@@ -30,8 +30,8 @@
 ;; Base layer
 (deflayermap (base)
   grv @grl
-;;  caps @cap
-;;  esc caps
+  caps @cap
+  esc caps
   tab @tab
 ;;  a @a
 ;;  s @s
@@ -46,8 +46,8 @@
 ;; No mods layer
 (deflayermap (nomods)
   grv @grl
-  ;; caps @cap
-  ;; esc caps
+  caps @cap
+  esc caps
   tab @tab
   a a
   s s
@@ -91,7 +91,7 @@
   grl (tap-hold $tt $ht grv (multi (layer-while-held komorebi) lmet))
   ;; tap: tab (grave), hold: toggle switching to extend layer
   tab (tap-hold $tt $ht tab (layer-while-held extend))
-  ;; tap for capslk, hold for lctl
+  ;; Tap Caps Lock for Escape, hold it for Left Ctrl. Escape is Caps Lock.
   cap (tap-hold-press $tt $ht esc lctl)
 
   ;; home row mode based on https://github.com/jtroo/kanata/blob/main/cfg_samples/home-row-mod-advanced.kbd
