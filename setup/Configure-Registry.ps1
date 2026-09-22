@@ -6,8 +6,8 @@ Usage:
   pwsh -File .\setup\Configure-Registry.ps1 -DryRun
 
 Run from an elevated terminal (or let Setup.ps1 prompt for UAC approval) to
-also enable Windows Sudo, Developer Mode, long paths, the closed-lid agent
-power plan, and the persistent Windows OpenSSH agent.
+also enable Windows Sudo, Developer Mode, long paths, and the closed-lid agent
+power plan.
 #>
 
 param(
@@ -39,22 +39,6 @@ function Set-PowerCfg([string[]]$Arguments) {
     }
 }
 
-function Enable-SshAgent {
-    $agent = Get-Service -Name ssh-agent -ErrorAction SilentlyContinue
-    if ($null -eq $agent) {
-        Write-Warn 'Windows OpenSSH ssh-agent service is not installed; skipping SSH key persistence.'
-        return
-    }
-
-    Write-Info 'Configuring ssh-agent to start automatically at boot.'
-    if ($DryRun) { return }
-
-    Set-Service -Name ssh-agent -StartupType Automatic
-    if ($agent.Status -ne 'Running') {
-        Start-Service -Name ssh-agent
-    }
-}
-
 $explorerAdvanced = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 Set-Dword $explorerAdvanced 'Hidden' 1
 Set-Dword $explorerAdvanced 'HideFileExt' 0
@@ -62,14 +46,13 @@ Set-Dword $explorerAdvanced 'ShowSuperHidden' 0
 Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 
 if (-not (Test-IsAdmin)) {
-    Write-Warn 'Skipping Windows Sudo, Developer Mode, Win32 long paths, persistent ssh-agent, and power-plan settings; they require an elevated session.'
+    Write-Warn 'Skipping Windows Sudo, Developer Mode, Win32 long paths, and power-plan settings; they require an elevated session.'
     exit 0
 }
 
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo' 'Enabled' 3
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' 'AllowDevelopmentWithoutDevLicense' 1
 Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' 'LongPathsEnabled' 1
-Enable-SshAgent
 
 <#
 Agent power mode

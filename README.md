@@ -33,7 +33,7 @@ an external monitor benefits from it. `shells` contains the two explicit
 desktop options; automatic monitor detection is intentionally not used.
 
 - **Laptop / native Windows:**
-  `pwsh -File .\shells\Use-Desktop.ps1 -DesktopMode Native`
+  `pwsh -File .\shells\native\Use-Desktop.ps1`
 
   Stops Komorebi, enables the native Windows virtual-desktop workflow with
   PowerToys Workspaces and FancyZones, and hides the bottom taskbar.
@@ -44,13 +44,13 @@ desktop options; automatic monitor detection is intentionally not used.
   numbered desktop jumps.
 
 - **External monitor / Komorebi:**
-  `pwsh -File .\shells\Use-Desktop.ps1 -DesktopMode Komorebi`
+  `pwsh -File .\shells\komorebi\Use-Desktop.ps1`
 
   Stops the native desktop bindings, restores Komorebi's startup shortcuts,
   starts its external-monitor tiling configuration, and launches its
   AutoHotkey keybindings and YASB top bar.
 
-The selector accepts `-DryRun` to show its actions without changing the current
+Both scripts accept `-DryRun` to show their actions without changing the current
 desktop mode.
 
 - **Keybindings:** both modes' full keybinding lists are registered as
@@ -68,11 +68,11 @@ desktop mode.
 
 ## SSH key at sign-in
 
-`Setup.ps1` enables Windows Sudo and the built-in Windows `ssh-agent` service,
-then asks once for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
+`Setup.ps1` enables the built-in Windows `ssh-agent` service, then asks once
+for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
 signed-in Windows account context, making it available at future sign-ins
 without putting the passphrase in a script or Startup shortcut. To add a
-different key later, run `pwsh -File .\setup\Configure-SshKey.ps1 -KeyPath
+different key later, run `pwsh -File .\setup\Configure-SshAgent.ps1 -KeyPath
 <path-to-key>`.
 
 ## Emacs profiles

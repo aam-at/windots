@@ -1,15 +1,15 @@
 <#
-Loads an SSH private key into the persistent Windows OpenSSH agent.
+Enables the Windows OpenSSH agent service (prompting for UAC if needed) and
+loads an SSH private key into it.
 
 Usage:
-    pwsh -File .\setup\Configure-SshKey.ps1
-    pwsh -File .\setup\Configure-SshKey.ps1 -KeyPath $HOME\.ssh\id_ed25519
-    pwsh -File .\setup\Configure-SshKey.ps1 -DryRun
+    pwsh -File .\setup\Configure-SshAgent.ps1
+    pwsh -File .\setup\Configure-SshAgent.ps1 -KeyPath $HOME\.ssh\id_ed25519
+    pwsh -File .\setup\Configure-SshAgent.ps1 -DryRun
 
-The ssh-agent service must be enabled first. Configure-Registry.ps1 does that
-as an elevated setup step. Windows associates keys added to this agent with
-the signed-in Windows account, so the key remains available after later
-sign-ins without storing its passphrase in this repository or a startup task.
+Windows associates keys added to this agent with the signed-in Windows
+account, so the key remains available after later sign-ins without storing
+its passphrase in this repository or a startup task.
 #>
 
 param(
@@ -32,12 +32,26 @@ $agent = Get-Service -Name ssh-agent -ErrorAction SilentlyContinue
 if ($null -eq $agent) {
     throw 'Windows OpenSSH ssh-agent service is not installed.'
 }
-if ($agent.Status -ne 'Running') {
+if ($agent.StartType -ne 'Automatic' -or $agent.Status -ne 'Running') {
+    Write-Info 'Configuring ssh-agent to start automatically at boot.'
     if ($DryRun) {
         Write-Info "Would unlock SSH key in ssh-agent: $KeyPath"
         exit 0
     }
-    throw 'Windows OpenSSH ssh-agent is not running. Run Setup.ps1 or Configure-Registry.ps1 from an elevated PowerShell session first.'
+
+    $enableAgent = 'Set-Service -Name ssh-agent -StartupType Automatic; Start-Service -Name ssh-agent'
+    if (Test-IsAdmin) {
+        Invoke-Expression $enableAgent
+    }
+    else {
+        Write-Info 'Requesting administrator approval to enable the ssh-agent service...'
+        $shell = (Get-Process -Id $PID).Path
+        try { Start-Process -FilePath $shell -ArgumentList @('-NoProfile', '-Command', $enableAgent) -Verb RunAs -Wait }
+        catch { throw 'Enabling the ssh-agent service needs administrator approval.' }
+    }
+    if ((Get-Service -Name ssh-agent).Status -ne 'Running') {
+        throw 'Windows OpenSSH ssh-agent failed to start.'
+    }
 }
 
 $fingerprints = @(& ssh-add -l 2>$null)

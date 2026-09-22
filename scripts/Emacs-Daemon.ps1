@@ -43,16 +43,13 @@ function Get-ProfilePaths {
 
     switch ($Name) {
         'doom' {
-            return [pscustomobject]@{
-                Framework   = Join-Path $dataRoot 'doom'
-                Profile     = Join-Path $configRoot 'doom'
-                Local       = Join-Path $stateRoot 'doom'
-                Environment = @{
-                    EMACSDIR     = (Join-Path $dataRoot 'doom')
-                    DOOMDIR      = (Join-Path $configRoot 'doom')
-                    DOOMLOCALDIR = (Join-Path $stateRoot 'doom')
-                }
+            $paths = [pscustomobject]@{
+                Framework = Join-Path $dataRoot 'doom'
+                Profile   = Join-Path $configRoot 'doom'
+                Local     = Join-Path $stateRoot 'doom'
             }
+            $paths | Add-Member Environment @{ EMACSDIR = $paths.Framework; DOOMDIR = $paths.Profile; DOOMLOCALDIR = $paths.Local }
+            return $paths
         }
         default {
             return [pscustomobject]@{

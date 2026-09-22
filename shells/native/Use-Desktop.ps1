@@ -12,15 +12,6 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\..\setup\Common.ps1')
 
-function Set-PowerToysSetting([string]$Path, [string[]]$EnabledUtilities) {
-    if (-not (Test-Path -LiteralPath $Path)) { throw "PowerToys settings not found: $Path" }
-    $settings = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
-    foreach ($utility in $EnabledUtilities) {
-        $settings.enabled.$utility = $true
-    }
-    Invoke-IfNotDryRun { $settings | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8 -NoNewline }
-}
-
 function Set-FancyZonesSettings([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { throw "FancyZones settings not found: $Path" }
     $settings = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -47,12 +38,13 @@ function Set-TaskbarAutoHide {
 
 try {
     $powerToysRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys'
-    Set-PowerToysSetting -Path (Join-Path $powerToysRoot 'settings.json') -EnabledUtilities @('FancyZones', 'Workspaces')
+    & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DryRun:$DryRun
+    if (-not $?) { throw 'Failed to enable PowerToys utilities.' }
     Set-FancyZonesSettings -Path (Join-Path $powerToysRoot 'FancyZones\settings.json')
     Set-TaskbarAutoHide
     Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
-    $linkInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Links.ps1'
-    & $linkInstaller -SkipLinks -DesktopMode Native -DryRun:$DryRun
+    $startupInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1'
+    & $startupInstaller -DesktopMode Native -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
 
     if (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue) {

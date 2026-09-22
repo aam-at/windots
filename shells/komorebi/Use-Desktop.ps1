@@ -1,6 +1,6 @@
 <#
 Switch to the external-monitor desktop: Komorebi tiling with its AutoHotkey
-bindings. Use shells\Use-Desktop.ps1 -DesktopMode Native on the laptop display instead.
+bindings. Use shells\native\Use-Desktop.ps1 on the laptop display instead.
 #>
 
 [CmdletBinding()]
@@ -12,13 +12,13 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\..\setup\Common.ps1')
 
 try {
-    $linkInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Links.ps1'
-    if (-not (Test-Path -LiteralPath $linkInstaller)) {
-        throw "Link installer not found: $linkInstaller"
+    $startupInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1'
+    if (-not (Test-Path -LiteralPath $startupInstaller)) {
+        throw "Link installer not found: $startupInstaller"
     }
 
     # Creates the Komorebi startup shortcuts and removes the native-mode one.
-    & $linkInstaller -SkipLinks -DesktopMode Komorebi -DryRun:$DryRun
+    & $startupInstaller -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
