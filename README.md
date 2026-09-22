@@ -8,12 +8,13 @@ Windows dotfiles and setup scripts.
   `irm https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1 | iex`
 
   This installs Scoop, reopens a shell so it's on PATH, installs Git, clones
-  this repo to `~/windots`, and runs `Setup.ps1`. Safe to re-run.
+  this repo to `~/windots` and `aam-at/dotfiles` to `~/dotfiles`, and runs
+  `Setup.ps1`. Safe to re-run.
 
-- `Setup.ps1` expects Scoop and Git already on PATH (Bootstrap.ps1 handles
-  that) and does the rest: winget/scoop packages, config links, Emacs
-  distributions, PowerToys settings, and fonts. Once bootstrapped, you can
-  re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\setup\Setup.ps1`
+- `Setup.ps1` expects Scoop, Git, and `~/dotfiles` already in place
+  (Bootstrap.ps1 handles that) and does the rest: winget/scoop packages,
+  config links, Emacs distributions, PowerToys settings, and fonts. Once
+  bootstrapped, you can re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\setup\Setup.ps1`
 
 - Run it as a regular user; no need to launch it elevated. It prompts for UAC
   approval only for the one step that needs admin rights (Sudo, Developer
@@ -52,9 +53,14 @@ desktop options; automatic monitor detection is intentionally not used.
 The selector accepts `-DryRun` to show its actions without changing the current
 desktop mode.
 
+- **Keybindings:** both modes' full keybinding lists are registered as
+  PowerToys Shortcut Guide manifests (`shells\native\windots-native.yaml`,
+  `shells\komorebi\windots-komorebi.yaml`). Press `Win+Shift+/` to look them
+  up live instead of keeping a separate written list in sync by hand.
+
 ## Dependency
 - Uses my common dotfiles repo for shared configs: `aam-at/dotfiles`.
-  `Setup.ps1` clones it to `~/dotfiles` automatically if it's missing.
+  `Bootstrap.ps1` clones it to `~/dotfiles` if it's missing.
 
 ## PowerShell Profile
 - This repo includes `Profile.ps1`, used as the default PowerShell profile.
@@ -66,7 +72,7 @@ desktop mode.
 then asks once for the passphrase of `~/.ssh/id_ed25519`. The service stores the key in the
 signed-in Windows account context, making it available at future sign-ins
 without putting the passphrase in a script or Startup shortcut. To add a
-different key later, run `pwsh -File .\setup\Unlock-SshKey.ps1 -KeyPath
+different key later, run `pwsh -File .\setup\Configure-SshKey.ps1 -KeyPath
 <path-to-key>`.
 
 ## Emacs profiles

@@ -17,13 +17,16 @@
 #>
 
 param(
-    [switch]$SkipPackages,
-    [switch]$SkipLinks,
-    [switch]$SkipFonts,
-    [switch]$SkipPowerToys,
-    [switch]$SkipEmacs,
     [switch]$DryRun,
     [switch]$Force,
+    [switch]$SkipEmacs,
+    [switch]$SkipEnv,
+    [switch]$SkipFonts,
+    [switch]$SkipLinks,
+    [switch]$SkipPackages,
+    [switch]$SkipPowerToys,
+    [switch]$SkipRegistry,
+    [switch]$SkipSsh,
     [ValidateSet('Native', 'Komorebi')]
     [string]$DesktopMode = 'Native',
     [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
@@ -32,436 +35,40 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$env:TOOLS = Join-Path $HOME 'local/tools'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-# Resolve repo root regardless of invocation CWD
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-function RepoPath([string]$Relative) { return (Join-Path $RepoRoot $Relative) }
-
-function Set-ObjectProperty {
-    param(
-        [Parameter(Mandatory)]
-        [psobject]$Object,
-
-        [Parameter(Mandatory)]
-        [string]$Name,
-
-        [Parameter(Mandatory)]
-        $Value
-    )
-
-    $property = $Object.PSObject.Properties[$Name]
-    if ($null -eq $property) {
-        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
-    }
-    else {
-        $property.Value = $Value
-    }
-}
-
-function Merge-ObjectProperties {
-    param(
-        [Parameter(Mandatory)]
-        [psobject]$Destination,
-
-        [Parameter(Mandatory)]
-        [psobject]$Source
-    )
-
-    foreach ($sourceProperty in $Source.PSObject.Properties) {
-        $destinationProperty = $Destination.PSObject.Properties[$sourceProperty.Name]
-        if (($null -ne $destinationProperty) -and
-            ($destinationProperty.Value -is [pscustomobject]) -and
-            ($sourceProperty.Value -is [pscustomobject])) {
-            Merge-ObjectProperties -Destination $destinationProperty.Value -Source $sourceProperty.Value
-        }
-        else {
-            Set-ObjectProperty -Object $Destination -Name $sourceProperty.Name -Value $sourceProperty.Value
-        }
-    }
-}
-
-function Ensure-HomeEnv {
-    $currentUserHome = [Environment]::GetEnvironmentVariable('HOME', 'User')
-    if ($currentUserHome -ne $HOME) {
-        Write-Info "Setting user environment variable HOME=$HOME"
-        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('HOME', $HOME, 'User') }
-    }
-    else {
-        Write-Info 'HOME already set at user scope.'
-    }
-}
-
-function Ensure-UserBinOnPath {
-    $binDirectory = Join-Path $HOME 'bin'
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $pathEntries = @($userPath -split ';' | Where-Object { $_ })
-    if ($pathEntries -notcontains $binDirectory) {
-        Write-Info "Adding $binDirectory to the user PATH"
-        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('Path', (($pathEntries + $binDirectory) -join ';'), 'User') }
-    }
-}
-
-function Invoke-ElevatedScript {
-    param(
-        [Parameter(Mandatory)]
-        [string]$ScriptPath,
-
-        [hashtable]$Arguments = @{}
-    )
-
-    $argumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath)
-    foreach ($entry in $Arguments.GetEnumerator()) {
-        if ($entry.Value -is [switch] -or $entry.Value -is [bool]) {
-            if ($entry.Value) { $argumentList += "-$($entry.Key)" }
-        }
-        else {
-            $argumentList += "-$($entry.Key)", "$($entry.Value)"
-        }
-    }
-
-    $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
-
-    try {
-        $process = Start-Process -FilePath $shell.Source -ArgumentList $argumentList -Verb RunAs -Wait -PassThru
-        return $process.ExitCode -eq 0
-    }
-    catch {
-        return $false
-    }
+# Runs a sibling setup script with the shared -LogLevel/-DryRun switches.
+function Invoke-Step([string]$Name, [hashtable]$Arguments = @{}) {
+    $Arguments['LogLevel'] = $LogLevel
+    if ($DryRun) { $Arguments['DryRun'] = $true }
+    & (Join-Path $PSScriptRoot "$Name.ps1") @Arguments
+    if (-not $?) { throw "$Name failed." }
 }
 
 function Configure-Registry {
-    $registryScript = Join-Path $PSScriptRoot 'Configure-Registry.ps1'
-    if (-not (Test-Path -LiteralPath $registryScript)) {
-        throw "Registry configuration script not found: $registryScript"
-    }
-
-    $registryArgs = @{ LogLevel = $LogLevel }
-    if ($DryRun) { $registryArgs['DryRun'] = $true }
-
-    & $registryScript @registryArgs
-    if (-not $?) { throw 'Registry configuration failed.' }
-
+    Invoke-Step 'Configure-Registry'
     if (-not (Test-IsAdmin)) {
         Write-Info 'Requesting administrator approval to enable Developer Mode, long paths, persistent ssh-agent, and the agent power plan...'
-        if (-not (Invoke-ElevatedScript -ScriptPath $registryScript -Arguments $registryArgs)) {
+        $registryArgs = @{ LogLevel = $LogLevel; DryRun = [bool]$DryRun }
+        if (-not (Invoke-ElevatedScript -ScriptPath (Join-Path $PSScriptRoot 'Configure-Registry.ps1') -Arguments $registryArgs)) {
             Write-Warn 'Admin-only registry, ssh-agent, and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
         }
     }
-}
-
-function Unlock-SshKey {
-    $unlockScript = Join-Path $PSScriptRoot 'Unlock-SshKey.ps1'
-    if (-not (Test-Path -LiteralPath $unlockScript)) {
-        throw "SSH key unlock script not found: $unlockScript"
-    }
-
-    $unlockArgs = @{ LogLevel = $LogLevel }
-    if ($DryRun) { $unlockArgs['DryRun'] = $true }
-
-    & $unlockScript @unlockArgs
-    if (-not $?) { throw 'SSH key unlock failed.' }
-}
-
-# -----------------------
-# Package Installation
-# -----------------------
-function Install-Packages {
-    if ($SkipPackages) { Write-Info 'Skipping package installation.'; return }
-
-    $appsScript = Join-Path $PSScriptRoot 'Install-Apps.ps1'
-    if (-not (Test-Path -LiteralPath $appsScript)) {
-        throw "App installer not found: $appsScript"
-    }
-
-    $appsArgs = @{ LogLevel = $LogLevel }
-    if ($DryRun) { $appsArgs['DryRun'] = $true }
-
-    & $appsScript @appsArgs
-    if (-not $?) { throw 'Package installation failed.' }
-}
-
-# -----------------------
-# PowerToys Productivity Settings
-# -----------------------
-function Configure-PowerToys {
-    if ($SkipPowerToys) { Write-Info 'Skipping PowerToys configuration.'; return }
-
-    $powerToysExe = Join-Path $env:ProgramFiles 'PowerToys\PowerToys.exe'
-    if (-not (Test-Path -LiteralPath $powerToysExe)) {
-        Write-Warn 'PowerToys is not installed; skipping PowerToys configuration.'
-        return
-    }
-
-    $templatePath = RepoPath 'powertoys\settings.json'
-    $settingsDirectory = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys'
-    $settingsPath = Join-Path $settingsDirectory 'settings.json'
-    if (-not (Test-Path -LiteralPath $templatePath)) {
-        Write-Warn "PowerToys settings template not found: $templatePath"
-        return
-    }
-
-    try {
-        $template = Get-Content -Raw -LiteralPath $templatePath | ConvertFrom-Json
-        if (Test-Path -LiteralPath $settingsPath) {
-            $settings = Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
-        }
-        else {
-            $settings = [pscustomobject]@{}
-        }
-
-        Merge-ObjectProperties -Destination $settings -Source $template
-        $settingsJson = $settings | ConvertTo-Json -Depth 10
-
-        if (-not (Test-Path -LiteralPath $settingsDirectory)) {
-            Write-Info "Creating PowerToys settings directory: $settingsDirectory"
-            Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null }
-        }
-
-        if ((Test-Path -LiteralPath $settingsPath) -and (-not (Test-Path -LiteralPath "$settingsPath.windots-backup"))) {
-            Write-Info "Backing up PowerToys settings: $settingsPath.windots-backup"
-            Invoke-IfNotDryRun { Copy-Item -LiteralPath $settingsPath -Destination "$settingsPath.windots-backup" -ErrorAction Stop }
-        }
-
-        Write-Info 'Applying PowerToys productivity settings...'
-        Invoke-IfNotDryRun { Set-Content -LiteralPath $settingsPath -Value $settingsJson -Encoding utf8 -NoNewline }
-        Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'
-    }
-    catch {
-        Write-Warn "Failed to configure PowerToys: $_"
-    }
-}
-
-# -----------------------
-# Emacs Distributions
-# -----------------------
-function Ensure-GitCheckout {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Name,
-
-        [Parameter(Mandatory)]
-        [string]$Repository,
-
-        [Parameter(Mandatory)]
-        [string]$Destination
-    )
-
-    if (Test-Path -LiteralPath $Destination) {
-        if (Test-Path -LiteralPath (Join-Path $Destination '.git')) {
-            Write-Info "$Name framework already present: $Destination"
-            return $false
-        }
-
-        Write-Warn "$Name destination exists but is not a Git checkout; preserving it: $Destination"
-        return $false
-    }
-
-    if (-not (Test-Command 'git')) {
-        throw "Git is required to install the $Name framework."
-    }
-
-    $parent = Split-Path -Parent $Destination
-    if (-not (Test-Path -LiteralPath $parent)) {
-        Write-Info "Creating Emacs framework directory: $parent"
-        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-    }
-
-    Write-Info "Cloning $Name framework..."
-    if (-not (Invoke-NativeCommand -Description "$Name framework" -Action { git clone --depth=1 $Repository $Destination | Out-Null })) {
-        throw "Unable to clone the $Name framework."
-    }
-
-    return $true
-}
-
-function Install-Dotfiles {
-    [void](Ensure-GitCheckout -Name 'dotfiles' -Repository 'https://github.com/aam-at/dotfiles.git' -Destination (Join-Path $HOME 'dotfiles'))
-}
-
-function Install-EmacsDistributions {
-    if ($SkipEmacs) { Write-Info 'Skipping Emacs distribution setup.'; return }
-
-    $dotfilesEmacs = Join-Path $HOME 'dotfiles\emacs'
-    if (-not (Test-Path -LiteralPath $dotfilesEmacs)) {
-        Write-Warn "Shared Emacs profiles not found at $dotfilesEmacs; skipping Emacs distribution setup."
-        return
-    }
-
-    $emacsConfigRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) { Join-Path $HOME '.config\emacs' } else { Join-Path $env:XDG_CONFIG_HOME 'emacs' }
-    $emacsDataRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) { Join-Path $HOME '.local\share\emacs' } else { Join-Path $env:XDG_DATA_HOME 'emacs' }
-    $emacsStateRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_STATE_HOME)) { Join-Path $HOME '.local\state\emacs' } else { Join-Path $env:XDG_STATE_HOME 'emacs' }
-    $doomFramework = Join-Path $emacsDataRoot 'doom'
-    $spacemacsFramework = Join-Path $emacsDataRoot 'spacemacs'
-
-    [void](Ensure-GitCheckout -Name 'Doom' -Repository 'https://github.com/doomemacs/doomemacs.git' -Destination $doomFramework)
-    [void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
-
-    if ($DryRun) {
-        Write-Info 'Doom installation would run after the frameworks and profiles are available.'
-        return
-    }
-
-    if (-not (Test-Path -LiteralPath (Join-Path $emacsConfigRoot 'doom\init.el'))) {
-        Write-Warn "Doom profile is not linked at $emacsConfigRoot\doom; skipping Doom installation."
-        return
-    }
-
-    $doomMarker = Join-Path $emacsStateRoot 'doom\.windots-installed'
-    if (-not (Test-Path -LiteralPath $doomMarker)) {
-        $doomProfileScript = Join-Path $RepoRoot 'scripts\Doom-Profile.ps1'
-        if (-not (Test-Path -LiteralPath $doomProfileScript)) {
-            throw "Doom profile launcher not found: $doomProfileScript"
-        }
-
-        $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
-
-        Write-Info 'Installing Doom packages and generating its initial state...'
-        if (-not (Invoke-NativeCommand -Description 'Doom installation' -Action { & $shell.Source -NoProfile -ExecutionPolicy Bypass -File $doomProfileScript install --force })) {
-            throw 'Doom installation failed.'
-        }
-
-        New-Item -ItemType Directory -Path (Split-Path -Parent $doomMarker) -Force | Out-Null
-        Set-Content -LiteralPath $doomMarker -Value 'Installed by windots Setup.ps1' -Encoding utf8 -NoNewline
-    }
-    else {
-        Write-Info 'Doom initial installation already completed.'
-    }
-
-    Write-Info 'Spacemacs will install its profile packages when you first open a Spacemacs profile.'
-}
-
-# ================================================================
-# Download and install fonts
-# ================================================================
-function Clone-AndInstall {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Name,
-
-        [Parameter(Mandatory)]
-        [string]$RepoUrl
-    )
-
-    $fontsRoot = $env:TOOLS
-    $dest = Join-Path $fontsRoot $Name
-    if (-not (Test-Path -LiteralPath $fontsRoot)) {
-        Write-Info "Creating fonts directory: $fontsRoot"
-        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $fontsRoot -Force | Out-Null }
-    }
-
-    if (-not (Test-Path $dest)) {
-        Write-Host "Cloning $Name..."
-        if (-not (Invoke-NativeCommand -Description "font repository $Name" -Action { git clone --depth=1 "$RepoUrl" "$dest" | Out-Null })) {
-            throw "Unable to clone font repository: $Name"
-        }
-    }
-
-    Write-Host "Installing fonts from $dest..."
-    $fontInstaller = Join-Path $PSScriptRoot 'Install-Fonts.ps1'
-    $fontArgs = @('-ExecutionPolicy', 'Bypass', '-File', $fontInstaller, '-fontFolder', $dest)
-    if (-not (Test-IsAdmin)) { $fontArgs += '-CurrentUser' }
-    if ($DryRun) { return }
-
-    & powershell @fontArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Font installation failed for $Name."
-    }
-}
-
-# -----------------------
-# PowerShell Modules
-# -----------------------
-function Install-PowerShellModules {
-    if ($SkipPackages) { return }
-    if (-not (Test-Command Install-Module)) { Write-Warn 'Install-Module not available; skipping PS module installs.'; return }
-
-    $psModules = @(
-        'CompletionPredictor',
-        'PSScriptAnalyzer'
-    )
-
-    try {
-        $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
-        if ($repo.InstallationPolicy -ne 'Trusted') {
-            Write-Info 'Trusting PSGallery repository'
-            Invoke-IfNotDryRun { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }
-        }
-    }
-    catch {
-        Write-Warn 'PSGallery repository not found or PowerShellGet not loaded.'
-    }
-
-    foreach ($psModule in $psModules) {
-        if (-not (Get-Module -ListAvailable -Name $psModule)) {
-            Write-Info "Installing PS module: $psModule"
-            Invoke-IfNotDryRun { Install-Module -Name $psModule -Force -AcceptLicense -Scope CurrentUser -Repository PSGallery }
-        }
-        else {
-            Write-Info "PS module already available: $psModule"
-        }
-    }
-}
-
-# -----------------------
-# Fonts Map
-# -----------------------
-$fontsMap = @{
-    "adobe-fonts"     = "https://github.com/adobe-fonts/source-code-pro.git"
-    "all-icons-fonts" = "https://github.com/domtronn/all-the-icons.el.git"
-    "iawriter-fonts"  = "https://github.com/iaolo/iA-Fonts.git"
-    "icons-fonts"     = "https://github.com/sebastiencs/icons-in-terminal.git"
-    "jetbrains-fonts" = "https://github.com/JetBrains/JetBrainsMono.git"
-    "nerd-fonts"      = "https://github.com/ryanoasis/nerd-fonts.git"
-    "powerline-fonts" = "https://github.com/powerline/fonts.git"
-}
-
-function Download-And-Install-Fonts {
-    if ($SkipFonts) { Write-Info 'Skipping fonts installation.'; return }
-    Write-Info 'Downloading and installing fonts...'
-    foreach ($kvp in $fontsMap.GetEnumerator()) {
-        Clone-AndInstall -Name $kvp.Key -RepoUrl $kvp.Value
-    }
-    Write-Info 'Font installation step complete.'
-}
-
-function Install-Links {
-    $linkScript = Join-Path $PSScriptRoot 'Install-Links.ps1'
-    if (-not (Test-Path -LiteralPath $linkScript)) {
-        throw "Link installer not found: $linkScript"
-    }
-
-    # Hashtable splat, not array splat: array elements bind positionally and
-    # silently drop these switches instead of raising a binding error.
-    $linkArgs = @{ LogLevel = $LogLevel; DesktopMode = $DesktopMode }
-    if ($SkipLinks) { $linkArgs['SkipConfigLinks'] = $true }
-    if ($DryRun) { $linkArgs['DryRun'] = $true }
-    if ($Force) { $linkArgs['Force'] = $true }
-
-    & $linkScript @linkArgs
-    if (-not $?) { throw 'Link installation failed.' }
 }
 
 # -----------------------
 # Execution
 # -----------------------
 try {
-    Configure-Registry
-    Unlock-SshKey
-    Ensure-HomeEnv
-    Install-Packages
-    Ensure-UserBinOnPath
-    Install-Dotfiles
-    Install-PowerShellModules
-    Configure-PowerToys
-    Install-Links
-    # Install-EmacsDistributions
-    Download-And-Install-Fonts
+    if ($SkipEnv) { Write-Info 'Skipping environment configuration.' } else { Invoke-Step 'Configure-Env' }
+    if ($SkipRegistry) { Write-Info 'Skipping registry configuration.' } else { Configure-Registry }
+    if ($SkipSsh) { Write-Info 'Skipping SSH agent configuration.' } else { Invoke-Step 'Configure-SshKey' }
+    if ($SkipPowerToys) { Write-Info 'Skipping PowerToys configuration.' } else { Invoke-Step 'Configure-PowerToys' }
+    if ($SkipPackages) { Write-Info 'Skipping package installation.' } else { Invoke-Step 'Install-Apps' }
+    if ($SkipLinks) { Write-Info 'Skipping link installation.' } else { Invoke-Step 'Install-Links' @{ DesktopMode = $DesktopMode; Force = [bool]$Force } }
+    if ($SkipEmacs) { Write-Info 'Skipping Emacs installation.' } else { Invoke-Step 'Install-Emacs' }
+    if ($SkipFonts) { Write-Info 'Skipping fonts installation.' } else { Invoke-Step 'Install-Fonts' }
     Write-Info 'Script completed successfully.'
 }
 catch {

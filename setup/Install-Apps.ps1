@@ -1,5 +1,5 @@
 <#
-Installs applications via winget, Scoop, and Bun.
+Installs applications via winget, Scoop, and Bun, plus PowerShell modules.
 
 Usage:
   pwsh -File .\setup\Install-Apps.ps1
@@ -19,31 +19,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
-
-function Invoke-NativeCommand {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Description,
-
-        [Parameter(Mandatory)]
-        [scriptblock]$Action,
-
-        [int[]]$SuccessExitCodes = @(0)
-    )
-
-    if ($DryRun) { return $true }
-
-    $nativeOutput = @(& $Action 2>&1)
-    if ($LASTEXITCODE -notin $SuccessExitCodes) {
-        $nativeOutput | Out-Host
-        Write-Warn "$Description failed with exit code $LASTEXITCODE."
-        return $false
-    }
-
-    if (Test-LogLevel 'Debug') { $nativeOutput | Out-Host }
-
-    return $true
-}
 
 function Install-WingetPackage {
     param([Parameter(Mandatory)][string]$Id)
@@ -176,6 +151,37 @@ if (Test-Command 'scoop') {
 }
 else {
     Write-Warn 'scoop not found; run setup\Bootstrap.ps1 first. Skipping scoop apps.'
+}
+
+if (-not (Test-Command Install-Module)) {
+    Write-Warn 'Install-Module not available; skipping PS module installs.'
+}
+else {
+    $psModules = @(
+        'CompletionPredictor',
+        'PSScriptAnalyzer'
+    )
+
+    try {
+        $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
+        if ($repo.InstallationPolicy -ne 'Trusted') {
+            Write-Info 'Trusting PSGallery repository'
+            Invoke-IfNotDryRun { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }
+        }
+    }
+    catch {
+        Write-Warn 'PSGallery repository not found or PowerShellGet not loaded.'
+    }
+
+    foreach ($psModule in $psModules) {
+        if (-not (Get-Module -ListAvailable -Name $psModule)) {
+            Write-Info "Installing PS module: $psModule"
+            Invoke-IfNotDryRun { Install-Module -Name $psModule -Force -AcceptLicense -Scope CurrentUser -Repository PSGallery }
+        }
+        else {
+            Write-Info "PS module already available: $psModule"
+        }
+    }
 }
 
 if ($packageFailures.Count -gt 0) {

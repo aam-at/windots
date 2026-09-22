@@ -1,0 +1,289 @@
+PackageName: windots.NativeDesktop
+Name: Native Desktop (windots)
+WindowFilter: "WindowsVirtualDesktopHelper.exe"
+BackgroundProcess: true
+Shortcuts:
+  - SectionName: Overview and Launchers
+    Properties:
+      - Name: Task view
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - D
+      - Name: App search
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Space
+      - Name: Open terminal
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - T
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "<Enter>"
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "`"
+      - Name: File Explorer
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - E
+      - Name: Browser
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - B
+      - Name: Editor
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - C
+      - Name: Clipboard history
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - V
+      - Name: Action Center
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - M
+      - Name: Notification Center
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - N
+      - Name: Change wallpaper
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Y
+      - Name: Personalization settings
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - ","
+      - Name: Voice typing / dictation
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - S
+
+  - SectionName: Window Controls
+    Properties:
+      - Name: Close window
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Q
+      - Name: Toggle maximize
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - F
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - F
+      - Name: Toggle fullscreen
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - F
+
+  - SectionName: Window Placement
+    Properties:
+      - Name: Snap window left
+        Description: Via FancyZones
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - H
+      - Name: Snap window down
+        Description: Via FancyZones
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - J
+      - Name: Snap window up
+        Description: Via FancyZones
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - K
+      - Name: Snap window right
+        Description: Via FancyZones
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - L
+      - Name: Move window to monitor left
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - H
+      - Name: Move window to monitor down
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - J
+      - Name: Move window to monitor up
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - K
+      - Name: Move window to monitor right
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - L
+
+  - SectionName: Virtual Desktops
+    Properties:
+      - Name: Go to desktop 1-9
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - "1"
+      - Name: Move window to desktop 1-9
+        Description: Follows the window there
+        Recommended: true
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - "1"
+      - Name: Next desktop
+        Description: Also scroll down while holding Alt
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - U
+      - Name: Previous desktop
+        Description: Also scroll up while holding Alt
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - I
+      - Name: Move window to next desktop
+        Description: Follows the window there. Also scroll down while holding Alt+Ctrl
+        Shortcut:
+          - Win: false
+            Ctrl: true
+            Shift: false
+            Alt: true
+            Keys:
+              - U
+      - Name: Move window to previous desktop
+        Description: Follows the window there. Also scroll up while holding Alt+Ctrl
+        Shortcut:
+          - Win: false
+            Ctrl: true
+            Shift: false
+            Alt: true
+            Keys:
+              - I
+
+  - SectionName: Display
+    Properties:
+      - Name: Turn off display
+        Shortcut:
+          - Win: false
+            Ctrl: false
+            Shift: true
+            Alt: true
+            Keys:
+              - P

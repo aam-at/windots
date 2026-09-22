@@ -9,7 +9,7 @@ Usage:
 #>
 
 param(
-    [switch]$SkipConfigLinks,
+    [switch]$SkipLinks,
     [switch]$SkipStartupLinks,
     [switch]$DryRun,
     [switch]$Force,
@@ -182,6 +182,8 @@ $linkMap = @{
     (Join-Path $HOME '.config\kanata')                                                                        = (RepoPath 'kanata')
     (Join-Path $HOME '.config\komorebi')                                                                      = (RepoPath 'shells\komorebi')
     (Join-Path $env:APPDATA 'WindowsVirtualDesktopHelper\WindowsVirtualDesktopHelper.exe.config')             = (RepoPath 'shells\native\WindowsVirtualDesktopHelper.exe.config')
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-native.yaml')                    = (RepoPath 'shells\native\windots-native.yaml')
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-komorebi.yaml')                  = (RepoPath 'shells\komorebi\windots-komorebi.yaml')
     (Join-Path $HOME '.config\wezterm')                                                                       = (Join-Path $HOME 'dotfiles\config\wezterm')
     (Join-Path $HOME '.config\yasb')                                                                          = (RepoPath 'yasb')
     (Join-Path $HOME '.gitconfig')                                                                            = (RepoPath 'git\config')
@@ -222,7 +224,7 @@ if ($PROFILE.CurrentUserAllHosts -ne $windowsPowerShellProfile) {
 }
 
 try {
-    if (-not $SkipConfigLinks) {
+    if (-not $SkipLinks) {
         foreach ($link in $linkMap.GetEnumerator()) { Ensure-Link $link.Key $link.Value }
     }
 

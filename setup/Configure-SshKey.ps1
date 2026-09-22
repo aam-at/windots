@@ -2,9 +2,9 @@
 Loads an SSH private key into the persistent Windows OpenSSH agent.
 
 Usage:
-  pwsh -File .\setup\Unlock-SshKey.ps1
-  pwsh -File .\setup\Unlock-SshKey.ps1 -KeyPath $HOME\.ssh\id_ed25519
-  pwsh -File .\setup\Unlock-SshKey.ps1 -DryRun
+    pwsh -File .\setup\Configure-SshKey.ps1
+    pwsh -File .\setup\Configure-SshKey.ps1 -KeyPath $HOME\.ssh\id_ed25519
+    pwsh -File .\setup\Configure-SshKey.ps1 -DryRun
 
 The ssh-agent service must be enabled first. Configure-Registry.ps1 does that
 as an elevated setup step. Windows associates keys added to this agent with

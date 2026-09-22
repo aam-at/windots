@@ -1,7 +1,7 @@
 <#
-Fresh-machine entry point: installs Scoop and Git, clones this repo, then
-hands off to Setup.ps1. Setup.ps1 expects Scoop and Git already on PATH and
-clones the shared ~/dotfiles repo itself.
+Fresh-machine entry point: installs Scoop and Git, clones this repo and the
+shared ~/dotfiles repo, then hands off to Setup.ps1, which expects all of
+that to be in place.
 
 Usage (fresh Windows box, from a regular PowerShell prompt):
   irm https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1 | iex
@@ -37,6 +37,12 @@ $windotsRoot = Join-Path $HOME 'windots'
 if (-not (Test-Path -LiteralPath (Join-Path $windotsRoot '.git'))) {
     Write-Host '[INFO] Cloning windots...'
     git clone https://github.com/aam-at/windots.git $windotsRoot
+}
+
+$dotfilesRoot = Join-Path $HOME 'dotfiles'
+if (-not (Test-Path -LiteralPath (Join-Path $dotfilesRoot '.git'))) {
+    Write-Host '[INFO] Cloning dotfiles...'
+    git clone https://github.com/aam-at/dotfiles.git $dotfilesRoot
 }
 
 Write-Host '[INFO] Running Setup.ps1...'
