@@ -1,6 +1,9 @@
 <#
-Creates the Startup-folder shortcuts for the chosen desktop mode (and Kanata),
+Creates the Startup-folder shortcuts for the chosen desktop mode (plus YASB and
+Kanata, used by both),
 removes the other mode's shortcuts, and starts anything not yet running.
+Native mode also turns off the Win+L lock shortcut so Native-Desktop.ahk can
+use Win+L as niri's focus-right; Komorebi mode turns it back on.
 
 Usage:
   pwsh -File .\setup\Install-Startup.ps1 -DesktopMode Native
@@ -105,7 +108,31 @@ function Remove-StartupShortcut([string]$Name) {
     if (-not $DryRun) { Remove-Item -LiteralPath $path -Force }
 }
 
+function Set-LockShortcut([bool]$Enabled) {
+    $policy = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+    Write-Info "$(if ($Enabled) { 'Enabling' } else { 'Disabling' }) the Win+L lock shortcut"
+    if ($DryRun) { return }
+    try {
+        New-ItemProperty -Path $policy -Name DisableLockWorkstation -Value ([int](-not $Enabled)) -PropertyType DWord -Force -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Warn "Cannot change the Win+L lock shortcut; run setup\Configure-Registry.ps1 elevated first. ($($_.Exception.Message))"
+    }
+}
+
 try {
+    # Native-Desktop.ahk locks via Win+Alt+L / Win+X; Komorebi keeps Win+L.
+    Set-LockShortcut ($DesktopMode -eq 'Komorebi')
+
+    # The helper's startupWithWindows option adds its own Run entry, which
+    # doubled it up alongside the Startup shortcut below (and ran it in
+    # Komorebi mode too). The shortcut is the only launcher.
+    $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    if (Get-ItemProperty -Path $runKey -Name 'Windows Virtual Desktop Helper' -ErrorAction SilentlyContinue) {
+        Write-Info 'Removing the Windows Virtual Desktop Helper Registry startup entry'
+        Invoke-IfNotDryRun { Remove-ItemProperty -Path $runKey -Name 'Windows Virtual Desktop Helper' }
+    }
+
     if ($DesktopMode -eq 'Komorebi') {
         # --ahk is end-of-life in komorebic (not in `komorebic start --help`
         # any more): it prints a deprecation notice and never actually starts
@@ -121,17 +148,15 @@ try {
         else {
             Write-Warn "komorebi.ahk not found at $komorebiAhk; skipping AutoHotkey startup shortcut."
         }
-        [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb', 'yasb.exe') -Arguments '')
         Remove-StartupShortcut 'VirtualDesktopHelper'
         if (-not $DryRun) { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     }
     else {
         Remove-StartupShortcut 'Komorebi'
         Remove-StartupShortcut 'KomorebiAHK'
-        Remove-StartupShortcut 'YASB'
         $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper', 'WindowsVirtualDesktopHelper.exe') | Where-Object { $_ }
-        $virtualDesktopHelperArguments = '--feature.useHotKeyToJumpToDesktopNumber true --feature.useHotKeyToJumpToDesktopNumber.hotkey "Alt"'
-        [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments $virtualDesktopHelperArguments -RunningProcessName 'WindowsVirtualDesktopHelper')
+        # Native-Desktop.ahk owns Win+1..9; the helper only shows the desktop number.
+        [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments '' -RunningProcessName 'WindowsVirtualDesktopHelper')
         $nativeDesktop = RepoPath 'shells\native\Native-Desktop.ahk'
         if (Test-Path -LiteralPath $nativeDesktop) {
             [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64', 'AutoHotkey') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
@@ -140,6 +165,8 @@ try {
             Write-Warn "Native desktop bindings not found at $nativeDesktop; skipping AutoHotkey startup shortcut."
         }
     }
+    # YASB is the top bar in both modes; its workspace widgets adapt to the mode.
+    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb', 'yasb.exe') -Arguments '')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
     [void](Ensure-StartupShortcut -Name 'Kanata' -Candidates $kanataCandidates -Arguments ('-c "{0}"' -f $kanataConfig))

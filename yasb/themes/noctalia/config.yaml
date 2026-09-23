@@ -2,6 +2,11 @@ watch_stylesheet: true
 watch_config: true
 debug: false
 update_check: true
+# Theme "noctalia" (pick it with scripts/Set-YasbTheme.ps1).
+# Noctalia-style top bar (~/dotfiles/config/noctalia/config.toml) shared by the
+# Native and Komorebi desktop modes: an opaque edge-to-edge gruvbox strip with
+# rounded capsules. windows_desktops shows native virtual desktops;
+# komorebi_workspaces hides itself whenever Komorebi isn't running.
 bars:
   primary-bar:
     enabled: true
@@ -11,19 +16,17 @@ bars:
       position: "top"
     animation:
       enabled: true
-      duration: 400
+      duration: 200
     blur_effect:
-      enabled: true
-      dark_mode: false
-      round_corners: false
-      round_corners_type: "normal"
-      border_color: "system"
+      enabled: false
     window_flags:
       always_on_top: false
       windows_app_bar: true
     dimensions:
       width: "100%"
-      height: 32
+      height: 36
+    # Keep 0: YASB draws this padding outside the stylesheet background, so it
+    # shows through as a transparent strip. Inner spacing lives in styles.css.
     padding:
       top: 0
       left: 0
@@ -31,35 +34,54 @@ bars:
       right: 0
     widgets:
       left:
-      - "home"
       - "quick_launch"
+      - "windows_desktops"
+      - "komorebi_workspaces"
+      - "active_window"
       center:
+      - "media"
       - "clock"
+      - "open_meteo"
       right:
       - "systray"
-      - "cpu"
-      - "memory"
-      - "open_meteo"
+      - "language"
+      - "connectivity"
       - "volume"
       - "notifications"
+      - "battery"
       - "power_menu"
+  dock-bar:
+    enabled: true
+    screens: ["primary"]
+    class_name: yasb-dock
+    style: "adaptive"
+    alignment:
+      position: bottom
+      align: center
+    animation:
+      enabled: true
+      duration: 200
+    blur_effect:
+      enabled: false
+    window_flags:
+      always_on_top: true
+      windows_app_bar: false
+      auto_hide: true
+      hide_on_fullscreen: true
+    dimensions:
+      width: "auto"
+      height: 68
+    padding:
+      top: 0
+      left: 8
+      bottom: 0
+      right: 8
+    widgets:
+      left: []
+      center:
+      - dock_windows
+      right: []
 widgets:
-  home:
-    type: "yasb.home.HomeWidget"
-    options:
-      label: "<span>\ue700</span>"
-      menu_list:
-      - { title: "User Home", path: "~" }
-      - { title: "Download", path: "~\\Downloads" }
-      - { title: "Documents", path: "~\\Documents" }
-      - { title: "Pictures", path: "~\\Pictures" }
-      system_menu: true
-      power_menu: true
-      blur: true
-      round_corners: true
-      round_corners_type: "normal"
-      border_color: "System"
-      alignment: "center"
   quick_launch:
     type: "yasb.quick_launch.QuickLaunchWidget"
     options:
@@ -87,14 +109,83 @@ widgets:
         dark_mode: true
       callbacks:
         on_left: "toggle_quick_launch"
-      keybindings:
-        - keys: "alt+space"
-          action: "toggle_quick_launch"
-          screen: "primary"
+  windows_desktops:
+    type: "yasb.windows_desktops.WorkspaceWidget"
+    options:
+      label_workspace_btn: "{index}"
+      label_workspace_active_btn: "{index}"
+  komorebi_workspaces:
+    type: "komorebi.workspaces.WorkspaceWidget"
+    options:
+      label_offline: ""
+      hide_if_offline: true
+      label_workspace_btn: "{index}"
+      label_workspace_active_btn: "{index}"
+      label_workspace_populated_btn: "{index}"
+      label_zero_index: false
+      hide_empty_workspaces: false
+  active_window:
+    type: "yasb.active_window.ActiveWindowWidget"
+    options:
+      label: "{win[title]}"
+      label_alt: "{win[title]}"
+      label_no_window: ""
+      label_icon: true
+      label_icon_size: 16
+      max_length: 40
+      max_length_ellipsis: "…"
+  media:
+    type: "yasb.media.MediaWidget"
+    options:
+      label: "{title}"
+      label_alt: "{artist} - {title}"
+      hide_empty: true
+  language:
+    type: "yasb.language.LanguageWidget"
+    options:
+      label: "{lang[language_code]}"
+      label_alt: "{lang[full_name]}"
+  # Wi-Fi + traffic in one capsule, like Noctalia's group:connectivity.
+  connectivity:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "connectivity"
+      widgets: ["wifi", "traffic"]
+  wifi:
+    type: "yasb.wifi.WifiWidget"
+    options:
+      class_name: "wifi-widget"
+      label: "<span>{wifi_icon}</span>"
+      label_alt: "<span>{wifi_icon}</span>{wifi_name}"
+      update_interval: 5000
+      # Segoe Fluent signal levels (none, 1-3 bars, full); the defaults mix in
+      # Nerd Font glyphs that don't match the rest of the bar.
+      wifi_icons: ["\ue871", "\ue872", "\ue873", "\ue874", "\ue701"]
+  traffic:
+    type: "yasb.traffic.TrafficWidget"
+    options:
+      class_name: "traffic-widget"
+      label: "<span>\ue896</span>{download_speed}<span>\ue898</span>{upload_speed}"
+      label_alt: "<span>\ue896</span>{today_downloaded}<span>\ue898</span>{today_uploaded}"
+      update_interval: 1000
+  battery:
+    type: "yasb.battery.BatteryWidget"
+    options:
+      label: "<span>{icon}</span> {percent}%"
+      label_alt: "<span>{icon}</span> {time_remaining}"
+      hide_unsupported: true
+      # Segoe Fluent batteries instead of the FontAwesome defaults.
+      status_icons:
+        icon_charging: "\uebb5"
+        icon_critical: "\ueba0"
+        icon_low: "\ueba2"
+        icon_medium: "\ueba5"
+        icon_high: "\ueba8"
+        icon_full: "\uebaa"
   clock:
     type: "yasb.clock.ClockWidget"
     options:
-      label: "{%a, %d %b %H:%M}"
+      label: "{%H:%M · %a %d}"
       label_alt: "{%A, %d %B %Y %H:%M}"
       timezones: []
       calendar: 
@@ -188,36 +279,6 @@ widgets:
       callbacks:
         on_left: "toggle_volume_menu"
         on_right: "toggle_mute"
-  cpu:
-    type: "yasb.cpu.CpuWidget"
-    options:
-      label: "<span>\ueea1</span> {info[percent][total]}%"
-      label_alt: "<span>\ueea1</span> {info[freq][current]} MHz"
-      update_interval: 2000
-      menu:
-        enabled: true
-        show_graph: true
-        show_graph_grid: true
-        graph_history_size: 60
-      callbacks:
-        on_left: toggle_menu
-        on_middle: do_nothing
-        on_right: toggle_label
-  memory:
-    type: "yasb.memory.MemoryWidget"
-    options:
-      label: "<span>\ueea1</span> {virtual_mem_free}"
-      label_alt: "<span>\ueea1</span> VIRT: {virtual_mem_percent}% SWAP: {swap_mem_percent}%"
-      update_interval: 5000
-      callbacks:
-        on_left: "toggle_menu"
-        on_middle: "do_nothing"
-        on_right: "toggle_label"
-      menu:
-        enabled: true
-        show_graph: true
-        show_graph_grid: true
-        graph_history_size: 60
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
     options:
@@ -254,3 +315,29 @@ widgets:
         on_left: "toggle_notification"
         on_right: "do_nothing"
         on_middle: "do_nothing"
+  # Pinned apps and running windows in one list: right-click an app to
+  # pin/unpin, drag to reorder. Pins live in %LOCALAPPDATA%\Yasb	askbar_pinned.json.
+  dock_windows:
+    type: yasb.taskbar.TaskbarWidget
+    options:
+      icon_size: 40
+      tooltip: true
+      show_only_visible: false
+      strict_filtering: true
+      hide_empty: false
+      grouping:
+        enabled: true
+        show_count: true
+      animation:
+        enabled: true
+        duration: 200
+      preview:
+        enabled: true
+        width: 220
+        delay: 400
+        padding: 8
+        margin: 8
+        blur: true
+        peek: true
+      title_label:
+        enabled: false

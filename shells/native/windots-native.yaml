@@ -5,134 +5,181 @@ BackgroundProcess: true
 Shortcuts:
   - SectionName: Overview and Launchers
     Properties:
-      - Name: Task view
+      - Name: Overview
+        Description: Task view
+        Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - D
-      - Name: App search
-        Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
+            Keys:
+              - Tab
+      - Name: Shortcut Guide
+        Description: This overlay
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - "/"
+      - Name: Command Palette
+        Description: PowerToys launcher
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
             Keys:
               - Space
       - Name: Open terminal
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - T
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "<Enter>"
-          - Win: false
+      - Name: Scratch terminal
+        Description: Windows Terminal quake window
+        Shortcut:
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "`"
       - Name: File Explorer
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - E
       - Name: Browser
+        Description: System default browser
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - B
       - Name: Editor
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - C
-      - Name: Clipboard history
+      - Name: Copilot
+        Description: Microsoft 365 Copilot. Also the Copilot key
         Shortcut:
-          - Win: false
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - A
+      - Name: Voice typing / dictation
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - S
+
+  - SectionName: Shell Panels
+    Properties:
+      - Name: Session menu
+        Description: Lock, sleep, hibernate, log out, restart, shut down
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - X
+      - Name: Lock screen
+        Shortcut:
+          - Win: true
             Ctrl: false
             Shift: false
             Alt: true
             Keys:
-              - V
-      - Name: Action Center
+              - L
+      - Name: Clipboard history
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
+            Keys:
+              - V
+      - Name: Quick settings
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
             Keys:
               - M
       - Name: Notification Center
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - N
       - Name: Change wallpaper
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - Y
       - Name: Personalization settings
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - ","
-      - Name: Voice typing / dictation
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - S
 
-  - SectionName: Window Controls
+  - SectionName: Window Management
     Properties:
       - Name: Close window
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - Q
       - Name: Toggle maximize
         Recommended: true
         Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - F
           - Win: true
             Ctrl: false
             Shift: false
@@ -141,81 +188,123 @@ Shortcuts:
               - F
       - Name: Toggle fullscreen
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - F
+      - Name: Toggle always on top
+        Description: PowerToys Always On Top
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - T
+      - Name: Center window
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - C
+
+  - SectionName: Focus
+    Properties:
+      - Name: Focus window left
+        Description: Also Win+Left
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - H
+      - Name: Focus window down
+        Description: Also Win+Down
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - J
+      - Name: Focus window up
+        Description: Also Win+Up
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - K
+      - Name: Focus window right
+        Description: Also Win+Right
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - L
 
   - SectionName: Window Placement
     Properties:
       - Name: Snap window left
-        Description: Via FancyZones
+        Description: Via FancyZones. Also Win+Shift+Left
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
               - H
       - Name: Snap window down
-        Description: Via FancyZones
+        Description: Via FancyZones. Also Win+Shift+Down
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
               - J
       - Name: Snap window up
-        Description: Via FancyZones
+        Description: Via FancyZones. Also Win+Shift+Up
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
               - K
       - Name: Snap window right
-        Description: Via FancyZones
+        Description: Via FancyZones. Also Win+Shift+Right
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
               - L
       - Name: Move window to monitor left
         Shortcut:
-          - Win: false
-            Ctrl: false
+          - Win: true
+            Ctrl: true
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - H
-      - Name: Move window to monitor down
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - J
-      - Name: Move window to monitor up
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - K
       - Name: Move window to monitor right
         Shortcut:
-          - Win: false
-            Ctrl: false
+          - Win: true
+            Ctrl: true
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - L
 
@@ -224,66 +313,111 @@ Shortcuts:
       - Name: Go to desktop 1-9
         Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "1"
       - Name: Move window to desktop 1-9
         Description: Follows the window there
         Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - "1"
       - Name: Next desktop
-        Description: Also scroll down while holding Alt
+        Description: Also scroll down while holding Win
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - U
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - PgDn
       - Name: Previous desktop
-        Description: Also scroll up while holding Alt
+        Description: Also scroll up while holding Win
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - I
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - PgUp
       - Name: Move window to next desktop
-        Description: Follows the window there. Also scroll down while holding Alt+Ctrl
+        Description: Follows the window there. Also scroll down while holding Win+Ctrl
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: true
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - U
-      - Name: Move window to previous desktop
-        Description: Follows the window there. Also scroll up while holding Alt+Ctrl
-        Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: true
             Shift: false
-            Alt: true
+            Alt: false
+            Keys:
+              - "<Down>"
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - PgDn
+      - Name: Move window to previous desktop
+        Description: Follows the window there. Also scroll up while holding Win+Ctrl
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
             Keys:
               - I
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - "<Up>"
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - PgUp
 
-  - SectionName: Display
+  - SectionName: System
     Properties:
       - Name: Turn off display
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - P
+      - Name: Pause these shortcuts
+        Description: Hand Win chords back to Windows; press again to resume
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - Esc

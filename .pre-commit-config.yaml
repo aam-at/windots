@@ -1,4 +1,15 @@
 repos:
+  # AutoHotkey has no CLI formatter (formatting lives only in editor
+  # extensions), so normalize whitespace with prek's built-in fixers.
+  - repo: builtin
+    hooks:
+      - id: trailing-whitespace
+        files: \.ahk$
+      - id: end-of-file-fixer
+        files: \.ahk$
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        files: \.ahk$
   - repo: local
     hooks:
       - id: format-powershell
@@ -6,3 +17,8 @@ repos:
         language: system
         entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/Format-PowerShell.ps1
         files: \.ps1$
+      - id: test-windots
+        name: Validate PowerShell and AutoHotkey
+        language: system
+        entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/Test-Windots.ps1
+        files: \.(ps1|ahk)$

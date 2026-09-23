@@ -9,7 +9,7 @@
     "File Locksmith": true,
     "Peek": true,
     "PowerRename": true,
-    "PowerToys Run": true,
+    "PowerToys Run": false,
     "Shortcut Guide": true,
     "TextExtractor": true,
     "Workspaces": true
