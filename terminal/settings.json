@@ -1,13 +1,239 @@
 {
     "$help": "https://aka.ms/terminal-documentation",
     "$schema": "https://aka.ms/terminal-profiles-schema",
-    "actions": [],
+    "actions": [
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 0
+            },
+            "id": "User.SwitchToTab1"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 1
+            },
+            "id": "User.SwitchToTab2"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 2
+            },
+            "id": "User.SwitchToTab3"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 3
+            },
+            "id": "User.SwitchToTab4"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 4
+            },
+            "id": "User.SwitchToTab5"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 5
+            },
+            "id": "User.SwitchToTab6"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 6
+            },
+            "id": "User.SwitchToTab7"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 7
+            },
+            "id": "User.SwitchToTab8"
+        },
+        {
+            "command": {
+                "action": "switchToTab",
+                "index": 8
+            },
+            "id": "User.SwitchToTab9"
+        },
+        {
+            "command": "duplicateTab",
+            "id": "User.DuplicateTab"
+        },
+        {
+            "command": "tabSearch",
+            "id": "User.TabSearch"
+        },
+        {
+            "command": "openTabRenamer",
+            "id": "User.RenameTab"
+        },
+        {
+            "command": "closeTab",
+            "id": "User.CloseTab"
+        },
+        {
+            "command": {
+                "action": "moveTab",
+                "direction": "forward"
+            },
+            "id": "User.MoveTabForward"
+        },
+        {
+            "command": {
+                "action": "moveTab",
+                "direction": "backward"
+            },
+            "id": "User.MoveTabBackward"
+        },
+        {
+            "command": {
+                "action": "splitPane",
+                "split": "down",
+                "splitMode": "duplicate"
+            },
+            "id": "User.SplitDown"
+        },
+        {
+            "command": {
+                "action": "splitPane",
+                "split": "right",
+                "splitMode": "duplicate"
+            },
+            "id": "User.SplitRight"
+        },
+        {
+            "command": "toggleSplitOrientation",
+            "id": "User.RotateSplit"
+        },
+        {
+            "command": "togglePaneZoom",
+            "id": "User.ZoomPane"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "nextInOrder"
+            },
+            "id": "User.NextPane"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "previousInOrder"
+            },
+            "id": "User.PreviousPane"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "left"
+            },
+            "id": "User.FocusPaneLeft"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "right"
+            },
+            "id": "User.FocusPaneRight"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "up"
+            },
+            "id": "User.FocusPaneUp"
+        },
+        {
+            "command": {
+                "action": "moveFocus",
+                "direction": "down"
+            },
+            "id": "User.FocusPaneDown"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "left"
+            },
+            "id": "User.SwapPaneLeft"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "right"
+            },
+            "id": "User.SwapPaneRight"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "up"
+            },
+            "id": "User.SwapPaneUp"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "down"
+            },
+            "id": "User.SwapPaneDown"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "nextInOrder"
+            },
+            "id": "User.SwapPaneNext"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "previousInOrder"
+            },
+            "id": "User.SwapPanePrevious"
+        },
+        {
+            "command": {
+                "action": "swapPane",
+                "direction": "first"
+            },
+            "id": "User.SwapPaneFirst"
+        },
+        {
+            "command": "closePane",
+            "id": "User.ClosePane"
+        },
+        {
+            "command": {
+                "action": "scrollToMark",
+                "direction": "previous"
+            },
+            "id": "User.PreviousPrompt"
+        },
+        {
+            "command": {
+                "action": "scrollToMark",
+                "direction": "next"
+            },
+            "id": "User.NextPrompt"
+        }
+    ],
     "alwaysOnTop": true,
     "copyFormatting": "none",
     "copyOnSelect": true,
     "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
-    "keybindings": 
-    [
+    "keybindings": [
         {
             "id": "Terminal.CopyToClipboard",
             "keys": "ctrl+c"
@@ -21,28 +247,159 @@
             "keys": "ctrl+v"
         },
         {
-            "id": "Terminal.DuplicatePaneAuto",
-            "keys": "alt+shift+d"
+            "id": "User.SwitchToTab1",
+            "keys": "ctrl+shift+1"
+        },
+        {
+            "id": "User.SwitchToTab2",
+            "keys": "ctrl+shift+2"
+        },
+        {
+            "id": "User.SwitchToTab3",
+            "keys": "ctrl+shift+3"
+        },
+        {
+            "id": "User.SwitchToTab4",
+            "keys": "ctrl+shift+4"
+        },
+        {
+            "id": "User.SwitchToTab5",
+            "keys": "ctrl+shift+5"
+        },
+        {
+            "id": "User.SwitchToTab6",
+            "keys": "ctrl+shift+6"
+        },
+        {
+            "id": "User.SwitchToTab7",
+            "keys": "ctrl+shift+7"
+        },
+        {
+            "id": "User.SwitchToTab8",
+            "keys": "ctrl+shift+8"
+        },
+        {
+            "id": "User.SwitchToTab9",
+            "keys": "ctrl+shift+9"
+        },
+        {
+            "id": "User.DuplicateTab",
+            "keys": "ctrl+shift+t"
+        },
+        {
+            "id": "User.TabSearch",
+            "keys": "ctrl+shift+d"
+        },
+        {
+            "id": "User.RenameTab",
+            "keys": "f2"
+        },
+        {
+            "id": "User.CloseTab",
+            "keys": "ctrl+shift+q"
+        },
+        {
+            "id": "User.MoveTabForward",
+            "keys": "ctrl+shift+."
+        },
+        {
+            "id": "User.MoveTabBackward",
+            "keys": "ctrl+shift+,"
+        },
+        {
+            "id": "User.SplitDown",
+            "keys": "ctrl+-"
+        },
+        {
+            "id": "User.SplitRight",
+            "keys": "ctrl+\\"
+        },
+        {
+            "id": "User.RotateSplit",
+            "keys": "f8"
+        },
+        {
+            "id": "User.ZoomPane",
+            "keys": "ctrl+alt+z"
+        },
+        {
+            "id": "User.NextPane",
+            "keys": "ctrl+]"
+        },
+        {
+            "id": "User.PreviousPane",
+            "keys": "ctrl+["
+        },
+        {
+            "id": "User.FocusPaneLeft",
+            "keys": "ctrl+shift+left"
+        },
+        {
+            "id": "User.FocusPaneRight",
+            "keys": "ctrl+shift+right"
+        },
+        {
+            "id": "User.FocusPaneUp",
+            "keys": "ctrl+shift+up"
+        },
+        {
+            "id": "User.FocusPaneDown",
+            "keys": "ctrl+shift+down"
+        },
+        {
+            "id": "User.SwapPaneLeft",
+            "keys": "shift+left"
+        },
+        {
+            "id": "User.SwapPaneRight",
+            "keys": "shift+right"
+        },
+        {
+            "id": "User.SwapPaneUp",
+            "keys": "alt+k"
+        },
+        {
+            "id": "User.SwapPaneDown",
+            "keys": "alt+j"
+        },
+        {
+            "id": "User.SwapPaneNext",
+            "keys": "alt+h"
+        },
+        {
+            "id": "User.SwapPanePrevious",
+            "keys": "alt+l"
+        },
+        {
+            "id": "User.SwapPaneFirst",
+            "keys": "alt+`"
+        },
+        {
+            "id": "User.ClosePane",
+            "keys": "ctrl+shift+w"
+        },
+        {
+            "id": "User.PreviousPrompt",
+            "keys": "ctrl+shift+z"
+        },
+        {
+            "id": "User.NextPrompt",
+            "keys": "ctrl+shift+x"
         }
     ],
-    "newTabMenu": 
-    [
+    "newTabMenu": [
         {
             "type": "remainingProfiles"
         }
     ],
-    "profiles": 
-    {
-        "defaults": 
-        {
+    "profiles": {
+        "defaults": {
             "colorScheme": "GruvboxDark",
-            "font": 
-            {
+            "font": {
                 "face": "JetBrainsMono Nerd Font"
             }
         },
-        "list": 
-        [
+        "list": [
             {
                 "commandline": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
                 "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
@@ -93,8 +450,7 @@
             }
         ]
     },
-    "schemes": 
-    [
+    "schemes": [
         {
             "background": "#282828",
             "black": "#282828",

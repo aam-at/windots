@@ -26,14 +26,23 @@ function Set-TaskbarAutoHide {
     $path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3'
     $settings = (Get-ItemProperty -LiteralPath $path -Name Settings).Settings
     if ($settings.Length -le 8) { throw 'Taskbar settings are not in the expected format.' }
-    if ($settings[8] -eq 2) { return }
+    if ($settings[8] -eq 2) { return $false }
 
     $settings[8] = 2
-    Invoke-IfNotDryRun {
-        Set-ItemProperty -LiteralPath $path -Name Settings -Value $settings
-        Stop-Process -Name explorer -Force
-        Start-Process explorer.exe
+    Invoke-IfNotDryRun { Set-ItemProperty -LiteralPath $path -Name Settings -Value $settings }
+    return $true
+}
+
+# Windows 11 stores a Wallpaper override per virtual desktop; without one a
+# desktop falls back to the global wallpaper, so every desktop shares it.
+function Clear-DesktopWallpapers {
+    $path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops\Desktops'
+    $keys = @(Get-ChildItem -LiteralPath $path -ErrorAction SilentlyContinue |
+            Where-Object { $null -ne $_.GetValue('Wallpaper') })
+    foreach ($key in $keys) {
+        Invoke-IfNotDryRun { Remove-ItemProperty -LiteralPath $key.PSPath -Name Wallpaper }
     }
+    return $keys.Count -gt 0
 }
 
 try {
@@ -47,7 +56,17 @@ try {
     & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DryRun:$DryRun
     if (-not $?) { throw 'Failed to enable PowerToys utilities.' }
     Set-FancyZonesSettings -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\FancyZones\settings.json')
-    Set-TaskbarAutoHide
+    $taskbarChanged = Set-TaskbarAutoHide
+    $wallpapersCleared = Clear-DesktopWallpapers
+    if ($taskbarChanged -or $wallpapersCleared) {
+        # The YASB dock loses its window tracking when Explorer restarts;
+        # stopping YASB lets Install-Startup relaunch it below.
+        Invoke-IfNotDryRun {
+            Stop-Process -Name explorer -Force
+            Start-Process explorer.exe
+            Get-Process -Name yasb -ErrorAction SilentlyContinue | Stop-Process -Force
+        }
+    }
 
     # Restart the helper so Install-Startup relaunches it with the linked config.
     Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }

@@ -1,5 +1,7 @@
 <#
-Configures the user environment variables used by this dotfiles setup.
+Configures the user environment used by this dotfiles setup: environment
+variables, keyboard languages (English US + Russian), and Singapore regional
+formats, home location and time zone.
 
 Usage:
   pwsh -File .\setup\Configure-Env.ps1
@@ -47,6 +49,26 @@ function Set-YasbTheme {
     Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('YASB_CONFIG_HOME', $theme, 'User') }
 }
 
+# Keyboard languages and region. Windows has no Singapore display language,
+# so the UI stays English (United States) and Singapore sets formats, home
+# location and time zone. The International module only works properly in
+# Windows PowerShell, so run it there. Each call is idempotent.
+function Set-RegionalSettings {
+    Write-Info 'Setting keyboards (English US, Russian) and Singapore formats, location and time zone'
+    $script = @'
+$languages = New-WinUserLanguageList en-US
+$languages.Add('ru-RU')
+Set-WinUserLanguageList $languages -Force
+Set-Culture en-SG
+Set-WinHomeLocation -GeoId 215
+Set-TimeZone -Id 'Singapore Standard Time'
+'@
+    if (-not (Invoke-NativeCommand -Description 'Regional settings' -Action { powershell -NoProfile -NonInteractive -Command $script })) {
+        Write-Warn 'Keyboard languages or regional settings were not applied.'
+    }
+}
+
 Set-HomeEnvironment
 Add-UserBinToPath
 Set-YasbTheme
+Set-RegionalSettings

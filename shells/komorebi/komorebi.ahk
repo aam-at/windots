@@ -3,7 +3,7 @@
 
 #Include %A_ScriptDir%\..\Hide-Taskbar.ahk
 
-Komorebic(cmd) {
+Komorebic(cmd, *) {
     RunWait(format("komorebic.exe {}", cmd), , "Hide")
 }
 
@@ -62,21 +62,11 @@ Komorebic(cmd) {
 !,::Komorebic("cycle-workspace previous")
 !.::Komorebic("cycle-workspace next")
 
-; Workspaces
-!1::Komorebic("focus-workspace 0")
-!2::Komorebic("focus-workspace 1")
-!3::Komorebic("focus-workspace 2")
-!4::Komorebic("focus-workspace 3")
-!5::Komorebic("focus-workspace 4")
-!6::Komorebic("focus-workspace 5")
-
-; Move windows across workspaces
-!+1::Komorebic("move-to-workspace 0")
-!+2::Komorebic("move-to-workspace 1")
-!+3::Komorebic("move-to-workspace 2")
-!+4::Komorebic("move-to-workspace 3")
-!+5::Komorebic("move-to-workspace 4")
-!+6::Komorebic("move-to-workspace 5")
+; Workspaces: Alt+1..6 focus, Alt+Shift+1..6 move the window there
+loop 6 {
+    Hotkey "!" A_Index, Komorebic.Bind("focus-workspace " (A_Index - 1))
+    Hotkey "!+" A_Index, Komorebic.Bind("move-to-workspace " (A_Index - 1))
+}
 
 Capslock::Esc
 Esc::Capslock

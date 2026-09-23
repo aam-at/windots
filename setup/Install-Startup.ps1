@@ -142,31 +142,21 @@ try {
         $komorebiArguments = 'start --clean-state --config "{0}"' -f $komorebiConfig
         [void](Ensure-StartupShortcut -Name 'Komorebi' -Candidates @('komorebic-no-console', 'komorebic') -Arguments $komorebiArguments -RunningProcessName 'komorebi')
         $komorebiAhk = RepoPath 'shells\komorebi\komorebi.ahk'
-        if (Test-Path -LiteralPath $komorebiAhk) {
-            [void](Ensure-StartupShortcut -Name 'KomorebiAHK' -Candidates @('autohotkey', 'AutoHotkey64', 'AutoHotkey') -Arguments ('"{0}"' -f $komorebiAhk) -RunningProcessName 'AutoHotkeyUX')
-        }
-        else {
-            Write-Warn "komorebi.ahk not found at $komorebiAhk; skipping AutoHotkey startup shortcut."
-        }
+        [void](Ensure-StartupShortcut -Name 'KomorebiAHK' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $komorebiAhk) -RunningProcessName 'AutoHotkeyUX')
         Remove-StartupShortcut 'VirtualDesktopHelper'
         if (-not $DryRun) { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     }
     else {
         Remove-StartupShortcut 'Komorebi'
         Remove-StartupShortcut 'KomorebiAHK'
-        $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper', 'WindowsVirtualDesktopHelper.exe') | Where-Object { $_ }
+        $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper') | Where-Object { $_ }
         # Native-Desktop.ahk owns Win+1..9; the helper only shows the desktop number.
         [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments '' -RunningProcessName 'WindowsVirtualDesktopHelper')
         $nativeDesktop = RepoPath 'shells\native\Native-Desktop.ahk'
-        if (Test-Path -LiteralPath $nativeDesktop) {
-            [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64', 'AutoHotkey') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
-        }
-        else {
-            Write-Warn "Native desktop bindings not found at $nativeDesktop; skipping AutoHotkey startup shortcut."
-        }
+        [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
     }
     # YASB is the top bar in both modes; its workspace widgets adapt to the mode.
-    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb', 'yasb.exe') -Arguments '')
+    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb') -Arguments '')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
     [void](Ensure-StartupShortcut -Name 'Kanata' -Candidates $kanataCandidates -Arguments ('-c "{0}"' -f $kanataConfig))

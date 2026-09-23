@@ -23,9 +23,8 @@ Windows dotfiles and setup scripts.
   Existing non-link configuration paths are preserved unless `-Force` is
   supplied. Use `-DryRun` to preview the setup without making changes.
 
-- The setup enables PowerToys FancyZones and Workspaces, and keeps the Command
-  Palette dock off (`powertoys/cmdpal.json`) because YASB is the top bar. Use
-  `-SkipPowerToys` to leave existing PowerToys settings unchanged.
+- The setup enables PowerToys FancyZones and Workspaces. Use `-Skip PowerToys`
+  to leave existing PowerToys settings unchanged.
 
 ## Desktop modes
 
@@ -97,4 +96,4 @@ different key later, run `pwsh -File .\setup\Configure-SshAgent.ps1 -KeyPath
 - Setup installs Emacs, Doom, and Spacemacs from Scoop and their upstream
   repositories, then links the shared profiles from `~/dotfiles/emacs`.
   Spacemacs completes package installation the first time a profile opens;
-  use `-SkipEmacs` to skip this setup phase.
+  use `-Skip Emacs` to skip this setup phase.

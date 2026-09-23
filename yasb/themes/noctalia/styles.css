@@ -1075,7 +1075,7 @@
 .yasb-bar .widget {
     background-color: var(--gb-surface);
     border-radius: 12px;
-    padding: 0 10px;
+    padding: 0 8px;
     margin: 3px 2px;
 }
 .yasb-bar .widget:hover {
@@ -1108,19 +1108,22 @@
     padding: 0;
 }
 
-/* Connectivity group (Wi-Fi + traffic): one capsule, like Noctalia's
-   group:connectivity. Inner widgets drop their own capsule. */
-.yasb-bar .connectivity {
+/* Status group (language, Wi-Fi, traffic, volume, notifications, battery):
+   one capsule; inner widgets drop their own and get a small hover pill. */
+.yasb-bar .status {
     background-color: var(--gb-surface);
     border-radius: 12px;
     margin: 3px 2px;
-    padding: 0 4px;
+    padding: 0 3px;
 }
-.yasb-bar .connectivity .widget,
-.yasb-bar .connectivity .widget:hover {
+.yasb-bar .status .widget {
     background-color: transparent;
-    margin: 0;
-    padding: 0 4px;
+    border-radius: 9px;
+    margin: 3px 0;
+    padding: 0 5px;
+}
+.yasb-bar .status .widget:hover {
+    background-color: var(--gb-surface-hover);
 }
 /* Fixed widths so the capsule doesn't resize as values change: Wi-Fi glyphs
    differ in width per signal level, and speeds change every second. */
@@ -1131,10 +1134,10 @@
 .yasb-bar .traffic-widget .icon {
     font-size: 11px;
     color: var(--gb-muted);
-    padding: 0 3px 0 6px;
+    padding: 0 2px 0 4px;
 }
 .yasb-bar .traffic-widget .label {
-    min-width: 56px;
+    min-width: 46px;
     font-size: 11px;
     color: var(--gb-muted);
     padding: 0;

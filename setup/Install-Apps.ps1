@@ -76,7 +76,7 @@ else {
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
     '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'cmake', 'curl',
-    'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'file', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'git', 'gitui',
+    'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'git', 'gitui',
     'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
     'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
     'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
@@ -127,6 +127,14 @@ if (Test-Command 'scoop') {
     foreach ($manifest in Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scoop') -Filter '*.json') {
         if (-not (Install-ScoopPackage -Name $manifest.BaseName -Source $manifest.FullName)) {
             $packageFailures.Add("scoop:$($manifest.BaseName)")
+        }
+    }
+    # `file` comes from Git's MSYS build: Scoop's file package rejects `--`,
+    # which Yazi passes when detecting file types, so every preview was blank.
+    $gitFile = Join-Path $HOME 'scoop\apps\git\current\usr\bin\file.exe'
+    if (Test-Path -LiteralPath $gitFile) {
+        if (-not (Invoke-NativeCommand -Description 'Scoop shim file' -Action { scoop shim add file $gitFile })) {
+            $packageFailures.Add('scoop shim:file')
         }
     }
 
