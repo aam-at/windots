@@ -29,8 +29,6 @@ $fontsMap = @{
     'powerline-fonts' = 'https://github.com/powerline/fonts.git'
 }
 
-Add-Type -AssemblyName System.Drawing
-
 $namespace = 'WindotsFontInstaller'
 if ($null -eq ("$namespace.NativeMethods" -as [type])) {
     Add-Type -TypeDefinition @"
@@ -48,18 +46,6 @@ namespace $namespace {
 }
 $Native = ("$namespace.NativeMethods" -as [type])
 
-function Get-FontFamilyName {
-    param([Parameter(Mandatory)][System.IO.FileInfo]$FontFile)
-
-    $privateFonts = [System.Drawing.Text.PrivateFontCollection]::new()
-    try {
-        $privateFonts.AddFontFile($FontFile.FullName)
-        if ($privateFonts.Families.Count -eq 0) { throw 'The file contains no font family.' }
-        return $privateFonts.Families[0].Name
-    }
-    finally { $privateFonts.Dispose() }
-}
-
 function Install-Font {
     param(
         [Parameter(Mandatory)][System.IO.FileInfo]$FontFile,
@@ -67,7 +53,6 @@ function Install-Font {
     )
 
     try {
-        $familyName = Get-FontFamilyName -FontFile $FontFile
         if ($IsCurrentUser) {
             $fontsDirectory = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
             $registryPath = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
@@ -78,10 +63,10 @@ function Install-Font {
         }
 
         $fontPath = Join-Path $fontsDirectory $FontFile.Name
-        # Family names alone are not unique: weights and styles would overwrite
-        # each other. The filename produces a stable, distinct value per face.
+        # Windows loads fonts by file, not by value name; the filename keeps
+        # each face's value stable and distinct.
         $fontKind = if ($FontFile.Extension -ieq '.otf') { 'OpenType' } else { 'TrueType' }
-        $registryName = "$familyName $($FontFile.BaseName) ($fontKind)"
+        $registryName = "$($FontFile.BaseName) ($fontKind)"
         # Current-user fonts need an absolute registry path. Windows resolves
         # machine-wide font filenames relative to %WINDIR%\Fonts.
         $registryValue = if ($IsCurrentUser) { $fontPath } else { $FontFile.Name }
@@ -100,7 +85,7 @@ function Install-Font {
         }
 
         $state = if ($copied) { 'Installed' } else { 'Registered' }
-        Write-DebugInfo "${state}: $($FontFile.Name) [$familyName]"
+        Write-DebugInfo "${state}: $($FontFile.Name)"
         return $true
     }
     catch {

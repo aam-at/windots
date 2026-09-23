@@ -12,13 +12,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\..\setup\Common.ps1')
 
 try {
-    $startupInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1'
-    if (-not (Test-Path -LiteralPath $startupInstaller)) {
-        throw "Link installer not found: $startupInstaller"
-    }
-
     # Creates the Komorebi startup shortcuts and removes the native-mode one.
-    & $startupInstaller -DesktopMode Komorebi -DryRun:$DryRun
+    & (Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1') -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
@@ -27,8 +22,6 @@ try {
 
     $config = Join-Path $PSScriptRoot 'komorebi.json'
     $bindings = Join-Path $PSScriptRoot 'komorebi.ahk'
-    if (-not (Test-Path -LiteralPath $config)) { throw "Komorebi config not found: $config" }
-    if (-not (Test-Path -LiteralPath $bindings)) { throw "Komorebi bindings not found: $bindings" }
 
     if (-not (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue)) {
         throw 'komorebic.exe was not found on PATH.'

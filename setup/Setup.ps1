@@ -2,7 +2,7 @@
 Runs every setup step in order; each step is its own script in this folder
 and can be re-run alone with the same -DryRun/-LogLevel switches:
 
-  Configure-Env       HOME and ~/bin on the user PATH
+  Configure-Env       HOME, ~/bin on PATH, keyboards (EN-US, RU), Singapore region
   Configure-Registry  Explorer tweaks; with UAC: Sudo, Developer Mode,
                       long paths, lid/sleep power plan
   Configure-SshAgent  enable ssh-agent (UAC), load ~/.ssh/id_ed25519
@@ -18,22 +18,15 @@ regular user; only Configure-Registry and Configure-SshAgent prompt for UAC.
 
 Usage:
   pwsh -ExecutionPolicy Bypass -File .\setup\Setup.ps1
-  pwsh -File .\setup\Setup.ps1 -DryRun -SkipPackages -SkipFonts
+  pwsh -File .\setup\Setup.ps1 -DryRun -Skip Apps,Fonts
   pwsh -File .\setup\Setup.ps1 -DesktopMode Komorebi
 #>
 
 param(
     [switch]$DryRun,
     [switch]$Force,
-    [switch]$SkipEmacs,
-    [switch]$SkipEnv,
-    [switch]$SkipFonts,
-    [switch]$SkipLinks,
-    [switch]$SkipPackages,
-    [switch]$SkipPowerToys,
-    [switch]$SkipRegistry,
-    [switch]$SkipSsh,
-    [switch]$SkipStartup,
+    # Step names from $steps below; pwsh -File passes "a,b" as one string.
+    [string[]]$Skip = @(),
     [ValidateSet('Native', 'Komorebi')]
     [string]$DesktopMode = 'Native',
     [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
@@ -45,34 +38,16 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-function Invoke-ElevatedScript {
-    param(
-        [Parameter(Mandatory)]
-        [string]$ScriptPath,
-
-        [hashtable]$Arguments = @{}
-    )
-
+# Runs a script elevated (UAC prompt) with -Name value / -Switch arguments;
+# returns whether it exited 0. False when elevation is declined.
+function Invoke-ElevatedScript([string]$ScriptPath, [hashtable]$Arguments = @{}) {
     $argumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath)
     foreach ($entry in $Arguments.GetEnumerator()) {
-        if ($entry.Value -is [switch] -or $entry.Value -is [bool]) {
-            if ($entry.Value) { $argumentList += "-$($entry.Key)" }
-        }
-        else {
-            $argumentList += "-$($entry.Key)", "$($entry.Value)"
-        }
+        if ($entry.Value -is [bool] -or $entry.Value -is [switch]) { if ($entry.Value) { $argumentList += "-$($entry.Key)" } }
+        else { $argumentList += "-$($entry.Key)", "$($entry.Value)" }
     }
-
-    $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
-
-    try {
-        $process = Start-Process -FilePath $shell.Source -ArgumentList $argumentList -Verb RunAs -Wait -PassThru
-        return $process.ExitCode -eq 0
-    }
-    catch {
-        return $false
-    }
+    try { (Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList $argumentList -Verb RunAs -Wait -PassThru).ExitCode -eq 0 }
+    catch { $false }
 }
 
 # Runs a sibling setup script with the shared -LogLevel/-DryRun switches.
@@ -88,22 +63,30 @@ function Configure-Registry {
     if (-not (Test-IsAdmin)) {
         Write-Info 'Requesting administrator approval to enable Sudo, Developer Mode, long paths, and the agent power plan...'
         $registryArgs = @{ LogLevel = $LogLevel; DryRun = [bool]$DryRun }
-        if (-not (Invoke-ElevatedScript -ScriptPath (Join-Path $PSScriptRoot 'Configure-Registry.ps1') -Arguments $registryArgs)) {
+        if (-not (Invoke-ElevatedScript (Join-Path $PSScriptRoot 'Configure-Registry.ps1') $registryArgs)) {
             Write-Warn 'Admin-only registry and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
         }
     }
 }
 
 try {
-    if ($SkipEnv) { Write-Info 'Skipping environment configuration.' } else { Invoke-Step 'Configure-Env' }
-    if ($SkipRegistry) { Write-Info 'Skipping registry configuration.' } else { Configure-Registry }
-    if ($SkipSsh) { Write-Info 'Skipping SSH agent configuration.' } else { Invoke-Step 'Configure-SshAgent' }
-    if ($SkipPackages) { Write-Info 'Skipping package installation.' } else { Invoke-Step 'Install-Apps' }
-    if ($SkipPowerToys) { Write-Info 'Skipping PowerToys configuration.' } else { Invoke-Step 'Configure-PowerToys' }
-    if ($SkipLinks) { Write-Info 'Skipping link installation.' } else { Invoke-Step 'Install-Links' @{ Force = [bool]$Force } }
-    if ($SkipStartup) { Write-Info 'Skipping Startup shortcuts.' } else { Invoke-Step 'Install-Startup' @{ DesktopMode = $DesktopMode } }
-    if ($SkipEmacs) { Write-Info 'Skipping Emacs installation.' } else { Invoke-Step 'Install-Emacs' }
-    if ($SkipFonts) { Write-Info 'Skipping fonts installation.' } else { Invoke-Step 'Install-Fonts' }
+    $steps = [ordered]@{
+        Env       = { Invoke-Step 'Configure-Env' }
+        Registry  = { Configure-Registry }
+        Ssh       = { Invoke-Step 'Configure-SshAgent' }
+        Apps      = { Invoke-Step 'Install-Apps' }
+        PowerToys = { Invoke-Step 'Configure-PowerToys' }
+        Links     = { Invoke-Step 'Install-Links' @{ Force = [bool]$Force } }
+        Startup   = { Invoke-Step 'Install-Startup' @{ DesktopMode = $DesktopMode } }
+        Emacs     = { Invoke-Step 'Install-Emacs' }
+        Fonts     = { Invoke-Step 'Install-Fonts' }
+    }
+    $Skip = @($Skip -split ',' | ForEach-Object Trim | Where-Object { $_ })
+    $unknown = @($Skip | Where-Object { $_ -notin $steps.Keys })
+    if ($unknown) { throw "Unknown -Skip step(s): $($unknown -join ', '). Valid: $($steps.Keys -join ', ')." }
+    foreach ($step in $steps.GetEnumerator()) {
+        if ($step.Key -in $Skip) { Write-Info "Skipping $($step.Key)." } else { & $step.Value }
+    }
     Write-Info 'Script completed successfully.'
 }
 catch {

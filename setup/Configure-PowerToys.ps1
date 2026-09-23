@@ -1,5 +1,5 @@
 <#
-Configures PowerToys productivity settings and the Command Palette dock.
+Configures PowerToys productivity settings.
 #>
 
 param(
@@ -57,5 +57,4 @@ function Merge-SettingsFile([string]$Name, [string]$TemplatePath, [string]$Setti
 
 
 Merge-SettingsFile 'PowerToys' (Join-Path $repoRoot 'powertoys\settings.json') (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\settings.json')
-Merge-SettingsFile 'Command Palette' (Join-Path $repoRoot 'powertoys\cmdpal.json') (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.CommandPalette_8wekyb3d8bbwe\LocalState\settings.json')
 Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'

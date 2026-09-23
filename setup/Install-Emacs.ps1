@@ -83,9 +83,6 @@ if (-not (Test-Path -LiteralPath (Join-Path $emacsConfigRoot 'doom\init.el'))) {
 $doomMarker = Join-Path $emacsStateRoot 'doom\.windots-installed'
 if (-not (Test-Path -LiteralPath $doomMarker)) {
     $doomProfileScript = Join-Path $repoRoot 'scripts\Doom-Profile.ps1'
-    if (-not (Test-Path -LiteralPath $doomProfileScript)) {
-        throw "Doom profile launcher not found: $doomProfileScript"
-    }
 
     $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
