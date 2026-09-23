@@ -38,5 +38,15 @@ function Add-UserBinToPath {
     }
 }
 
+# YASB reads its config from the folder in YASB_CONFIG_HOME. Default to the
+# noctalia theme; scripts\Set-YasbTheme.ps1 switches it later.
+function Set-YasbTheme {
+    if ([Environment]::GetEnvironmentVariable('YASB_CONFIG_HOME', 'User')) { return }
+    $theme = Join-Path (Split-Path -Parent $PSScriptRoot) 'yasb\themes\noctalia'
+    Write-Info "Setting user environment variable YASB_CONFIG_HOME=$theme"
+    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('YASB_CONFIG_HOME', $theme, 'User') }
+}
+
 Set-HomeEnvironment
 Add-UserBinToPath
+Set-YasbTheme

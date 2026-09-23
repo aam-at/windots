@@ -1,5 +1,5 @@
 <#
-Configures PowerToys productivity settings.
+Configures PowerToys productivity settings and the Command Palette dock.
 #>
 
 param(
@@ -20,40 +20,42 @@ if (-not (Test-Path -LiteralPath $powerToysExe)) {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$templatePath = Join-Path $repoRoot 'powertoys\settings.json'
-$settingsDirectory = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys'
-$settingsPath = Join-Path $settingsDirectory 'settings.json'
-if (-not (Test-Path -LiteralPath $templatePath)) {
-    Write-Warn "PowerToys settings template not found: $templatePath"
-    return
+
+# Merges a repo template into a live settings file, keeping every other key.
+function Merge-SettingsFile([string]$Name, [string]$TemplatePath, [string]$SettingsPath) {
+    if (-not (Test-Path -LiteralPath $TemplatePath)) {
+        Write-Warn "$Name settings template not found: $TemplatePath"
+        return
+    }
+
+    try {
+        $template = Get-Content -Raw -LiteralPath $TemplatePath | ConvertFrom-Json
+        $settings = if (Test-Path -LiteralPath $SettingsPath) { Get-Content -Raw -LiteralPath $SettingsPath | ConvertFrom-Json } else { [pscustomobject]@{} }
+        Merge-ObjectProperties -Destination $settings -Source $template
+        # Deep enough for Command Palette's nested dock/provider settings;
+        # ConvertTo-Json silently flattens anything deeper.
+        $settingsJson = $settings | ConvertTo-Json -Depth 32
+
+        $settingsDirectory = Split-Path -Parent $SettingsPath
+        if (-not (Test-Path -LiteralPath $settingsDirectory)) {
+            Write-Info "Creating $Name settings directory: $settingsDirectory"
+            Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null }
+        }
+
+        if ((Test-Path -LiteralPath $SettingsPath) -and (-not (Test-Path -LiteralPath "$SettingsPath.windots-backup"))) {
+            Write-Info "Backing up $Name settings: $SettingsPath.windots-backup"
+            Invoke-IfNotDryRun { Copy-Item -LiteralPath $SettingsPath -Destination "$SettingsPath.windots-backup" -ErrorAction Stop }
+        }
+
+        Write-Info "Applying $Name settings..."
+        Invoke-IfNotDryRun { Set-Content -LiteralPath $SettingsPath -Value $settingsJson -Encoding utf8 -NoNewline }
+    }
+    catch {
+        Write-Warn "Failed to configure ${Name}: $_"
+    }
 }
 
-try {
-    $template = Get-Content -Raw -LiteralPath $templatePath | ConvertFrom-Json
-    if (Test-Path -LiteralPath $settingsPath) {
-        $settings = Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
-    }
-    else {
-        $settings = [pscustomobject]@{}
-    }
 
-    Merge-ObjectProperties -Destination $settings -Source $template
-    $settingsJson = $settings | ConvertTo-Json -Depth 10
-
-    if (-not (Test-Path -LiteralPath $settingsDirectory)) {
-        Write-Info "Creating PowerToys settings directory: $settingsDirectory"
-        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null }
-    }
-
-    if ((Test-Path -LiteralPath $settingsPath) -and (-not (Test-Path -LiteralPath "$settingsPath.windots-backup"))) {
-        Write-Info "Backing up PowerToys settings: $settingsPath.windots-backup"
-        Invoke-IfNotDryRun { Copy-Item -LiteralPath $settingsPath -Destination "$settingsPath.windots-backup" -ErrorAction Stop }
-    }
-
-    Write-Info 'Applying PowerToys productivity settings...'
-    Invoke-IfNotDryRun { Set-Content -LiteralPath $settingsPath -Value $settingsJson -Encoding utf8 -NoNewline }
-    Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'
-}
-catch {
-    Write-Warn "Failed to configure PowerToys: $_"
-}
+Merge-SettingsFile 'PowerToys' (Join-Path $repoRoot 'powertoys\settings.json') (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\settings.json')
+Merge-SettingsFile 'Command Palette' (Join-Path $repoRoot 'powertoys\cmdpal.json') (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.CommandPalette_8wekyb3d8bbwe\LocalState\settings.json')
+Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'

@@ -1,5 +1,6 @@
 <#
-Installs applications via winget, Scoop, and Bun, plus PowerShell modules.
+Installs applications via winget, Scoop, and Bun, plus PowerShell modules and
+VirtualDesktopAccessor.dll (used by shells\native\Native-Desktop.ahk).
 
 Usage:
   pwsh -File .\setup\Install-Apps.ps1
@@ -38,7 +39,8 @@ function Install-WingetPackage {
 }
 
 function Install-ScoopPackage {
-    param([Parameter(Mandatory)][string]$Name)
+    # Source is a bucket app name or a manifest path (for scoop\*.json in this repo).
+    param([Parameter(Mandatory)][string]$Name, [string]$Source = $Name)
 
     scoop prefix $Name *>$null
     if ($LASTEXITCODE -eq 0) {
@@ -46,8 +48,8 @@ function Install-ScoopPackage {
         return Invoke-NativeCommand -Description "Scoop package update $Name" -Action { scoop update $Name }
     }
 
-    Write-Info "scoop install $Name"
-    return Invoke-NativeCommand -Description "Scoop package $Name" -Action { scoop install $Name }
+    Write-Info "scoop install $Source"
+    return Invoke-NativeCommand -Description "Scoop package $Name" -Action { scoop install $Source }
 }
 
 $packageFailures = [System.Collections.Generic.List[string]]::new()
@@ -121,6 +123,12 @@ if (Test-Command 'scoop') {
             $packageFailures.Add("scoop:$app")
         }
     }
+    # Apps no bucket ships yet, installed from manifests kept in this repo.
+    foreach ($manifest in Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scoop') -Filter '*.json') {
+        if (-not (Install-ScoopPackage -Name $manifest.BaseName -Source $manifest.FullName)) {
+            $packageFailures.Add("scoop:$($manifest.BaseName)")
+        }
+    }
 
     if (Test-Command 'bun') {
         foreach ($app in $bunApps) {
@@ -136,6 +144,35 @@ if (Test-Command 'scoop') {
 }
 else {
     Write-Warn 'scoop not found; run setup\Bootstrap.ps1 first. Skipping scoop apps.'
+}
+
+# No package manager ships VirtualDesktopAccessor, so fetch the pinned release
+# and verify its hash before anything loads it.
+# ponytail: pinned to one release; bump URL + hash after a Windows build breaks it.
+$vdaUrl = 'https://github.com/Ciantic/VirtualDesktopAccessor/releases/download/2024-12-16-windows11/VirtualDesktopAccessor.dll'
+$vdaHash = '8740C572A1C000E3B87FFEB1E4C397EAE9AF3BD4A2ABDC3BCFFACAB4493F8FF5'
+$vdaPath = Join-Path $env:LOCALAPPDATA 'VirtualDesktopAccessor\VirtualDesktopAccessor.dll'
+if ((Test-Path -LiteralPath $vdaPath) -and (Get-FileHash -LiteralPath $vdaPath -Algorithm SHA256).Hash -eq $vdaHash) {
+    Write-DebugInfo "VirtualDesktopAccessor already installed: $vdaPath"
+}
+else {
+    Write-Info "Downloading VirtualDesktopAccessor to $vdaPath"
+    Invoke-IfNotDryRun {
+        try {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $vdaPath) -Force | Out-Null
+            $download = "$vdaPath.download"
+            Invoke-WebRequest -Uri $vdaUrl -OutFile $download
+            if ((Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash -ne $vdaHash) {
+                Remove-Item -LiteralPath $download -Force
+                throw 'SHA256 mismatch.'
+            }
+            Move-Item -LiteralPath $download -Destination $vdaPath -Force
+        }
+        catch {
+            Write-Warn "VirtualDesktopAccessor download failed: $_"
+            $packageFailures.Add('download:VirtualDesktopAccessor')
+        }
+    }
 }
 
 if (-not (Test-Command Install-Module)) {

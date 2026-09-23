@@ -37,27 +37,27 @@ function Set-TaskbarAutoHide {
 }
 
 try {
-    $powerToysRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys'
-    & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DryRun:$DryRun
-    if (-not $?) { throw 'Failed to enable PowerToys utilities.' }
-    Set-FancyZonesSettings -Path (Join-Path $powerToysRoot 'FancyZones\settings.json')
-    Set-TaskbarAutoHide
-    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
-    $startupInstaller = Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1'
-    & $startupInstaller -DesktopMode Native -DryRun:$DryRun
-    if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
-
+    # Stop the Komorebi shell. Install-Startup launches komorebi.ahk from the
+    # repo path, so match that rather than the ~/.config junction.
     if (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue) {
         Invoke-IfNotDryRun { komorebic stop 2>$null }
     }
+    Invoke-IfNotDryRun { Stop-AutoHotkeyScript (Join-Path $PSScriptRoot '..\komorebi\komorebi.ahk') }
 
-    $komorebiAhk = Join-Path $HOME '.config\komorebi\komorebi.ahk'
-    Invoke-IfNotDryRun { Stop-AutoHotkeyScript $komorebiAhk }
+    & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DryRun:$DryRun
+    if (-not $?) { throw 'Failed to enable PowerToys utilities.' }
+    Set-FancyZonesSettings -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\FancyZones\settings.json')
+    Set-TaskbarAutoHide
 
+    # Restart the helper so Install-Startup relaunches it with the linked config.
+    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
+    & (Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1') -DesktopMode Native -DryRun:$DryRun
+    if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
+
+    # Install-Startup skips AutoHotkey when any AHK script is already running;
+    # #SingleInstance Force makes this relaunch safe either way.
     $nativeScript = Join-Path $PSScriptRoot 'Native-Desktop.ahk'
     Invoke-IfNotDryRun { Start-Process -FilePath (Get-Command autohotkey.exe -CommandType Application).Source -ArgumentList ('"{0}"' -f $nativeScript) }
-
-    Invoke-IfNotDryRun { Get-Process -Name yasb -ErrorAction SilentlyContinue | Stop-Process -Force }
 
     $powerToys = Join-Path $env:ProgramFiles 'PowerToys\PowerToys.exe'
     if (Test-Path -LiteralPath $powerToys) {

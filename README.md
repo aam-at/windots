@@ -23,7 +23,8 @@ Windows dotfiles and setup scripts.
   Existing non-link configuration paths are preserved unless `-Force` is
   supplied. Use `-DryRun` to preview the setup without making changes.
 
-- The setup enables PowerToys FancyZones and Workspaces. Use
+- The setup enables PowerToys FancyZones and Workspaces, and keeps the Command
+  Palette dock off (`powertoys/cmdpal.json`) because YASB is the top bar. Use
   `-SkipPowerToys` to leave existing PowerToys settings unchanged.
 
 ## Desktop modes
@@ -36,22 +37,34 @@ desktop options; automatic monitor detection is intentionally not used.
   `pwsh -File .\shells\native\Use-Desktop.ps1`
 
   Stops Komorebi, enables the native Windows virtual-desktop workflow with
-  PowerToys Workspaces and FancyZones, and hides the bottom taskbar.
-  In this mode, `Alt+1` through `Alt+9` jump to numbered virtual desktops;
-  add Shift to move the focused window to that desktop. Caps Lock taps as
-  Escape (or holds as Left Ctrl), while Escape is Caps Lock.
-  Native mode uses the Scoop-installed Windows Virtual Desktop Helper for
-  numbered desktop jumps.
+  PowerToys Workspaces and FancyZones, hides the bottom taskbar, and keeps the
+  YASB top bar (showing the numbered virtual desktops).
+  Keybindings follow niri with Win as Mod: `Win+H/J/K/L` focus,
+  `Win+1`..`Win+9` jump to numbered virtual desktops (add Shift to move the
+  focused window there), and `Win+X` opens the lock/sleep/restart/shut down
+  menu. Win+L is freed for focus-right in this mode, so lock with `Win+Alt+L`
+  or the `Win+X` menu. Caps Lock taps as Escape (or holds as Left Ctrl), while
+  Escape is Caps Lock.
 
 - **External monitor / Komorebi:**
   `pwsh -File .\shells\komorebi\Use-Desktop.ps1`
 
   Stops the native desktop bindings, restores Komorebi's startup shortcuts,
-  starts its external-monitor tiling configuration, and launches its
-  AutoHotkey keybindings and YASB top bar.
+  starts its external-monitor tiling configuration, launches its
+  AutoHotkey keybindings and restarts the YASB top bar (showing Komorebi's
+  workspaces).
 
 Both scripts accept `-DryRun` to show their actions without changing the current
 desktop mode.
+
+- **Bars:** both modes use the YASB top bar plus an auto-hiding YASB dock at the
+  bottom (pinned apps and running windows; right-click an app to pin or unpin
+  it, drag to reorder; pins are per machine in
+  `%LOCALAPPDATA%\Yasb\taskbar_pinned.json`). Each YASB theme is a folder under
+  `yasb/themes` (currently `noctalia`); list or switch them with
+  `pwsh -File .\scripts\Set-YasbTheme.ps1 [name]`.
+  The Windows taskbar is hidden by `shells\Hide-Taskbar.ahk`, which both
+  AutoHotkey scripts include.
 
 - **Keybindings:** both modes' full keybinding lists are registered as
   PowerToys Shortcut Guide manifests (`shells\native\windots-native.yaml`,

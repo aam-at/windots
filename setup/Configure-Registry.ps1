@@ -6,8 +6,8 @@ Usage:
   pwsh -File .\setup\Configure-Registry.ps1 -DryRun
 
 Run from an elevated terminal (or let Setup.ps1 prompt for UAC approval) to
-also enable Windows Sudo, Developer Mode, long paths, and the closed-lid agent
-power plan.
+also enable Windows Sudo, Developer Mode, long paths, the closed-lid agent
+power plan, and user control of the Win+L lock policy (see Install-Startup.ps1).
 #>
 
 param(
@@ -24,7 +24,8 @@ $ErrorActionPreference = 'Stop'
 function Set-Dword([string]$Path, [string]$Name, [int]$Value) {
     Write-Info "Setting ${Path}\$Name=$Value"
     if (-not $DryRun) {
-        New-Item -Path $Path -Force | Out-Null
+        # New-Item -Force on an existing key recreates it, so only create missing keys.
+        if (-not (Test-Path -LiteralPath $Path)) { New-Item -Path $Path -Force | Out-Null }
         New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
     }
 }
@@ -53,6 +54,19 @@ if (-not (Test-IsAdmin)) {
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo' 'Enabled' 3
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' 'AllowDevelopmentWithoutDevLicense' 1
 Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' 'LongPathsEnabled' 1
+
+# HKCU Policies keys are admin-writable only. Let this user flip
+# DisableLockWorkstation unelevated: Install-Startup.ps1 sets it per desktop
+# mode, and Native-Desktop.ahk lifts it briefly to lock the screen.
+$lockPolicy = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+Write-Info "Allowing $env:USERNAME to change $lockPolicy"
+if (-not $DryRun) {
+    if (-not (Test-Path -LiteralPath $lockPolicy)) { New-Item -Path $lockPolicy -Force | Out-Null }
+    $acl = Get-Acl -Path $lockPolicy
+    $user = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    $acl.AddAccessRule([System.Security.AccessControl.RegistryAccessRule]::new($user, 'QueryValues, SetValue, CreateSubKey', 'Allow'))
+    Set-Acl -Path $lockPolicy -AclObject $acl
+}
 
 <#
 Agent power mode

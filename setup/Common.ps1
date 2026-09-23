@@ -85,6 +85,8 @@ function Test-IsAdmin {
 }
 
 function Stop-AutoHotkeyScript([string]$ScriptPath) {
+    # Normalize so callers can pass '..' paths; AHK's command line holds the resolved one.
+    $ScriptPath = [System.IO.Path]::GetFullPath($ScriptPath)
     Get-CimInstance Win32_Process -Filter "Name = 'AutoHotkeyUX.exe'" |
         Where-Object { $_.CommandLine -like "*$ScriptPath*" } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force }

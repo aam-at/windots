@@ -1,41 +1,23 @@
+/* Base palette. Popups, menus and cards all read these, so they follow the
+   gruvbox theme below (light variants unused: the bar is always dark). */
 :root {
-    --bar-dark-bg: rgba(36, 36, 36, 0.6);
-    --bar-light-bg: rgba(255, 255, 255, 0.75);
-    --bar-dark-border: #303030;
-    --bar-light-border: #e7e7e7;
-    --dark-menu-bg: rgba(36, 36, 36, 0.6);
-    --light-menu-bg: rgba(255, 255, 255, 0.75);
-    --dark-color: rgb(65, 65, 65);
-    --dark-dim-color: rgb(117, 117, 117);
-    --light-color: rgba(255, 255, 255, 0.9);
-    --light-dim-color: rgba(255, 255, 255, 0.6);
-    --dark-icon-color: rgb(36, 36, 36);
-    --light-icon-color: rgba(255, 255, 255, 0.9);
+    --bar-dark-bg: #282828;
+    --bar-light-bg: #282828;
+    --bar-dark-border: #3c3836;
+    --bar-light-border: #3c3836;
+    --dark-menu-bg: rgba(29, 32, 33, 0.94);
+    --light-menu-bg: rgba(29, 32, 33, 0.94);
+    --dark-color: #ebdbb2;
+    --dark-dim-color: #a89984;
+    --light-color: #ebdbb2;
+    --light-dim-color: #a89984;
+    --dark-icon-color: #ebdbb2;
+    --light-icon-color: #ebdbb2;
 }
 * {
     font-size: 12px;
     font-weight: 400;
-    font-family: "Segoe UI", "Segoe Fluent Icons"
-}
-.dark.yasb-bar {
-    background-color: var(--bar-dark-bg);
-    border-bottom: 1px solid var(--bar-dark-border);
-    padding: 0 12px;
-}
-.yasb-bar {
-    background-color: var(--bar-light-bg);
-    border-bottom: 1px solid var(--bar-light-border);
-    padding: 0 12px;
-}
-.tooltip {
-    background-color: rgba(36, 36, 36, 0.95);
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.9);
-    padding: 5px 10px;
-    font-size: 12px;
-    font-family: 'Segoe UI';
-    font-weight: 600;
-    margin-top: 4px;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Segoe Fluent Icons";
 }
 .context-menu,
 .context-menu .menu-checkbox {
@@ -107,36 +89,6 @@
 }
 .context-menu .menu-checkbox .checkbox:focus {
     outline: none;
-}
-.widget {
-    padding: 2px 8px 0 8px;
-    margin: 4px 0;
-    border-radius: 4px;
-}
-
-.widget .icon {
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--dark-icon-color);
-}
-.yasb-bar.dark .widget .icon {
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--light-icon-color);
-}
-.widget .label {
-    padding: 0px 0px 4px 4px;
-    color: var(--dark-color)
-}
-
-.yasb-bar.dark .widget .label {
-    color: var(--light-color);
-}
-.widget:hover {
-    background-color: rgba(0, 0, 0, 0.08);
-}
-.dark .widget:hover {
-    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Quick Launch Popup - main window */
@@ -1092,3 +1044,221 @@
 .dark .systray-popup .button:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* ------------------------------------------------------------------
+   Theme "noctalia": gruvbox dark, shared by the top bar and the dock.
+   Keep every rule here at `.yasb-bar .x ...` specificity; a `.dark` or
+   `.yasb-bar.dark` variant outranks the per-widget rules and silently wins.
+   Proportions follow ~/dotfiles/config/noctalia/config.toml: a 36px opaque
+   strip, 30px capsules (capsule_thickness 0.82), radius 12, 4px spacing.
+   ------------------------------------------------------------------ */
+:root {
+    --gb-bg: #282828;
+    --gb-bg-hard: #1d2021;
+    --gb-surface: #3c3836;
+    --gb-surface-hover: #504945;
+    --gb-fg: #ebdbb2;
+    --gb-fg-bright: #fbf1c7;
+    --gb-muted: #a89984;
+    --gb-subtle: #7c6f64;
+    --gb-accent: #83a598;
+    --gb-warn: #fe8019;
+    --gb-border: rgba(235, 219, 178, 0.10);
+}
+
+/* Top bar: opaque edge-to-edge strip, widgets in rounded capsules. */
+.yasb-bar {
+    background-color: var(--gb-bg);
+    border-bottom: none;
+    padding: 0 6px;
+}
+.yasb-bar .widget {
+    background-color: var(--gb-surface);
+    border-radius: 12px;
+    padding: 0 10px;
+    margin: 3px 2px;
+}
+.yasb-bar .widget:hover {
+    background-color: var(--gb-surface-hover);
+}
+.yasb-bar .widget .label {
+    color: var(--gb-fg);
+    font-size: 12px;
+    padding: 0 0 0 5px;
+}
+/* YASB turns each <span> in a label into its own .icon element (and drops
+   the spaces around it). Icons always come from Segoe Fluent Icons; the
+   global font list would otherwise let installed Nerd Fonts supply
+   mismatched glyphs. */
+.yasb-bar .widget .icon {
+    font-family: "Segoe Fluent Icons";
+    font-size: 14px;
+}
+/* Clock: the bar's centrepiece. */
+.yasb-bar .clock-widget .label {
+    font-weight: 600;
+    color: var(--gb-fg-bright);
+    padding: 0 2px;
+}
+.yasb-bar .active-window-widget .label {
+    color: var(--gb-muted);
+}
+.yasb-bar .language-widget .label {
+    font-weight: 600;
+    padding: 0;
+}
+
+/* Connectivity group (Wi-Fi + traffic): one capsule, like Noctalia's
+   group:connectivity. Inner widgets drop their own capsule. */
+.yasb-bar .connectivity {
+    background-color: var(--gb-surface);
+    border-radius: 12px;
+    margin: 3px 2px;
+    padding: 0 4px;
+}
+.yasb-bar .connectivity .widget,
+.yasb-bar .connectivity .widget:hover {
+    background-color: transparent;
+    margin: 0;
+    padding: 0 4px;
+}
+/* Fixed widths so the capsule doesn't resize as values change: Wi-Fi glyphs
+   differ in width per signal level, and speeds change every second. */
+.yasb-bar .wifi-widget .icon {
+    min-width: 18px;
+    qproperty-alignment: AlignCenter;
+}
+.yasb-bar .traffic-widget .icon {
+    font-size: 11px;
+    color: var(--gb-muted);
+    padding: 0 3px 0 6px;
+}
+.yasb-bar .traffic-widget .label {
+    min-width: 56px;
+    font-size: 11px;
+    color: var(--gb-muted);
+    padding: 0;
+}
+
+/* Workspaces: Noctalia pills (empty = surface, focused = accent and wider). */
+.windows-desktops,
+.komorebi-workspaces {
+    padding: 0 6px;
+}
+.windows-desktops .ws-btn,
+.komorebi-workspaces .ws-btn {
+    background-color: var(--gb-surface-hover);
+    color: var(--gb-muted);
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    border-radius: 9px;
+    min-width: 18px;
+    max-height: 18px;
+    margin: 0 2px;
+    padding: 0 5px;
+}
+.windows-desktops .ws-btn:hover,
+.komorebi-workspaces .ws-btn:hover {
+    background-color: var(--gb-subtle);
+    color: var(--gb-fg);
+}
+.komorebi-workspaces .ws-btn.populated {
+    color: var(--gb-fg);
+}
+.windows-desktops .ws-btn.active,
+.komorebi-workspaces .ws-btn.active {
+    background-color: var(--gb-accent);
+    color: var(--gb-bg-hard);
+    min-width: 34px;
+}
+
+/* Tooltips, context menus and popups: gruvbox surfaces with a hairline border. */
+.tooltip {
+    background-color: var(--gb-bg-hard);
+    color: var(--gb-fg);
+    border: 1px solid var(--gb-surface-hover);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-weight: 600;
+}
+.context-menu,
+.context-menu .menu-checkbox {
+    background-color: rgba(29, 32, 33, 0.97);
+    color: var(--gb-fg);
+}
+.context-menu {
+    border: 1px solid var(--gb-surface-hover);
+    border-radius: 10px;
+}
+.context-menu::item:selected,
+.context-menu .menu-checkbox:hover {
+    background-color: var(--gb-surface);
+    color: var(--gb-fg-bright);
+}
+.context-menu::separator {
+    background-color: var(--gb-surface);
+}
+.context-menu .menu-checkbox .checkbox::indicator:checked {
+    background: var(--gb-accent);
+}
+
+/* Dock: one floating translucent pill (Noctalia dock), real app icons, a
+   hover highlight, and a thin indicator under open apps (accent = focused). */
+.yasb-dock {
+    background-color: rgba(40, 40, 40, 0.88);
+}
+.yasb-dock.adaptive {
+    -qproperty-railheight: 0;
+    -qproperty-islands: true;
+    -qproperty-islandradius: 20;
+    -qproperty-grouppadding: 8;
+    -qproperty-edgeradius: 0;
+    -qproperty-borderwidth: 1;
+    -qproperty-bordercolor: rgba(235, 219, 178, 0.12);
+}
+.yasb-dock .widget {
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+}
+.yasb-dock .taskbar-widget .app-container {
+    background-color: transparent;
+    border-radius: 14px;
+    border-bottom: 2px solid transparent;
+    padding: 6px 6px 4px 6px;
+    margin: 2px 3px;
+}
+.yasb-dock .taskbar-widget .app-container:hover {
+    background-color: rgba(80, 73, 69, 0.70);
+}
+.yasb-dock .taskbar-widget .app-container.running {
+    border-bottom-color: rgba(168, 153, 132, 0.55);
+}
+.yasb-dock .taskbar-widget .app-container.foreground {
+    background-color: rgba(80, 73, 69, 0.45);
+    border-bottom-color: var(--gb-accent);
+}
+.yasb-dock .taskbar-widget .app-container.flashing {
+    border-bottom-color: var(--gb-warn);
+}
+.yasb-dock .taskbar-widget .app-count {
+    background-color: var(--gb-accent);
+    color: var(--gb-bg-hard);
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 0 4px;
+}
+.taskbar-preview {
+    background-color: rgba(29, 32, 33, 0.96);
+    border: 1px solid var(--gb-surface-hover);
+    border-radius: 12px;
+}
+.taskbar-preview .preview-item:hover {
+    background-color: var(--gb-surface);
+}
+.taskbar-preview .preview-item .header .title {
+    color: var(--gb-fg);
+}
+
