@@ -1,0 +1,21 @@
+{
+    "version": "2.0.5",
+    "description": "Lightweight portable image viewer for Windows.",
+    "homepage": "https://github.com/deminimis/minimalimageviewer",
+    "license": "GPL-3.0-only",
+    "url": "https://github.com/deminimis/minimalimageviewer/releases/download/v2.0.5/MinimalImageViewer.exe",
+    "hash": "738cf893e0d6169d99288d8a36929a34253aab26a1b20ef9f3fa59c86a640fa1",
+    "pre_install": "if (!(Test-Path \"$persist_dir\\minimal_image_viewer_settings.ini\")) { New-Item \"$dir\\minimal_image_viewer_settings.ini\" -ItemType File | Out-Null }",
+    "bin": "MinimalImageViewer.exe",
+    "shortcuts": [
+        [
+            "MinimalImageViewer.exe",
+            "Minimal Image Viewer"
+        ]
+    ],
+    "persist": "minimal_image_viewer_settings.ini",
+    "checkver": "github",
+    "autoupdate": {
+        "url": "https://github.com/deminimis/minimalimageviewer/releases/download/v$version/MinimalImageViewer.exe"
+    }
+}
