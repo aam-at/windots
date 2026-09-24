@@ -1,0 +1,19 @@
+{
+    "version": "1.2",
+    "description": "Lightweight portable screen capture and OCR tool for Windows.",
+    "homepage": "https://github.com/deminimis/MiniSnip",
+    "license": "GPL-3.0-only",
+    "url": "https://github.com/deminimis/MiniSnip/releases/download/v1.2/MiniSnip.exe",
+    "hash": "50fcc5a5f3083ba9fce2378724103bb18ccc964c99c8339dcfcb7f64d0dd6fb9",
+    "bin": "MiniSnip.exe",
+    "shortcuts": [
+        [
+            "MiniSnip.exe",
+            "MiniSnip"
+        ]
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "url": "https://github.com/deminimis/MiniSnip/releases/download/v$version/MiniSnip.exe"
+    }
+}
