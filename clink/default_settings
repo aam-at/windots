@@ -1,0 +1,26 @@
+# Clink defaults for cmd.exe, kept close to the fish/pwsh setup (gruvbox
+# colours from ~/dotfiles/config/fish). Linked to %LOCALAPPDATA%\clink by
+# setup\Install-Links.ps1; Clink reads it but writes `clink set` changes to
+# clink_settings, so local tweaks never dirty the repo.
+
+clink.logo = none
+cmd.ctrld_exits = true
+match.ignore_case = relaxed
+
+# fish-style inline suggestion from history, then completions.
+autosuggest.enable = true
+autosuggest.strategy = match_prev_cmd history completion
+
+history.dupe_mode = erase_prev
+history.shared = true
+
+color.input = #d5c4a1
+color.arg = #d5c4a1
+color.cmd = #458588
+color.executable = #458588
+color.doskey = #458588
+color.argmatcher = #458588
+color.flag = #689d6a
+color.suggestion = #928374
+color.unrecognized = #fb4934
+color.selected_completion = #282828 on #83a598

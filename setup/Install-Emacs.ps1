@@ -54,7 +54,7 @@ function Ensure-GitCheckout {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$dotfilesEmacs = Join-Path $HOME 'dotfiles\emacs'
+$dotfilesEmacs = Join-Path $DotfilesRoot 'emacs'
 if (-not (Test-Path -LiteralPath $dotfilesEmacs)) {
     Write-Warn "Shared Emacs profiles not found at $dotfilesEmacs; skipping Emacs distribution setup."
     return

@@ -57,6 +57,7 @@ $packageFailures = [System.Collections.Generic.List[string]]::new()
 # Winget apps (install per-ID for clearer output and retries)
 $wingetApps = @(
     'Dropbox.Dropbox', 'FSFhu.Hunspell', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
+    'lin-ycv.EverythingCmdPal',
     'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal',
     'WinFsp.WinFsp'
 )
@@ -75,7 +76,7 @@ else {
 
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
-    '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'cmake', 'curl',
+    '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
     'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'git', 'gitui',
     'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
     'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
@@ -83,7 +84,7 @@ $scoopAppsMain = @(
     'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
-    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'extras/chatgpt', 'extras/claude', 'emacs', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
+    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'extras/chatgpt', 'extras/claude', 'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
     'komokana', 'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
     'quarto', 'winrar', 'windows-virtualdesktop-helper', 'yasb', 'zed'
 )
@@ -127,6 +128,24 @@ if (Test-Command 'scoop') {
     foreach ($manifest in Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scoop') -Filter '*.json') {
         if (-not (Install-ScoopPackage -Name $manifest.BaseName -Source $manifest.FullName)) {
             $packageFailures.Add("scoop:$($manifest.BaseName)")
+        }
+    }
+    # Everything reads the NTFS index through its service, so the app itself
+    # runs unelevated with no UAC prompt at each start. Register it once.
+    $everything = Join-Path $ScoopRoot 'apps\everything\current\Everything.exe'
+    if ((Test-Path -LiteralPath $everything) -and -not (Get-Service -Name Everything -ErrorAction SilentlyContinue)) {
+        Write-Info 'Requesting administrator approval to install the Everything service...'
+        Invoke-IfNotDryRun {
+            try { Start-Process -FilePath $everything -ArgumentList '-install-service' -Verb RunAs -Wait }
+            catch { Write-Warn 'Everything service was not installed (elevation declined); Everything will ask for admin rights to index.' }
+        }
+    }
+    # Clink (fish-style line editing for cmd.exe, configs in clink\) hooks into
+    # every cmd window through cmd's per-user AutoRun; re-running is harmless.
+    if (Test-Command 'clink') {
+        Write-Info 'Enabling Clink in cmd.exe (AutoRun)'
+        if (-not (Invoke-NativeCommand -Description 'Clink AutoRun' -Action { clink autorun install })) {
+            $packageFailures.Add('clink:autorun')
         }
     }
     # `file` comes from Git's MSYS build: Scoop's file package rejects `--`,

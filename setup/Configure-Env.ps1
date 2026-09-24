@@ -30,13 +30,27 @@ function Set-HomeEnvironment {
     }
 }
 
+# ~/bin leads the user PATH so its wrappers (cmd\herdr.cmd) win over Scoop's
+# shims of the same name.
 function Add-UserBinToPath {
     $binDirectory = Join-Path $HOME 'bin'
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $pathEntries = @($userPath -split ';' | Where-Object { $_ })
-    if ($pathEntries -notcontains $binDirectory) {
-        Write-Info "Adding $binDirectory to the user PATH"
-        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('Path', (($pathEntries + $binDirectory) -join ';'), 'User') }
+    if ($pathEntries[0] -ne $binDirectory) {
+        Write-Info "Putting $binDirectory first on the user PATH"
+        $others = @($pathEntries | Where-Object { $_ -ne $binDirectory })
+        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('Path', ((@($binDirectory) + $others) -join ';'), 'User') }
+    }
+}
+
+# DOTFILES and WINDOTS locate the two checkouts for setup scripts, the
+# PowerShell profile and any other tool. Existing values are kept.
+function Set-RepoLocations {
+    $locations = [ordered]@{ DOTFILES = $DotfilesRoot; WINDOTS = (Split-Path -Parent $PSScriptRoot) }
+    foreach ($name in $locations.Keys) {
+        if ([Environment]::GetEnvironmentVariable($name, 'User')) { continue }
+        Write-Info "Setting user environment variable $name=$($locations[$name])"
+        Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable($name, $locations[$name], 'User') }
     }
 }
 
@@ -69,6 +83,7 @@ Set-TimeZone -Id 'Singapore Standard Time'
 }
 
 Set-HomeEnvironment
+Set-RepoLocations
 Add-UserBinToPath
 Set-YasbTheme
 Set-RegionalSettings

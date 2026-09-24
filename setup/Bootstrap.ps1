@@ -39,7 +39,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $windotsRoot '.git'))) {
     git clone https://github.com/aam-at/windots.git $windotsRoot
 }
 
-$dotfilesRoot = Join-Path $HOME 'dotfiles'
+$dotfilesRoot = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
 if (-not (Test-Path -LiteralPath (Join-Path $dotfilesRoot '.git'))) {
     Write-Host '[INFO] Cloning dotfiles...'
     git clone https://github.com/aam-at/dotfiles.git $dotfilesRoot

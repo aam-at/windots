@@ -1,8 +1,6 @@
 #Requires AutoHotkey v2.0.2
 #SingleInstance Force
 
-#Include %A_ScriptDir%\..\Hide-Taskbar.ahk
-
 Komorebic(cmd, *) {
     RunWait(format("komorebic.exe {}", cmd), , "Hide")
 }
