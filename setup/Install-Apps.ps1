@@ -77,8 +77,8 @@ else {
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
     '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
-    'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'git', 'gitui',
-    'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
+    'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'gitui',
+    'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2',
     'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
     'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
     'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
