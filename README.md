@@ -56,7 +56,10 @@ desktop options; automatic monitor detection is intentionally not used.
   Stops the native desktop bindings, restores Komorebi's startup shortcuts,
   starts its external-monitor tiling configuration, launches its
   AutoHotkey keybindings and restarts the YASB top bar (showing Komorebi's
-  workspaces).
+  workspaces). Workspaces use Komorebi's Scrolling layout, niri-style, and take
+  the same Win-as-Mod keys as native mode: `Win+H/L` move between columns,
+  `Win+J/K` walk the windows stacked in a column, and `Win+R` cycles 3/2/1
+  visible columns.
 
 Both scripts accept `-DryRun` to show their actions without changing the current
 desktop mode.

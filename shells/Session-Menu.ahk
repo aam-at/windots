@@ -6,7 +6,7 @@
 ;   #x::SessionMenuToggle()
 ; LockScreen() is usable on its own too.
 
-; Native mode sets DisableLockWorkstation to free Win+L, which also blocks
+; Install-Startup.ps1 sets DisableLockWorkstation to free Win+L, which also blocks
 ; LockWorkStation, so lift it just long enough for the lock to happen.
 LockScreen(*) {
     policy := "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System"

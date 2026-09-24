@@ -2,8 +2,8 @@
 Creates the Startup-folder shortcuts for the chosen desktop mode (plus YASB, thide
 and Kanata, used by both),
 removes the other mode's shortcuts, and starts anything not yet running.
-Native mode also turns off the Win+L lock shortcut so Native-Desktop.ahk can
-use Win+L as niri's focus-right; Komorebi mode turns it back on.
+Both modes turn off the Win+L lock shortcut so the AutoHotkey bindings can use
+Win+L as niri's focus-right.
 
 Usage:
   pwsh -File .\setup\Install-Startup.ps1 -DesktopMode Native
@@ -121,8 +121,8 @@ function Set-LockShortcut([bool]$Enabled) {
 }
 
 try {
-    # Native-Desktop.ahk locks via Win+Alt+L / Win+X; Komorebi keeps Win+L.
-    Set-LockShortcut ($DesktopMode -eq 'Komorebi')
+    # Both desktop scripts lock via Win+Alt+L / Win+X instead.
+    Set-LockShortcut $false
 
     # The helper's startupWithWindows option adds its own Run entry, which
     # doubled it up alongside the Startup shortcut below (and ran it in

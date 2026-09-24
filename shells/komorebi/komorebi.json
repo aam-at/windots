@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json",
   "app_specific_configuration_path": "$Env:USERPROFILE/.config/komorebi/applications.json",
-  "window_hiding_behaviour": "Cloak",
+  "window_hiding_behaviour": "Hide",
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 6,
   "default_container_padding": 6,
@@ -26,32 +26,54 @@
       "b": 153
     }
   },
+  "layout_defaults": {
+    "Scrolling": {
+      "layout_options": {
+        "scrolling": {
+          "columns": 2,
+          "center_focused_column": true
+        }
+      }
+    }
+  },
   "monitors": [
     {
       "workspaces": [
         {
-          "name": "web",
-          "layout": "BSP"
+          "name": "1",
+          "layout": "Scrolling"
         },
         {
-          "name": "code",
-          "layout": "UltrawideVerticalStack"
+          "name": "2",
+          "layout": "Scrolling"
         },
         {
-          "name": "terminal",
-          "layout": "Grid"
+          "name": "3",
+          "layout": "Scrolling"
         },
         {
-          "name": "notes",
-          "layout": "VerticalStack"
+          "name": "4",
+          "layout": "Scrolling"
         },
         {
-          "name": "chat",
-          "layout": "BSP"
+          "name": "5",
+          "layout": "Scrolling"
         },
         {
-          "name": "scratch",
-          "layout": "BSP"
+          "name": "6",
+          "layout": "Scrolling"
+        },
+        {
+          "name": "7",
+          "layout": "Scrolling"
+        },
+        {
+          "name": "8",
+          "layout": "Scrolling"
+        },
+        {
+          "name": "9",
+          "layout": "Scrolling"
         }
       ]
     }
@@ -96,11 +118,6 @@
     {
       "kind": "Title",
       "id": "Picture-in-Picture",
-      "matching_strategy": "Equals"
-    },
-    {
-      "kind": "Title",
-      "id": "ShareX",
       "matching_strategy": "Equals"
     },
     {

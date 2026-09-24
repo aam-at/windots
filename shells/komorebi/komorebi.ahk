@@ -1,70 +1,116 @@
 #Requires AutoHotkey v2.0.2
 #SingleInstance Force
+; Hook every hotkey so Send("#{Tab}") etc. from inside a Win hotkey reaches
+; Windows instead of re-triggering this script.
+#UseHook
+
+; Komorebi's Scrolling layout driven with the niri keys
+; (~/dotfiles/config/niri/common/binds.kdl). Win is Mod, as in niri. Each
+; column is a Komorebi stack, so niri's window-in-column actions map to stacks.
+; Win+L is free for focus-right because setup\Install-Startup.ps1 sets
+; DisableLockWorkstation; Win+Alt+L and the Win+X menu lock. Launchers, panels
+; and other mode-independent keys live in ..\Niri-Common.ahk.
+
+#Include %A_ScriptDir%\..\Niri-Common.ahk
 
 Komorebic(cmd, *) {
     RunWait(format("komorebic.exe {}", cmd), , "Hide")
 }
 
-!q::Komorebic("close")
-!m::Komorebic("minimize")
-
-; Focus windows
-!h::Komorebic("focus left")
-!j::Komorebic("focus down")
-!k::Komorebic("focus up")
-!l::Komorebic("focus right")
-
-!+[::Komorebic("cycle-focus previous")
-!+]::Komorebic("cycle-focus next")
-
-; Move windows
-!+h::Komorebic("move left")
-!+j::Komorebic("move down")
-!+k::Komorebic("move up")
-!+l::Komorebic("move right")
-
-; Stack windows
-!Left::Komorebic("stack left")
-!Down::Komorebic("stack down")
-!Up::Komorebic("stack up")
-!Right::Komorebic("stack right")
-!;::Komorebic("unstack")
-![::Komorebic("cycle-stack previous")
-!]::Komorebic("cycle-stack next")
-
-; Resize
-!=::Komorebic("resize-axis horizontal increase")
-!-::Komorebic("resize-axis horizontal decrease")
-!+=::Komorebic("resize-axis vertical increase")
-!+_::Komorebic("resize-axis vertical decrease")
-
-; Manipulate windows
-!t::Komorebic("toggle-float")
-!f::Komorebic("toggle-monocle")
-!Space::Komorebic("toggle-float")
-!Enter::Komorebic("toggle-monocle")
-!+m::Komorebic("toggle-maximize")
-!+p::Komorebic("toggle-lock")
-
-; Window manager options
-!r::Komorebic("retile")
-!p::Komorebic("toggle-pause")
-
-; Layouts
-!x::Komorebic("flip-layout horizontal")
-!y::Komorebic("flip-layout vertical")
-!b::Komorebic("change-layout bsp")
-!g::Komorebic("change-layout grid")
-!v::Komorebic("change-layout vertical-stack")
-!u::Komorebic("change-layout ultrawide-vertical-stack")
-!,::Komorebic("cycle-workspace previous")
-!.::Komorebic("cycle-workspace next")
-
-; Workspaces: Alt+1..6 focus, Alt+Shift+1..6 move the window there
-loop 6 {
-    Hotkey "!" A_Index, Komorebic.Bind("focus-workspace " (A_Index - 1))
-    Hotkey "!+" A_Index, Komorebic.Bind("move-to-workspace " (A_Index - 1))
+; niri switch-preset-column-width: cycle 33% / 50% / 100% (visible columns).
+; ponytail: one counter for all workspaces, not per-workspace state.
+CycleColumns() {
+    static presets := [3, 2, 1], i := 2
+    i := Mod(i, presets.Length) + 1
+    Komorebic("scrolling-layout-columns " presets[i])
 }
 
-Capslock::Esc
-Esc::Capslock
+; === Window Management ===
+#f::Komorebic("toggle-monocle")
+#+f::Komorebic("toggle-maximize")
+#+t::Komorebic("toggle-float")
+#+v::Komorebic("toggle-workspace-layer")
+
+; === Focus Navigation ===
+#h::Komorebic("focus left")
+#j::Komorebic("cycle-stack next")
+#k::Komorebic("cycle-stack previous")
+#l::Komorebic("focus right")
+#Left::Komorebic("focus left")
+#Down::Komorebic("cycle-stack next")
+#Up::Komorebic("cycle-stack previous")
+#Right::Komorebic("focus right")
+
+; === Window Movement ===
+#+h::Komorebic("move left")
+#+j::Komorebic("cycle-stack-index next")
+#+k::Komorebic("cycle-stack-index previous")
+#+l::Komorebic("move right")
+#+Left::Komorebic("move left")
+#+Down::Komorebic("cycle-stack-index next")
+#+Up::Komorebic("cycle-stack-index previous")
+#+Right::Komorebic("move right")
+
+; === Monitor Navigation ===
+#^h::Komorebic("cycle-monitor previous")
+#^l::Komorebic("cycle-monitor next")
+#^Left::Komorebic("cycle-monitor previous")
+#^Right::Komorebic("cycle-monitor next")
+#+^h::Komorebic("cycle-move-to-monitor previous")
+#+^l::Komorebic("cycle-move-to-monitor next")
+#+^Left::Komorebic("cycle-move-to-monitor previous")
+#+^Right::Komorebic("cycle-move-to-monitor next")
+
+; === Workspace Navigation ===
+#u::Komorebic("cycle-workspace next")
+#i::Komorebic("cycle-workspace previous")
+#PgDn::Komorebic("cycle-workspace next")
+#PgUp::Komorebic("cycle-workspace previous")
+#^u::Komorebic("cycle-move-to-workspace next")
+#^i::Komorebic("cycle-move-to-workspace previous")
+#^Down::Komorebic("cycle-move-to-workspace next")
+#^Up::Komorebic("cycle-move-to-workspace previous")
+#^PgDn::Komorebic("cycle-move-to-workspace next")
+#^PgUp::Komorebic("cycle-move-to-workspace previous")
+
+; === Mouse Wheel Navigation ===
+#WheelDown:: WheelReady() && Komorebic("cycle-workspace next")
+#WheelUp:: WheelReady() && Komorebic("cycle-workspace previous")
+#^WheelDown:: WheelReady() && Komorebic("cycle-move-to-workspace next")
+#^WheelUp:: WheelReady() && Komorebic("cycle-move-to-workspace previous")
+#WheelRight::Komorebic("focus right")
+#WheelLeft::Komorebic("focus left")
+#^WheelRight::Komorebic("move right")
+#^WheelLeft::Komorebic("move left")
+#+WheelDown::Komorebic("focus right")
+#+WheelUp::Komorebic("focus left")
+#^+WheelDown::Komorebic("move right")
+#^+WheelUp::Komorebic("move left")
+
+; === Numbered Workspaces: Win+1..9 go, Win+Shift+1..9 move (follows the window) ===
+loop 9 {
+    Hotkey "#" A_Index, Komorebic.Bind("focus-workspace " (A_Index - 1))
+    Hotkey "#+" A_Index, Komorebic.Bind("move-to-workspace " (A_Index - 1))
+}
+
+; === Column Management (consume-or-expel = stack into the neighbour) ===
+#[::Komorebic("stack left")
+#]::Komorebic("stack right")
+#.::Komorebic("unstack")
+
+; === Sizing & Layout ===
+#r::CycleColumns()
+#-::Komorebic("resize-axis horizontal decrease")
+#=::Komorebic("resize-axis horizontal increase")
+#+-::Komorebic("resize-axis vertical decrease")
+#+=::Komorebic("resize-axis vertical increase")
+
+; niri toggle-keyboard-shortcuts-inhibit: hand every Win chord back to Windows
+; (games, remote desktops, VMs) until pressed again.
+#SuspendExempt
+#Esc:: {
+    Suspend
+    ToolTip A_IsSuspended ? "Komorebi keys off" : "Komorebi keys on"
+    SetTimer () => ToolTip(), -1500
+}
+#SuspendExempt False
