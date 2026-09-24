@@ -22,12 +22,18 @@ LockScreen(*) {
 
 ; YASB 2.0.7 never reconnects to the virtual desktop COM service (desktop pills
 ; stop following) or the dock's window tracking when Explorer restarts, so
-; relaunch it whenever Explorer broadcasts TaskbarCreated.
+; relaunch it whenever Explorer broadcasts TaskbarCreated. YASB's own systray
+; broadcasts it too on startup, so only a new Explorer taskbar window counts.
 OnMessage DllCall("RegisterWindowMessage", "Str", "TaskbarCreated", "UInt"), RestartYasb
+YasbTaskbar := WinExist("ahk_class Shell_TrayWnd")
 RestartYasb(*) {
     SetTimer RelaunchYasb, -3000    ; let Explorer settle first
 }
 RelaunchYasb() {
+    global YasbTaskbar
+    if (taskbar := WinExist("ahk_class Shell_TrayWnd")) = YasbTaskbar
+        return
+    YasbTaskbar := taskbar
     ; Both the scoop shim and the real yasb.exe are running.
     while ProcessExist("yasb.exe")
         ProcessClose "yasb.exe"
@@ -144,6 +150,9 @@ SessionMenuToggle() {
     WinMove left + (right - left - w) // 2, top + (bottom - top - h) // 2, , , card
     card.Show()
     loop 6 {
+        ; A key or click during the fade's Sleep can close (destroy) the menu.
+        if !SessionMenu || SessionMenu.overlay != overlay
+            return
         WinSetTransparent A_Index * 25, overlay
         Sleep 10
     }
