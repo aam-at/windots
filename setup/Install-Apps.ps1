@@ -78,13 +78,13 @@ $scoopBuckets = @('extras')
 $scoopAppsMain = @(
     '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
     'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'git', 'gitui',
-    'glow', 'gnupg', 'go', 'gping', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
+    'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'jq', 'lazygit', 'lsd', 'lua', 'mosh-client', 'msys2',
     'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
     'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
     'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
-    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'extras/chatgpt', 'extras/claude', 'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
+    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude', 'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
     'komokana', 'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
     'quarto', 'winrar', 'windows-virtualdesktop-helper', 'yasb', 'zed'
 )

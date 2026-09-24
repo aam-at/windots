@@ -92,9 +92,10 @@ function Ensure-Link([string]$Destination, [string]$Source) {
 
 $linkMap = @{
     ($PROFILE.CurrentUserAllHosts)                                                                            = (WindotsPath 'scripts\Profile.ps1')
-    (Join-Path $HOME 'bin\cc-personal.cmd')                                                                   = (WindotsPath 'cmd\cc-personal.cmd')
-    (Join-Path $HOME 'bin\cc-work.cmd')                                                                       = (WindotsPath 'cmd\cc-work.cmd')
-    (Join-Path $HOME 'bin\herdr.cmd')                                                                         = (WindotsPath 'cmd\herdr.cmd')
+    (Join-Path $HOME '.local\bin\cc-personal.cmd')                                                            = (WindotsPath 'cmd\cc-personal.cmd')
+    (Join-Path $HOME '.local\bin\cc-work.cmd')                                                                = (WindotsPath 'cmd\cc-work.cmd')
+    (Join-Path $HOME '.local\bin\herdr.cmd')                                                                  = (WindotsPath 'cmd\herdr.cmd')
+    (Join-Path $HOME '.local\bin\y.cmd')                                                                      = (WindotsPath 'cmd\y.cmd')
     (Join-Path $env:LOCALAPPDATA 'clink\default_settings')                                                    = (WindotsPath 'clink\default_settings')
     (Join-Path $env:LOCALAPPDATA 'clink\_inputrc')                                                            = (WindotsPath 'clink\_inputrc')
     (Join-Path $env:LOCALAPPDATA 'clink\starship.lua')                                                        = (WindotsPath 'clink\starship.lua')

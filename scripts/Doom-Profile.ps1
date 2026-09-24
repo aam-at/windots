@@ -45,8 +45,10 @@ if ($DoomArgs -notcontains '-!' -and $DoomArgs -notcontains '--force') {
     # A prompt Doom can't suppress (e.g. straight.el asking to overwrite a
     # locally-modified package) hangs forever here: the confirmation reaches
     # Emacs through a pwsh -> bash -> emacs.exe chain that doesn't reliably
-    # forward keystrokes. -! auto-accepts prompts instead of asking.
-    $DoomArgs = @($DoomArgs) + '-!'
+    # forward keystrokes. -! auto-accepts prompts instead of asking. It must
+    # precede the subcommand: trailing args are forwarded (e.g. `doom emacs`
+    # passes them to emacs.exe, which aborts startup on the unknown option).
+    $DoomArgs = @('-!') + @($DoomArgs)
 }
 
 $doomCommand = @(

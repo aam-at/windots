@@ -30,15 +30,15 @@ function Set-HomeEnvironment {
     }
 }
 
-# ~/bin leads the user PATH so its wrappers (cmd\herdr.cmd) win over Scoop's
-# shims of the same name.
+# ~/.local/bin leads the user PATH so its wrappers (cmd\herdr.cmd) win over
+# Scoop's shims of the same name.
 function Add-UserBinToPath {
-    $binDirectory = Join-Path $HOME 'bin'
+    $binDirectory = Join-Path $HOME '.local\bin'
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $pathEntries = @($userPath -split ';' | Where-Object { $_ })
-    if ($pathEntries[0] -ne $binDirectory) {
+    if ($pathEntries[0] -ne $binDirectory -or $pathEntries -contains (Join-Path $HOME 'bin')) {
         Write-Info "Putting $binDirectory first on the user PATH"
-        $others = @($pathEntries | Where-Object { $_ -ne $binDirectory })
+        $others = @($pathEntries | Where-Object { $_ -ne $binDirectory -and $_ -ne (Join-Path $HOME 'bin') })
         Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('Path', ((@($binDirectory) + $others) -join ';'), 'User') }
     }
 }
