@@ -155,7 +155,11 @@ try {
         $nativeDesktop = WindotsPath 'shells\native\Native-Desktop.ahk'
         [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
     }
-    # YASB is the top bar in both modes; its workspace widgets adapt to the mode.
+    # YASB is the top bar in both modes; its config lists "$env:YASB_WORKSPACES"
+    # as the workspace widget, so each mode shows only its own workspaces.
+    $yasbWorkspaces = if ($DesktopMode -eq 'Komorebi') { 'komorebi_workspaces' } else { 'windows_desktops' }
+    Write-Info "Setting YASB_WORKSPACES=$yasbWorkspaces"
+    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('YASB_WORKSPACES', $yasbWorkspaces, 'User') }
     [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb') -Arguments '')
     # thide (scoop\thide.json) hides the Windows taskbar in both modes: the YASB
     # dock slides in from the bottom edge, where the taskbar would pop up too.

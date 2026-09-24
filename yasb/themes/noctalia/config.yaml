@@ -5,8 +5,8 @@ update_check: true
 # Theme "noctalia" (pick it with scripts/Set-YasbTheme.ps1).
 # Noctalia-style top bar (~/dotfiles/config/noctalia/config.toml) shared by the
 # Native and Komorebi desktop modes: an opaque edge-to-edge gruvbox strip with
-# rounded capsules. windows_desktops shows native virtual desktops;
-# komorebi_workspaces hides itself whenever Komorebi isn't running.
+# rounded capsules. setup\Install-Startup.ps1 sets YASB_WORKSPACES to
+# windows_desktops (native virtual desktops) or komorebi_workspaces per mode.
 bars:
   primary-bar:
     enabled: true
@@ -35,8 +35,7 @@ bars:
     widgets:
       left:
       - "quick_launch"
-      - "windows_desktops"
-      - "komorebi_workspaces"
+      - "$env:YASB_WORKSPACES"
       - "active_window"
       center:
       - "media"
@@ -119,7 +118,7 @@ widgets:
       label_workspace_active_btn: "{index}"
       label_workspace_populated_btn: "{index}"
       label_zero_index: false
-      hide_empty_workspaces: false
+      hide_empty_workspaces: true
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
     options:
