@@ -20,6 +20,20 @@ LockScreen(*) {
     }
 }
 
+; YASB 2.0.7 never reconnects to the virtual desktop COM service (desktop pills
+; stop following) or the dock's window tracking when Explorer restarts, so
+; relaunch it whenever Explorer broadcasts TaskbarCreated.
+OnMessage DllCall("RegisterWindowMessage", "Str", "TaskbarCreated", "UInt"), RestartYasb
+RestartYasb(*) {
+    SetTimer RelaunchYasb, -3000    ; let Explorer settle first
+}
+RelaunchYasb() {
+    ; Both the scoop shim and the real yasb.exe are running.
+    while ProcessExist("yasb.exe")
+        ProcessClose "yasb.exe"
+    Run "yasb.exe"
+}
+
 ; This laptop only has Modern Standby (S0 low power idle) and hibernate.
 ; ponytail: SetSuspendState may hibernate instead of standby on S0ix firmware; the power button is the fallback.
 SleepComputer() {
