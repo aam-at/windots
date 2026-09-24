@@ -22,7 +22,9 @@ function Ensure-GitCheckout {
         [string]$Repository,
 
         [Parameter(Mandatory)]
-        [string]$Destination
+        [string]$Destination,
+
+        [string]$Upstream
     )
 
     if (Test-Path -LiteralPath $Destination) {
@@ -49,6 +51,9 @@ function Ensure-GitCheckout {
     if (-not (Invoke-NativeCommand -Description "$Name framework" -Action { git clone --depth=1 $Repository $Destination | Out-Null })) {
         throw "Unable to clone the $Name framework."
     }
+    if ($Upstream) {
+        Invoke-IfNotDryRun { git -C $Destination remote add upstream $Upstream }
+    }
 
     return $true
 }
@@ -68,7 +73,7 @@ $doomFramework = Join-Path $emacsDataRoot 'doom'
 $spacemacsFramework = Join-Path $emacsDataRoot 'spacemacs'
 
 [void](Ensure-GitCheckout -Name 'Doom' -Repository 'https://github.com/doomemacs/doomemacs.git' -Destination $doomFramework)
-[void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
+[void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/aam-at/spacemacs.git' -Upstream 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
 
 if ($DryRun) {
     Write-Info 'Doom installation would run after the frameworks and profiles are available.'
