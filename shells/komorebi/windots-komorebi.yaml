@@ -3,356 +3,483 @@ Name: Komorebi (windots)
 WindowFilter: "komorebi.exe"
 BackgroundProcess: true
 Shortcuts:
-  - SectionName: Window Manager
+  - SectionName: Overview and Launchers
+    Properties:
+      - Name: Overview
+        Description: Task view
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - D
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - Tab
+      - Name: Shortcut Guide
+        Description: This overlay
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - "/"
+      - Name: Command Palette
+        Description: PowerToys launcher
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - Space
+      - Name: Open terminal
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - T
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "<Enter>"
+      - Name: Scratch terminal
+        Description: Windows Terminal quake window
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "`"
+      - Name: File Explorer
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - E
+      - Name: Browser
+        Description: System default browser
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - B
+      - Name: Editor
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - C
+      - Name: Copilot
+        Description: Microsoft 365 Copilot. Also the Copilot key
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - A
+      - Name: Voice typing / dictation
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - S
+
+  - SectionName: Shell Panels
+    Properties:
+      - Name: Session menu
+        Description: Lock, sleep, hibernate, log out, restart, shut down
+        Recommended: true
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - X
+      - Name: Lock screen
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - L
+      - Name: Clipboard history
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - V
+      - Name: Quick settings
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - M
+      - Name: Notification Center
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - N
+      - Name: Change wallpaper
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - Y
+      - Name: Personalization settings
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - ","
+
+  - SectionName: Window Management
     Properties:
       - Name: Close window
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - Q
-      - Name: Minimize window
+      - Name: Maximize column
+        Description: Komorebi monocle
+        Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
-              - M
-      - Name: Retile
+              - F
+      - Name: Toggle maximize
+        Description: Native maximize
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - R
-      - Name: Toggle pause
+              - F
+      - Name: Toggle floating
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - P
+              - T
+      - Name: Switch focus between floating and tiling
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - V
 
   - SectionName: Focus
     Properties:
-      - Name: Focus left
+      - Name: Focus column left
+        Description: Also Win+Left
         Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - H
-      - Name: Focus down
+      - Name: Focus window down in column
+        Description: Next window in the stack. Also Win+Down
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - J
-      - Name: Focus up
+      - Name: Focus window up in column
+        Description: Previous window in the stack. Also Win+Up
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - K
-      - Name: Focus right
+      - Name: Focus column right
+        Description: Also Win+Right
         Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - L
-      - Name: Cycle focus previous
+      - Name: Focus monitor left
+        Description: Also Win+Ctrl+Left
         Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - "["
-      - Name: Cycle focus next
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - "]"
-
-  - SectionName: Move Windows
-    Properties:
-      - Name: Move window left
-        Recommended: true
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
             Keys:
               - H
-      - Name: Move window down
+      - Name: Focus monitor right
+        Description: Also Win+Ctrl+Right
         Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - J
-      - Name: Move window up
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - K
-      - Name: Move window right
-        Recommended: true
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
             Keys:
               - L
 
-  - SectionName: Stacking
+  - SectionName: Columns
     Properties:
-      - Name: Stack left
+      - Name: Move column left
+        Description: Also Win+Shift+Left
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - "<Left>"
-      - Name: Stack down
+              - H
+      - Name: Move window down in column
+        Description: Also Win+Shift+Down
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - "<Down>"
-      - Name: Stack up
+              - J
+      - Name: Move window up in column
+        Description: Also Win+Shift+Up
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - "<Up>"
-      - Name: Stack right
+              - K
+      - Name: Move column right
+        Description: Also Win+Shift+Right
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
-            Shift: false
-            Alt: true
+            Shift: true
+            Alt: false
             Keys:
-              - "<Right>"
-      - Name: Unstack
+              - L
+      - Name: Consume window into column left
+        Description: Stack left
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
-            Keys:
-              - ";"
-      - Name: Cycle stack previous
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "["
-      - Name: Cycle stack next
+      - Name: Consume window into column right
+        Description: Stack right
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "]"
+      - Name: Expel window from column
+        Description: Unstack
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "."
+      - Name: Move column to monitor left
+        Description: Also Win+Shift+Ctrl+Left
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: true
+            Alt: false
+            Keys:
+              - H
+      - Name: Move column to monitor right
+        Description: Also Win+Shift+Ctrl+Right
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: true
+            Alt: false
+            Keys:
+              - L
 
-  - SectionName: Resize
+  - SectionName: Sizing
     Properties:
-      - Name: Increase width
+      - Name: Cycle column width
+        Description: 3, 2 or 1 visible columns
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
-              - Plus
-      - Name: Decrease width
+              - R
+      - Name: Narrower / wider
+        Description: Add Shift for height
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
-              - Minus
-      - Name: Increase height
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - Plus
-      - Name: Decrease height
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - Minus
-
-  - SectionName: Window State
-    Properties:
-      - Name: Toggle float
-        Shortcut:
-          - Win: false
+              - "-"
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
-              - T
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - Space
-      - Name: Toggle monocle
-        Recommended: true
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - F
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - "<Enter>"
-      - Name: Toggle maximize
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - M
-      - Name: Toggle lock
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: true
-            Alt: true
-            Keys:
-              - P
-
-  - SectionName: Layouts
-    Properties:
-      - Name: Flip layout horizontal
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - X
-      - Name: Flip layout vertical
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - Y
-      - Name: Layout BSP
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - B
-      - Name: Layout grid
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - G
-      - Name: Layout vertical stack
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - V
-      - Name: Layout ultrawide vertical stack
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - U
+              - "="
 
   - SectionName: Workspaces
     Properties:
-      - Name: Previous workspace
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - ","
-      - Name: Next workspace
-        Shortcut:
-          - Win: false
-            Ctrl: false
-            Shift: false
-            Alt: true
-            Keys:
-              - "."
-      - Name: Focus workspace 1-6
+      - Name: Go to workspace 1-9
         Recommended: true
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: false
-            Alt: true
+            Alt: false
             Keys:
               - "1"
-      - Name: Move window to workspace 1-6
+      - Name: Move window to workspace 1-9
+        Description: Follows the window there
         Shortcut:
-          - Win: false
+          - Win: true
             Ctrl: false
             Shift: true
-            Alt: true
+            Alt: false
             Keys:
               - "1"
+      - Name: Next workspace
+        Description: Also scroll down while holding Win
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - U
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - PgDn
+      - Name: Previous workspace
+        Description: Also scroll up while holding Win
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - I
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - PgUp
+      - Name: Move window to next workspace
+        Description: Also scroll down while holding Win+Ctrl
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - U
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - "<Down>"
+      - Name: Move window to previous workspace
+        Description: Also scroll up while holding Win+Ctrl
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - I
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - "<Up>"
+
+  - SectionName: System
+    Properties:
+      - Name: Turn off display
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - P
+      - Name: Pause these shortcuts
+        Description: Hand Win chords back to Windows; press again to resume
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - Esc
