@@ -16,7 +16,7 @@ param(
     [string]$EmacsProfile,
 
     [Parameter(Position = 2, ValueFromRemainingArguments = $true)]
-    [string[]]$EmacsClientArgs
+    [string[]]$EmacsClientArgs = @()
 )
 
 Set-StrictMode -Version Latest
