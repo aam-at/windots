@@ -79,7 +79,7 @@ $scoopAppsMain = @(
     '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
     'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'gitui',
     'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2',
-    'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
+    'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
     'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
     'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
 )
@@ -125,7 +125,18 @@ if (Test-Command 'scoop') {
         }
     }
     # Apps no bucket ships yet, installed from manifests kept in this repo.
-    foreach ($manifest in Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scoop') -Filter '*.json') {
+    # checkver bumps each manifest's version/url/hash to its latest release
+    # first (visible as a git diff), so the loop below installs the new version.
+    $manifestDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'scoop'
+    $checkver = Join-Path (scoop prefix scoop) 'bin\checkver.ps1'
+    if (Test-Path -LiteralPath $checkver) {
+        Write-Info 'Checking repo scoop manifests for new versions'
+        Invoke-IfNotDryRun {
+            try { & $checkver -App '*' -Dir $manifestDir -Update -SkipUpdated }
+            catch { Write-Warn "checkver failed; installing manifests as they are: $_" }
+        }
+    }
+    foreach ($manifest in Get-ChildItem -Path $manifestDir -Filter '*.json') {
         if (-not (Install-ScoopPackage -Name $manifest.BaseName -Source $manifest.FullName)) {
             $packageFailures.Add("scoop:$($manifest.BaseName)")
         }
@@ -154,6 +165,15 @@ if (Test-Command 'scoop') {
     if (Test-Path -LiteralPath $gitFile) {
         if (-not (Invoke-NativeCommand -Description 'Scoop shim file' -Action { scoop shim add file $gitFile })) {
             $packageFailures.Add('scoop shim:file')
+        }
+    }
+
+    # Scoop's rustup ships no toolchain; install stable so cargo/rustc work.
+    # (CopilotChat's tiktoken_core is fetched by its lazy.nvim build step.)
+    if (Test-Command 'rustup') {
+        Write-Info 'rustup default stable'
+        if (-not (Invoke-NativeCommand -Description 'Rust stable toolchain' -Action { rustup default stable })) {
+            $packageFailures.Add('rustup:stable')
         }
     }
 
