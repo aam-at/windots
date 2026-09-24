@@ -27,7 +27,6 @@ VDA_GetCurrentDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDesktopA
 VDA_GetDesktopCount := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
 
 #Include %A_ScriptDir%\..\Session-Menu.ahk
-#Include %A_ScriptDir%\..\Hide-Taskbar.ahk
 
 ; === Helpers ===
 

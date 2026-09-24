@@ -1,17 +1,20 @@
 <#
 Runs every setup step in order; each step is its own script in this folder
-and can be re-run alone with the same -DryRun/-LogLevel switches:
+and can be re-run alone with the same -DryRun/-LogLevel switches. The first
+column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
 
-  Configure-Env       HOME, ~/bin on PATH, keyboards (EN-US, RU), Singapore region
-  Configure-Registry  Explorer tweaks; with UAC: Sudo, Developer Mode,
-                      long paths, lid/sleep power plan
-  Configure-SshAgent  enable ssh-agent (UAC), load ~/.ssh/id_ed25519
-  Install-Apps        winget, Scoop, Bun packages and PowerShell modules
-  Configure-PowerToys merge powertoys/settings.json
-  Install-Links       link configs from this repo and ~/dotfiles
-  Install-Startup     Startup shortcuts for -DesktopMode, plus Kanata
-  Install-Emacs       Doom and Spacemacs frameworks
-  Install-Fonts       clone and install font repositories
+  Env        Configure-Env       HOME, ~/bin on PATH, keyboards (EN-US, RU),
+                                 Singapore region
+  Registry   Configure-Registry  Explorer tweaks; with UAC: Sudo, Developer
+                                 Mode, long paths, lid/sleep power plan
+  Ssh        Configure-SshAgent  enable ssh-agent (UAC), load ~/.ssh/id_ed25519
+  Apps       Install-Apps        winget, Scoop, Bun packages, PowerShell modules
+  PowerToys  Configure-PowerToys merge powertoys/settings.json
+  Links      Install-Links       link configs from this repo and ~/dotfiles
+  Startup    Install-Startup     Startup shortcuts for -DesktopMode, plus YASB,
+                                 thide and Kanata
+  Emacs      Install-Emacs       Doom and Spacemacs frameworks
+  Fonts      Install-Fonts       clone and install font repositories
 
 Expects Scoop, Git and ~/dotfiles (Bootstrap.ps1 sets those up). Run as a
 regular user; only Configure-Registry and Configure-SshAgent prompt for UAC.

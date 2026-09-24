@@ -12,7 +12,7 @@ param(
     [string]$Action,
 
     [Parameter(Mandatory, Position = 1)]
-    [ValidateSet('doom', 'spacemacs-full', 'spacemacs-basic', 'spacemacs-writing')]
+    [ValidateSet('doom', 'spacemacs')]
     [string]$EmacsProfile,
 
     [Parameter(Position = 2, ValueFromRemainingArguments = $true)]
@@ -162,7 +162,7 @@ $clientPath = Get-RequiredCommand -Name 'emacsclient'
 
 switch ($Action) {
     'switch' {
-        foreach ($profileName in @('doom', 'spacemacs-full', 'spacemacs-basic', 'spacemacs-writing')) {
+        foreach ($profileName in @('doom', 'spacemacs')) {
             if ($profileName -eq $EmacsProfile) { continue }
             & $clientPath "--socket-name=$profileName" --eval '(kill-emacs)' 2>$null | Out-Null
         }

@@ -1,0 +1,13 @@
+# Readline keys for Clink (cmd.exe), matching the fish/pwsh bindings. Clink
+# starts in Emacs mode, so Ctrl+A/E, Alt+B/F/D, Ctrl+Left/Right and
+# Ctrl+Backspace already work; these add fish's extras.
+set completion-ignore-case on
+
+# fish: Up/Down search history by the typed prefix.
+"\e[A": history-search-backward
+"\e[B": history-search-forward
+# Ctrl+W deletes the previous word, Alt+L accepts the whole suggestion.
+"\C-w": unix-word-rubout
+"\el": clink-insert-suggested-line
+# Tab opens the interactive completion menu, like fish's pager.
+"\t": clink-select-complete

@@ -3,13 +3,14 @@
  ~/dotfiles/config/fish (aliases from ~/dotfiles/general/aliases, fzf
  pickers, zoxide, direnv, starship) and to kitty's shell
  integration (prompt marks, cwd reporting for new tabs and splits).
- Shared by pwsh 7 and Windows PowerShell 5.1; the line editor setup needs pwsh 7.
+ Shared by pwsh 7 and Windows PowerShell 5.1 (herdr's fallback shell).
 #>
 
-$ENV:DotsLocalRepo = "$HOME\dotfiles"
-$ENV:WindotsLocalRepo = "$HOME\windots"
+# Persisted by setup\Configure-Env.ps1; defaults for a machine not set up yet.
+if (-not $env:DOTFILES) { $env:DOTFILES = "$HOME\dotfiles" }
+if (-not $env:WINDOTS) { $env:WINDOTS = "$HOME\windots" }
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
-$ENV:STARSHIP_CONFIG = "$ENV:DotsLocalRepo\config\starship.toml"
+$ENV:STARSHIP_CONFIG = "$env:DOTFILES\config\starship.toml"
 $ENV:STARSHIP_LOG = 'error'
 
 # fish: EDITOR is an emacsclient, ALTERNATE_EDITOR nvim. Emacs-Daemon.ps1
@@ -176,22 +177,27 @@ if ($init = Import-ToolInit starship init, powershell, --print-full-init) {
 }
 if ($init = Import-ToolInit zoxide init, powershell) { . $init }
 
-# === Line editor (fish-style) ===
-if ($PSVersionTable.PSVersion.Major -ge 7) {
-    if ($init = Import-ToolInit direnv hook, pwsh) { . $init }
+if ($PSVersionTable.PSVersion.Major -ge 7 -and ($init = Import-ToolInit direnv hook, pwsh)) { . $init }
 
+# === Line editor (fish-style) ===
+# Windows PowerShell too: herdr's panes run it on Windows, where the shared
+# herdr config's fish isn't installed.
+if (Get-Module PSReadLine) {
     function Get-Rgb([string]$Hex) { $n = [Convert]::ToInt32($Hex, 16); "$([char]27)[38;2;$($n -shr 16);$(($n -shr 8) -band 255);$($n -band 255)m" }
     # Separate calls: one rejected option (predictions need a VT console)
     # would otherwise drop the rest, leaving Windows mode where Ctrl+D is ^D.
     Set-PSReadLineOption -EditMode Emacs
     Set-PSReadLineOption -BellStyle None -HistoryNoDuplicates -HistorySearchCursorMovesToEnd
     # fish_color_* from config.fish (gruvbox).
-    Set-PSReadLineOption -Colors @{
+    $colors = @{
         Default = Get-Rgb d5c4a1; Command = Get-Rgb 458588; Keyword = Get-Rgb b16286; String = Get-Rgb 98971a
         Operator = Get-Rgb fabd2f; Parameter = Get-Rgb 689d6a; Variable = Get-Rgb d3869b; Number = Get-Rgb d5c4a1
-        Comment = Get-Rgb 928374; InlinePrediction = Get-Rgb 928374; Error = Get-Rgb fb4934
+        Comment = Get-Rgb 928374; Error = Get-Rgb fb4934
         Selection = "$([char]27)[48;2;131;165;152m"
     }
+    # Windows PowerShell's PSReadLine 2.0 predates inline predictions.
+    if ((Get-PSReadLineOption).PSObject.Properties['InlinePredictionColor']) { $colors.InlinePrediction = Get-Rgb 928374 }
+    Set-PSReadLineOption -Colors $colors
     try { Set-PSReadLineOption -PredictionSource HistoryAndPlugin -PredictionViewStyle InlineView -ErrorAction Stop } catch { }
     Import-Module CompletionPredictor -ErrorAction SilentlyContinue
 
@@ -209,7 +215,8 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
         UpArrow           = 'HistorySearchBackward'; DownArrow = 'HistorySearchForward'
         Tab     = 'MenuComplete'
     }
-    foreach ($key in $emacsKeys.GetEnumerator()) { Set-PSReadLineKeyHandler -Chord $key.Key -Function $key.Value }
+    # try: Windows PowerShell may load PSReadLine 2.0, which lacks e.g. AcceptSuggestion.
+    foreach ($key in $emacsKeys.GetEnumerator()) { try { Set-PSReadLineKeyHandler -Chord $key.Key -Function $key.Value } catch { } }
     # After -EditMode, which resets every binding including starship's Enter handler.
     if ($starshipPrompt) { Enable-TransientPrompt }
 

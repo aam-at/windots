@@ -1,5 +1,6 @@
 <#
-Links config files and folders from this repo and ~/dotfiles into place.
+Links config files and folders from this repo and the dotfiles checkout
+($env:DOTFILES, default ~/dotfiles) into place.
 
 Usage:
   pwsh -File .\setup\Install-Links.ps1
@@ -19,8 +20,9 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-function RepoPath([string]$Relative) { Join-Path $RepoRoot $Relative }
+$WindotsRoot = Split-Path -Parent $PSScriptRoot
+function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
+function DotfilesPath([string]$Relative) { Join-Path $DotfilesRoot $Relative }
 
 function Remove-PathSafe([string]$Path) {
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
@@ -89,51 +91,51 @@ function Ensure-Link([string]$Destination, [string]$Source) {
 }
 
 $linkMap = @{
-    ($PROFILE.CurrentUserAllHosts)                                                                            = (RepoPath 'scripts\Profile.ps1')
-    (Join-Path $HOME 'bin\cc-personal.cmd')                                                                   = (RepoPath 'cmd\cc-personal.cmd')
-    (Join-Path $HOME 'bin\cc-work.cmd')                                                                       = (RepoPath 'cmd\cc-work.cmd')
-    (Join-Path $HOME '.config\kanata')                                                                        = (RepoPath 'kanata')
-    (Join-Path $HOME '.config\komorebi')                                                                      = (RepoPath 'shells\komorebi')
-    (Join-Path $env:APPDATA 'WindowsVirtualDesktopHelper\WindowsVirtualDesktopHelper.exe.config')             = (RepoPath 'shells\native\WindowsVirtualDesktopHelper.exe.config')
-    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-native.yaml')                    = (RepoPath 'shells\native\windots-native.yaml')
-    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-komorebi.yaml')                  = (RepoPath 'shells\komorebi\windots-komorebi.yaml')
-    (Join-Path $HOME '.config\wezterm')                                                                       = (Join-Path $HOME 'dotfiles\config\wezterm')
-    (Join-Path $HOME '.config\yasb')                                                                          = (RepoPath 'yasb')
-    (Join-Path $HOME '.gitconfig')                                                                            = (RepoPath 'git\config')
-    (Join-Path $HOME '.ideavimrc')                                                                            = (Join-Path $HOME 'dotfiles\idea\ideavimrc')
-    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = (RepoPath 'terminal\settings.json')
-    (Join-Path $env:LOCALAPPDATA 'direnv')                                                                    = (Join-Path $HOME 'dotfiles\config\direnv')
-    (Join-Path $env:LOCALAPPDATA 'fastfetch')                                                                 = (RepoPath 'fastfetch')
-    (Join-Path $env:LOCALAPPDATA 'lazygit')                                                                   = (Join-Path $HOME 'dotfiles\config\lazygit')
-    (Join-Path $HOME '.config\starship.toml')                                                                 = (Join-Path $HOME 'dotfiles\config\starship.toml')
-    (Join-Path $HOME '.config\theme')                                                                         = (Join-Path $HOME 'dotfiles\themes\gruvbox-dark')
-    (Join-Path $HOME '.claude\settings.json')                                                                 = (Join-Path $HOME 'dotfiles\config\agents\claude\settings.json')
-    (Join-Path $HOME '.codex\config.toml')                                                                    = (Join-Path $HOME 'dotfiles\config\agents\codex\config.toml')
-    (Join-Path $env:LOCALAPPDATA 'nvim')                                                                      = (Join-Path $HOME 'dotfiles\config\lazyvim')
-    (Join-Path $env:LOCALAPPDATA 'television\config\config.toml')                                             = (Join-Path $HOME 'dotfiles\config\television\config.toml')
-    (Join-Path $env:APPDATA 'gitu')                                                                           = (Join-Path $HOME 'dotfiles\config\gitu')
-    (Join-Path $env:APPDATA 'gitui')                                                                          = (Join-Path $HOME 'dotfiles\config\gitui')
-    (Join-Path $env:APPDATA 'helix')                                                                          = (Join-Path $HOME 'dotfiles\config\helix')
-    (Join-Path $env:APPDATA 'yazi\config')                                                                    = (Join-Path $HOME 'dotfiles\config\yazi')
-    (Join-Path $env:APPDATA 'Zed')                                                                            = (Join-Path $HOME 'dotfiles\config\zed')
-    (Join-Path $HOME '.config\emacs\doom')                                                                    = (Join-Path $HOME 'dotfiles\emacs\doom')
-    (Join-Path $HOME '.config\emacs\config')                                                                  = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\funcs')                                                                   = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs')                                                               = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\config')                                                   = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\funcs')                                                    = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\layers')                                                   = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-full\init.el')                                                  = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_full')
-    (Join-Path $HOME '.config\emacs\spacemacs-basic\init.el')                                                 = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_basic')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\config')                                                = (Join-Path $HOME 'dotfiles\emacs\config')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\funcs')                                                 = (Join-Path $HOME 'dotfiles\emacs\funcs')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\layers')                                                = (Join-Path $HOME 'dotfiles\emacs\spacemacs')
-    (Join-Path $HOME '.config\emacs\spacemacs-writing\init.el')                                               = (Join-Path $HOME 'dotfiles\emacs\spacemacs\spacemacs_writing')
+    ($PROFILE.CurrentUserAllHosts)                                                                            = (WindotsPath 'scripts\Profile.ps1')
+    (Join-Path $HOME 'bin\cc-personal.cmd')                                                                   = (WindotsPath 'cmd\cc-personal.cmd')
+    (Join-Path $HOME 'bin\cc-work.cmd')                                                                       = (WindotsPath 'cmd\cc-work.cmd')
+    (Join-Path $HOME 'bin\herdr.cmd')                                                                         = (WindotsPath 'cmd\herdr.cmd')
+    (Join-Path $env:LOCALAPPDATA 'clink\default_settings')                                                    = (WindotsPath 'clink\default_settings')
+    (Join-Path $env:LOCALAPPDATA 'clink\_inputrc')                                                            = (WindotsPath 'clink\_inputrc')
+    (Join-Path $env:LOCALAPPDATA 'clink\starship.lua')                                                        = (WindotsPath 'clink\starship.lua')
+    (Join-Path $HOME '.config\kanata')                                                                        = (WindotsPath 'kanata')
+    (Join-Path $HOME '.config\komorebi')                                                                      = (WindotsPath 'shells\komorebi')
+    (Join-Path $env:APPDATA 'WindowsVirtualDesktopHelper\WindowsVirtualDesktopHelper.exe.config')             = (WindotsPath 'shells\native\WindowsVirtualDesktopHelper.exe.config')
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-native.yaml')                    = (WindotsPath 'shells\native\windots-native.yaml')
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-komorebi.yaml')                  = (WindotsPath 'shells\komorebi\windots-komorebi.yaml')
+    (Join-Path $HOME '.config\wezterm')                                                                       = (DotfilesPath 'config\wezterm')
+    (Join-Path $HOME '.config\yasb')                                                                          = (WindotsPath 'yasb')
+    (Join-Path $HOME '.gitconfig')                                                                            = (WindotsPath 'git\config')
+    (Join-Path $HOME '.ideavimrc')                                                                            = (DotfilesPath 'idea\ideavimrc')
+    (Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json') = (WindotsPath 'terminal\settings.json')
+    (Join-Path $env:LOCALAPPDATA 'direnv')                                                                    = (DotfilesPath 'config\direnv')
+    (Join-Path $env:LOCALAPPDATA 'fastfetch')                                                                 = (WindotsPath 'fastfetch')
+    (Join-Path $env:LOCALAPPDATA 'lazygit')                                                                   = (DotfilesPath 'config\lazygit')
+    (Join-Path $HOME '.config\starship.toml')                                                                 = (DotfilesPath 'config\starship.toml')
+    (Join-Path $HOME '.config\theme')                                                                         = (DotfilesPath 'themes\gruvbox-dark')
+    (Join-Path $HOME '.claude\settings.json')                                                                 = (DotfilesPath 'config\agents\claude\settings.json')
+    (Join-Path $HOME '.codex\config.toml')                                                                    = (DotfilesPath 'config\agents\codex\config.toml')
+    (Join-Path $env:LOCALAPPDATA 'nvim')                                                                      = (DotfilesPath 'config\lazyvim')
+    (Join-Path $env:LOCALAPPDATA 'television\config\config.toml')                                             = (DotfilesPath 'config\television\config.toml')
+    (Join-Path $env:APPDATA 'gitu')                                                                           = (DotfilesPath 'config\gitu')
+    (Join-Path $env:APPDATA 'gitui')                                                                          = (DotfilesPath 'config\gitui')
+    (Join-Path $env:APPDATA 'helix')                                                                          = (DotfilesPath 'config\helix')
+    (Join-Path $env:APPDATA 'herdr\config.toml')                                                              = (DotfilesPath 'config\herdr\config.toml')
+    (Join-Path $env:APPDATA 'yazi\config')                                                                    = (DotfilesPath 'config\yazi')
+    (Join-Path $env:APPDATA 'Zed')                                                                            = (DotfilesPath 'config\zed')
+    (Join-Path $HOME '.config\emacs\doom')                                                                    = (DotfilesPath 'emacs\doom')
+    (Join-Path $HOME '.config\emacs\config')                                                                  = (DotfilesPath 'emacs\config')
+    (Join-Path $HOME '.config\emacs\funcs')                                                                   = (DotfilesPath 'emacs\funcs')
+    (Join-Path $HOME '.config\emacs\local')                                                                   = (DotfilesPath 'emacs\local')
+    (Join-Path $HOME '.config\emacs\spacemacs\config')                                                        = (DotfilesPath 'emacs\config')
+    (Join-Path $HOME '.config\emacs\spacemacs\funcs')                                                         = (DotfilesPath 'emacs\funcs')
+    (Join-Path $HOME '.config\emacs\spacemacs\layers')                                                        = (DotfilesPath 'emacs\spacemacs')
+    (Join-Path $HOME '.config\emacs\spacemacs\init.el')                                                       = (DotfilesPath 'emacs\spacemacs\init.el')
 }
 
 $windowsPowerShellProfile = Join-Path $HOME 'Documents\WindowsPowerShell\profile.ps1'
 if ($PROFILE.CurrentUserAllHosts -ne $windowsPowerShellProfile) {
-    $linkMap[$windowsPowerShellProfile] = RepoPath 'scripts\Profile.ps1'
+    $linkMap[$windowsPowerShellProfile] = WindotsPath 'scripts\Profile.ps1'
 }
 
 try {

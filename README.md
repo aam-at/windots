@@ -17,11 +17,16 @@ Windows dotfiles and setup scripts.
   bootstrapped, you can re-run it directly: `pwsh -ExecutionPolicy Bypass -File .\setup\Setup.ps1`
 
 - Run it as a regular user; no need to launch it elevated. It prompts for UAC
-  approval only for the one step that needs admin rights (Sudo, Developer
-  Mode, long paths, the agent power plan) and continues without it if you
-  decline.
+  only in the two steps that need admin rights (Registry: Sudo, Developer
+  Mode, long paths, the agent power plan; Ssh: the ssh-agent service) and
+  continues without them if you decline.
   Existing non-link configuration paths are preserved unless `-Force` is
   supplied. Use `-DryRun` to preview the setup without making changes.
+
+- Skip steps with `-Skip` and a comma-separated list of step names:
+  `Env`, `Registry`, `Ssh`, `Apps`, `PowerToys`, `Links`, `Startup`, `Emacs`,
+  `Fonts`. For example: `pwsh -File .\setup\Setup.ps1 -DryRun -Skip Apps,Fonts`.
+  The header of `setup\Setup.ps1` says what each step does.
 
 - The setup enables PowerToys FancyZones and Workspaces. Use `-Skip PowerToys`
   to leave existing PowerToys settings unchanged.
@@ -62,8 +67,8 @@ desktop mode.
   `%LOCALAPPDATA%\Yasb\taskbar_pinned.json`). Each YASB theme is a folder under
   `yasb/themes` (currently `noctalia`); list or switch them with
   `pwsh -File .\scripts\Set-YasbTheme.ps1 [name]`.
-  The Windows taskbar is hidden by `shells\Hide-Taskbar.ahk`, which both
-  AutoHotkey scripts include.
+  The Windows taskbar is hidden by thide (installed from `scoop\thide.json`,
+  started at sign-in in both modes); `thide show` brings it back.
 
 - **Keybindings:** both modes' full keybinding lists are registered as
   PowerToys Shortcut Guide manifests (`shells\native\windots-native.yaml`,

@@ -5,6 +5,10 @@ Expects the dot-sourcing script to declare -LogLevel (and -DryRun where
 Invoke-IfNotDryRun is used).
 #>
 
+# The shared dotfiles checkout; Configure-Env.ps1 persists DOTFILES, and a
+# fresh machine (before that step) falls back to Bootstrap.ps1's clone path.
+$DotfilesRoot = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
+
 $script:LogLevels = @{ Debug = 0; Info = 1; Warn = 2; Error = 3 }
 $script:Warnings = [System.Collections.Generic.List[string]]::new()
 
