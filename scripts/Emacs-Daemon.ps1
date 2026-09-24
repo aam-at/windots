@@ -38,6 +38,14 @@ function Get-RequiredCommand {
     return $command.Source
 }
 
+function Get-ServerArg {
+    param([Parameter(Mandatory)][string]$Name)
+
+    # Windows emacsclient has no --socket-name (servers use TCP + an auth file).
+    # Both frameworks keep that file in <init-directory>\server\<daemon name>.
+    return "--server-file=$(Join-Path $dataRoot "$Name\server\$Name")"
+}
+
 function Get-ProfilePaths {
     param([Parameter(Mandatory)][string]$Name)
 
@@ -65,7 +73,8 @@ function Get-ProfilePaths {
 function Assert-ProfileInstalled {
     param([Parameter(Mandatory)][psobject]$ProfilePaths)
 
-    if (-not (Test-Path -LiteralPath (Join-Path $ProfilePaths.Framework 'init.el'))) {
+    # Doom's framework ships only early-init.el; Spacemacs ships init.el.
+    if (-not (@('init.el', 'early-init.el') | Where-Object { Test-Path -LiteralPath (Join-Path $ProfilePaths.Framework $_) })) {
         throw "Emacs framework is not installed at $($ProfilePaths.Framework)"
     }
     if (-not (Test-Path -LiteralPath (Join-Path $ProfilePaths.Profile 'init.el'))) {
@@ -76,16 +85,17 @@ function Assert-ProfileInstalled {
 function Test-DaemonRunning {
     param([Parameter(Mandatory)][string]$ClientPath)
 
-    & $ClientPath "--socket-name=$EmacsProfile" --eval '(emacs-pid)' 2>$null | Out-Null
+    & $ClientPath (Get-ServerArg $EmacsProfile) --eval '(emacs-pid)' 2>$null | Out-Null
     return $LASTEXITCODE -eq 0
 }
 
 function Wait-ForDaemon {
     param([Parameter(Mandatory)][string]$ClientPath)
 
-    for ($attempt = 0; $attempt -lt 100; $attempt++) {
+    # Daemons load deferred packages eagerly (Doom takes ~50s), so be patient.
+    for ($attempt = 0; $attempt -lt 180; $attempt++) {
         if (Test-DaemonRunning -ClientPath $ClientPath) { return }
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Seconds 1
     }
     throw "Timed out waiting for Emacs profile '$EmacsProfile'."
 }
@@ -134,7 +144,7 @@ function Stop-Daemon {
         return
     }
 
-    & $ClientPath "--socket-name=$EmacsProfile" --eval '(kill-emacs)' | Out-Null
+    & $ClientPath (Get-ServerArg $EmacsProfile) --eval '(kill-emacs)' 2>$null | Out-Null
     for ($attempt = 0; $attempt -lt 100; $attempt++) {
         if (-not (Test-DaemonRunning -ClientPath $ClientPath)) { return }
         Start-Sleep -Milliseconds 100
@@ -160,42 +170,51 @@ Assert-ProfileInstalled -ProfilePaths $profilePaths
 $emacsPath = Get-RequiredCommand -Name 'emacs'
 $clientPath = Get-RequiredCommand -Name 'emacsclient'
 
-switch ($Action) {
-    'switch' {
-        foreach ($profileName in @('doom', 'spacemacs')) {
-            if ($profileName -eq $EmacsProfile) { continue }
-            & $clientPath "--socket-name=$profileName" --eval '(kill-emacs)' 2>$null | Out-Null
+# emacsclient runs $ALTERNATE_EDITOR (e.g. nvim) when no server answers, which
+# turns every liveness probe into a hidden editor that never returns.
+$savedAlternateEditor = $env:ALTERNATE_EDITOR
+Remove-Item Env:ALTERNATE_EDITOR -ErrorAction SilentlyContinue
+try {
+    switch ($Action) {
+        'switch' {
+            foreach ($profileName in @('doom', 'spacemacs')) {
+                if ($profileName -eq $EmacsProfile) { continue }
+                & $clientPath (Get-ServerArg $profileName) --eval '(kill-emacs)' 2>$null | Out-Null
+            }
+            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            Set-DefaultProfileStartup
         }
-        Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
-        Set-DefaultProfileStartup
-    }
-    'start' {
-        Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
-    }
-    'stop' {
-        Stop-Daemon -ClientPath $clientPath
-    }
-    'restart' {
-        Stop-Daemon -ClientPath $clientPath
-        Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
-    }
-    'open' {
-        Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
-        if ($EmacsClientArgs.Count -gt 0) {
-            & $clientPath "--socket-name=$EmacsProfile" --reuse-frame @EmacsClientArgs
+        'start' {
+            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
         }
-        else {
-            & $clientPath "--socket-name=$EmacsProfile" --create-frame
+        'stop' {
+            Stop-Daemon -ClientPath $clientPath
         }
-        exit $LASTEXITCODE
-    }
-    'status' {
-        if (Test-DaemonRunning -ClientPath $clientPath) {
-            Write-Host "Emacs profile '$EmacsProfile' is running."
+        'restart' {
+            Stop-Daemon -ClientPath $clientPath
+            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
         }
-        else {
-            Write-Host "Emacs profile '$EmacsProfile' is stopped."
-            exit 3
+        'open' {
+            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            if ($EmacsClientArgs.Count -gt 0) {
+                & $clientPath (Get-ServerArg $EmacsProfile) --reuse-frame @EmacsClientArgs
+            }
+            else {
+                & $clientPath (Get-ServerArg $EmacsProfile) --create-frame
+            }
+            exit $LASTEXITCODE
+        }
+        'status' {
+            if (Test-DaemonRunning -ClientPath $clientPath) {
+                Write-Host "Emacs profile '$EmacsProfile' is running."
+            }
+            else {
+                Write-Host "Emacs profile '$EmacsProfile' is stopped."
+                exit 3
+            }
         }
     }
+}
+finally {
+    if ($null -ne $savedAlternateEditor) { $env:ALTERNATE_EDITOR = $savedAlternateEditor }
 }

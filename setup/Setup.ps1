@@ -3,7 +3,7 @@ Runs every setup step in order; each step is its own script in this folder
 and can be re-run alone with the same -DryRun/-LogLevel switches. The first
 column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
 
-  Env        Configure-Env       HOME, ~/bin on PATH, keyboards (EN-US, RU),
+  Env        Configure-Env       HOME, ~/.local/bin on PATH, keyboards (EN-US, RU),
                                  Singapore region
   Registry   Configure-Registry  Explorer tweaks; with UAC: Sudo, Developer
                                  Mode, long paths, lid/sleep power plan
