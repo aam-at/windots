@@ -1,6 +1,11 @@
 (defcfg
   concurrent-tap-hold yes
   process-unmapped-keys yes
+  ;; kanata re-sends every key (process-unmapped-keys), and AutoHotkey's Win+
+  ;; hotkeys swallow the re-sent one, so kanata sees Windows never registered
+  ;; it, clears the key itself, and would toast "Unexpected keycode is pressed
+  ;; in kanata but not in Windows" each time. The tray build's toasts only.
+  notify-error no
 )
 
 (defvar
