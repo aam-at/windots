@@ -56,7 +56,7 @@ $packageFailures = [System.Collections.Generic.List[string]]::new()
 
 # Winget apps (install per-ID for clearer output and retries)
 $wingetApps = @(
-    'Dropbox.Dropbox', 'FSFhu.Hunspell', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
+    'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
     'lin-ycv.EverythingCmdPal',
     'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal',
     'WinFsp.WinFsp'
