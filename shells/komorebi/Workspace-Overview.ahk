@@ -4,7 +4,8 @@
 ; focused monitor dims and a gruvbox card shows each workspace as a miniature
 ; of the monitor (the used workspaces plus one empty one, as in niri). While
 ; open: 1-9 jump to a workspace, arrows / hjkl move the selection, Enter/Space
-; confirm, Esc, Win+D or a click on the dimmed area cancel.
+; confirm, Esc, Win+D or a click on the dimmed area cancel. Hold Shift with a
+; number, Enter or a click to take the focused window along.
 ; Include it and bind a key to WorkspaceOverviewToggle().
 ;
 ; Windows on other workspaces are cloaked, and DWM thumbnails of cloaked
@@ -17,13 +18,14 @@ OverviewOpen(*) => Overview && WinActive("ahk_id " Overview.card.Hwnd)
 OverviewRegisterKeys() {
     HotIf OverviewOpen
     loop 9
-        Hotkey String(A_Index), OverviewGo.Bind(A_Index)
+        for key in [String(A_Index), "+" A_Index]
+            Hotkey key, OverviewGo.Bind(A_Index)
     for key, step in Map("Left", -1, "h", -1, "+Tab", -1, "Right", 1, "l", 1, "Tab", 1)
         Hotkey key, OverviewStep.Bind(step)
     for key, dir in Map("Up", -1, "k", -1, "Down", 1, "j", 1)
         Hotkey key, ((dir, *) => OverviewStep(dir * Overview.cols)).Bind(dir)
-    Hotkey "Enter", (*) => OverviewGo(Overview.tiles[Overview.selected].index)
-    Hotkey "Space", (*) => OverviewGo(Overview.tiles[Overview.selected].index)
+    for key in ["Enter", "+Enter", "Space"]
+        Hotkey key, (*) => OverviewGo(Overview.tiles[Overview.selected].index)
     Hotkey "Esc", (*) => OverviewClose()
     HotIf
 }
@@ -288,7 +290,7 @@ WorkspaceOverviewToggle() {
         DllCall("DeleteObject", "Ptr", wall.bitmap)
     card.SetFont("s9 w400 c7c6f64", "Segoe UI")
     card.AddText(Format("x{} y{} w{} Center", pad, pad + headerH + rows * (tileH + captionH + gap) - Round(8 * s), gridW),
-        "1–9  jump        ←↑↓→  hjkl  move        Enter  open        Esc  close")
+        "1–9  jump        ←↑↓→  hjkl  move        Enter  open        Shift  take window        Esc  close")
 
     ; Win11 rounded corners and a subtle border (COLORREF is 0x00BBGGRR).
     DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
@@ -324,10 +326,12 @@ OverviewSelect(i) {
     state.selected := i
 }
 
-; i is the workspace number, which is also the tile number.
+; i is the workspace number, which is also the tile number. With Shift held the
+; focused window moves there too (Komorebi's focus, not the overview card's).
 OverviewGo(i, *) {
+    command := GetKeyState("Shift") ? "move-to-workspace " : "focus-workspace "
     OverviewClose()
-    RunWait("komorebic.exe focus-workspace " (i - 1), , "Hide")
+    RunWait("komorebic.exe " command (i - 1), , "Hide")
 }
 
 OverviewClose() {

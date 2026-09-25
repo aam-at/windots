@@ -6,7 +6,7 @@ Shortcuts:
   - SectionName: Overview and Launchers
     Properties:
       - Name: Overview
-        Description: Komorebi workspace overview
+        Description: Komorebi workspace overview; Shift+pick takes the window
         Recommended: true
         Shortcut:
           - Win: true
