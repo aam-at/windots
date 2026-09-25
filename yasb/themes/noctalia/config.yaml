@@ -41,6 +41,7 @@ bars:
       - "media"
       - "clock"
       - "open_meteo"
+      - "focus_time"
       right:
       - "systray"
       - "status"
@@ -238,6 +239,23 @@ widgets:
         direction: "down"
         offset_top: 6
         offset_left: 0
+  # Today's focus time from ActivityWatch (time not AFK); click for the top
+  # app, right-click for the ActivityWatch dashboard.
+  focus_time:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span>\ue916</span>{data[active]}"
+      label_alt: "<span>\ue916</span>{data[active]} · {data[top]}"
+      class_name: "focus-time-widget"
+      exec_options:
+        # YASB splits run_cmd on spaces and re-quotes each piece, so no quotes.
+        run_cmd: 'pwsh -NoProfile -File %WINDOTS%\scripts\Get-FocusTime.ps1'
+        run_interval: 120000
+        return_format: "json"
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "exec cmd /c start http://localhost:5600"
   open_meteo:
     type: "yasb.open_meteo.OpenMeteoWidget"
     options:
