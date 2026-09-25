@@ -68,6 +68,12 @@ MonitorOff() {
 #+F23::Run "shell:AppsFolder\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe!Microsoft.MicrosoftOfficeHub" ; Copilot key
 #s::Send "#h"                   ; dictation
 
+; === Windows AI (on-device, Copilot+) ===
+; Windows' own keys are taken here (Win+Q closes, Win+S dictates), so these
+; pass them through. #UseHook keeps the Sends from re-triggering our hotkeys.
+#z::Send "#q"                   ; Click to Do: act on text or an image on screen
+#/::Send "#s"                   ; Windows Search, which takes plain descriptions
+
 ; === Shell panels (Noctalia equivalents) ===
 #m::Send "#a"                   ; quick settings
 #+n::ToggleDnd()                ; Do Not Disturb (Win+N: notifications)
