@@ -46,6 +46,13 @@ Set-Dword $explorerAdvanced 'HideFileExt' 0
 Set-Dword $explorerAdvanced 'ShowSuperHidden' 0
 Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 
+# Edge is the browser here; Chrome re-registers itself to launch at sign-in.
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+foreach ($name in (Get-Item -LiteralPath $runKey).Property -like 'GoogleChromeAutoLaunch_*') {
+    Write-Info "Removing $runKey\$name"
+    Invoke-IfNotDryRun { Remove-ItemProperty -LiteralPath $runKey -Name $name }
+}
+
 if (-not (Test-IsAdmin)) {
     Write-Warn 'Skipping Windows Sudo, Developer Mode, Win32 long paths, and power-plan settings; they require an elevated session.'
     exit 0
