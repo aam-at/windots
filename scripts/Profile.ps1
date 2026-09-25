@@ -199,7 +199,9 @@ if (Get-Module PSReadLine) {
     if ((Get-PSReadLineOption).PSObject.Properties['InlinePredictionColor']) { $colors.InlinePrediction = Get-Rgb 928374 }
     Set-PSReadLineOption -Colors $colors
     try { Set-PSReadLineOption -PredictionSource HistoryAndPlugin -PredictionViewStyle InlineView -ErrorAction Stop } catch { }
-    Import-Module CompletionPredictor -ErrorAction SilentlyContinue
+    # On the first idle prompt, not here: imported from the profile it keeps
+    # `pwsh -File`/`-Command` from ever exiting. OnIdle fires only at a prompt.
+    $null = Register-EngineEvent PowerShell.OnIdle -MaxTriggerCount 1 -Action { Import-Module CompletionPredictor -ErrorAction SilentlyContinue }
 
     # Emacs mode already binds Ctrl+A/E/F/B/D/W/K/Y/P/N/_ and Alt+F/B/D/Y/./U;
     # these add fish's extras. Word moves also take the next word of an
