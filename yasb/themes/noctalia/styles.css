@@ -1063,6 +1063,8 @@
     --gb-subtle: #7c6f64;
     --gb-accent: #83a598;
     --gb-warn: #fe8019;
+    /* Focus everywhere: the dock dot, the Komorebi border, the workspace pill. */
+    --gb-focus: #fabd2f;
     --gb-border: rgba(235, 219, 178, 0.10);
 }
 
@@ -1080,8 +1082,12 @@
     border-bottom-right-radius: 16px;
     padding: 0 3px;
 }
+/* Capsules share the bars' glass edge: brightest on top. */
 .yasb-bar .widget {
     background-color: var(--gb-surface);
+    border: 1px solid;
+    border-color: rgba(235, 219, 178, 0.14) rgba(235, 219, 178, 0.06)
+        rgba(235, 219, 178, 0.03) rgba(235, 219, 178, 0.06);
     border-radius: 12px;
     padding: 0 8px;
     margin: 3px 2px;
@@ -1143,12 +1149,16 @@
    one capsule; inner widgets drop their own and get a small hover pill. */
 .yasb-bar .status {
     background-color: var(--gb-surface);
+    border: 1px solid;
+    border-color: rgba(235, 219, 178, 0.14) rgba(235, 219, 178, 0.06)
+        rgba(235, 219, 178, 0.03) rgba(235, 219, 178, 0.06);
     border-radius: 12px;
     margin: 3px 2px;
     padding: 0 3px;
 }
 .yasb-bar .status .widget {
     background-color: transparent;
+    border: none;
     border-radius: 9px;
     margin: 3px 0;
     padding: 0 5px;
@@ -1174,7 +1184,9 @@
     padding: 0;
 }
 
-/* Workspaces: Noctalia pills (empty = surface, focused = accent and wider). */
+/* Workspaces: Noctalia pills (empty = muted number, used = yellow number,
+   focused = the focus yellow and wider, like the dock's dot). A bottom border
+   would curve around the pill's radius, as it did in the dock. */
 .windows-desktops,
 .komorebi-workspaces {
     padding: 0 6px;
@@ -1198,11 +1210,11 @@
     color: var(--gb-fg);
 }
 .komorebi-workspaces .ws-btn.populated {
-    color: var(--gb-fg);
+    color: var(--gb-focus);
 }
 .windows-desktops .ws-btn.active,
 .komorebi-workspaces .ws-btn.active {
-    background-color: var(--gb-accent);
+    background-color: var(--gb-focus);
     color: var(--gb-bg-hard);
     min-width: 34px;
 }
