@@ -36,6 +36,17 @@ WheelReady() {
     return true
 }
 
+; Do Not Disturb has no API, so ..\scripts\Toggle-Dnd.ps1 presses the
+; notification centre's own button and prints the new state for the tooltip.
+ToggleDnd() {
+    out := A_Temp "\windots-dnd.txt"
+    script := A_LineFile "\..\..\scripts\Toggle-Dnd.ps1"
+    RunWait(Format('{} /c powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{}" > "{}"', A_ComSpec, script, out), , "Hide")
+    state := Trim(FileRead(out), " `r`n")
+    ToolTip "Do not disturb: " (state = "On" ? "on" : state = "Off" ? "off" : state)
+    SetTimer () => ToolTip(), -1500
+}
+
 ; Power off the display without locking or sleeping (niri power-off-monitors).
 MonitorOff() {
     hwnd := DllCall("FindWindow", "Str", "Progman", "Ptr", 0, "Ptr")
@@ -59,6 +70,7 @@ MonitorOff() {
 
 ; === Shell panels (Noctalia equivalents) ===
 #m::Send "#a"                   ; quick settings
+#+n::ToggleDnd()                ; Do Not Disturb (Win+N: notifications)
 #y::Run "ms-settings:personalization-background"
 #,::Run "ms-settings:personalization"
 

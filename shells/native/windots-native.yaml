@@ -150,6 +150,15 @@ Shortcuts:
             Alt: false
             Keys:
               - N
+      - Name: Do Not Disturb
+        Description: Toggle notifications off and on
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - N
       - Name: Change wallpaper
         Shortcut:
           - Win: true
