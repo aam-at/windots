@@ -12,7 +12,7 @@
 ; windows come out blank, so tiles are drawn with PrintWindow instead. It hangs
 ; on hidden windows, hence komorebi.json's window_hiding_behaviour "Cloak".
 
-Overview := 0   ; {overlay, card, tiles, byHwnd, selected, cols, bitmaps} while open
+Overview := 0   ; {overlay, card, tiles, byHwnd, selected, cols} while open
 
 OverviewOpen(*) => Overview && WinActive("ahk_id " Overview.card.Hwnd)
 OverviewRegisterKeys() {
@@ -35,12 +35,13 @@ OnMessage 0x0201, OverviewClickAway  ; WM_LBUTTONDOWN
 
 ; komorebic state as an object, parsed by MSHTML's JSON (AHK has no parser).
 ; JS arrays index as arr.%i% from 0.
+; komorebic-no-console has no console window to flash, so its output can be
+; read straight from a pipe: ~100ms, against ~650ms through cmd /c > file.
 KomorebiState() {
-    path := A_Temp "\komorebi-state.json"
-    RunWait(Format('{} /c komorebic.exe state > "{}"', A_ComSpec, path), , "Hide")
+    exec := ComObject("WScript.Shell").Exec("komorebic-no-console.exe state")
     doc := ComObject("htmlfile")
     doc.write('<meta http-equiv="X-UA-Compatible" content="IE=9">')
-    return doc.parentWindow.JSON.parse(FileRead(path, "UTF-8"))
+    return doc.parentWindow.JSON.parse(exec.StdOut.ReadAll())
 }
 
 ; The windows a workspace shows, bottom to top: the monocle or maximized window
@@ -213,6 +214,57 @@ DecorateTile(base, w, h, selected, r, ring) {
     return bitmap
 }
 
+; The wallpaper scaled to w x h, cached across opens until it changes: loading
+; and halftone-scaling the full-size image costs ~15ms a tile otherwise.
+TileWallpaper(w, h) {
+    static cache := 0
+    path := A_AppData "\Microsoft\Windows\Themes\TranscodedWallpaper"
+    stamp := FileExist(path) ? FileGetTime(path) : ""
+    if cache && cache.w = w && cache.h = h && cache.stamp = stamp
+        return cache
+    if cache
+        DllCall("DeleteObject", "Ptr", cache.bitmap)
+    cache := 0
+    if !(full := LoadWallpaper())
+        return 0
+    screen := DllCall("GetDC", "Ptr", 0, "Ptr")
+    dc := DllCall("CreateCompatibleDC", "Ptr", screen, "Ptr")
+    bitmap := DllCall("CreateCompatibleBitmap", "Ptr", screen, "Int", w, "Int", h, "Ptr")
+    DllCall("SelectObject", "Ptr", dc, "Ptr", bitmap)
+    DrawWallpaper(dc, full, w, h)
+    DllCall("DeleteDC", "Ptr", dc)
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", screen)
+    DllCall("DeleteObject", "Ptr", full.bitmap)
+    return cache := {bitmap: bitmap, w: w, h: h, stamp: stamp}
+}
+
+; The monitor as it is on screen, scaled to w x h: ~20ms, where PrintWindow
+; takes ~60ms a workspace. Only right for the workspace that is showing.
+GrabScreen(rect, w, h) {
+    screen := DllCall("GetDC", "Ptr", 0, "Ptr")
+    dc := DllCall("CreateCompatibleDC", "Ptr", screen, "Ptr")
+    bitmap := DllCall("CreateCompatibleBitmap", "Ptr", screen, "Int", w, "Int", h, "Ptr")
+    DllCall("SelectObject", "Ptr", dc, "Ptr", bitmap)
+    DllCall("SetStretchBltMode", "Ptr", dc, "Int", 4)   ; HALFTONE
+    DllCall("StretchBlt", "Ptr", dc, "Int", 0, "Int", 0, "Int", w, "Int", h,
+        "Ptr", screen, "Int", rect.left, "Int", rect.top, "Int", rect.right, "Int", rect.bottom, "UInt", 0xCC0020)
+    DllCall("DeleteDC", "Ptr", dc)
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", screen)
+    return bitmap
+}
+
+; Give a tile new selected/unselected bitmaps made from base (which is freed).
+SetTileBase(tile, base, look) {
+    if tile.HasProp("on")
+        DllCall("DeleteObject", "Ptr", tile.on), DllCall("DeleteObject", "Ptr", tile.off)
+    tile.on := DecorateTile(base, look.w, look.h, true, look.radius, look.ring)
+    tile.off := DecorateTile(base, look.w, look.h, false, look.radius, look.ring)
+    DllCall("DeleteObject", "Ptr", base)
+}
+
+; Opens fast, then fills in: the dim and the card come up at once with the
+; current workspace grabbed from the screen and the others as bare wallpaper,
+; then each other workspace gets its PrintWindow snapshot in turn.
 WorkspaceOverviewToggle() {
     global Overview
     if Overview
@@ -231,13 +283,8 @@ WorkspaceOverviewToggle() {
     count := Min(Max(last + 1, focused), windows.Length)
 
     ; Komorebi rects are physical pixels, with right/bottom as width/height.
-    ; Both windows skip DPI scaling so control and thumbnail coordinates match.
+    ; Both windows skip DPI scaling so control and bitmap coordinates match.
     rect := monitor.size
-    overlay := Gui("-Caption +ToolWindow +AlwaysOnTop -DPIScale")
-    overlay.BackColor := "000000"
-    WinSetTransparent 0, overlay
-    overlay.Show(Format("x{} y{} w{} h{} NoActivate", rect.left, rect.top, rect.right, rect.bottom))
-
     s := A_ScreenDPI / 96
     pad := Round(36 * s), gap := Round(28 * s), radius := Round(10 * s), ring := Round(3 * s)
     headerH := Round(96 * s), captionH := Round(44 * s), footerH := Round(36 * s)
@@ -247,6 +294,13 @@ WorkspaceOverviewToggle() {
         ((rect.bottom * 0.88 - headerH - footerH - 2 * pad - (rows - 1) * gap) / rows - captionH) * aspect))
     tileH := Floor(tileW / aspect)
     gridW := cols * (tileW + gap) - gap
+    look := {w: tileW, h: tileH, radius: radius, ring: ring}
+
+    current := GrabScreen(rect, tileW, tileH)   ; before the dim covers it
+    overlay := Gui("-Caption +ToolWindow +AlwaysOnTop -DPIScale")
+    overlay.BackColor := "000000"
+    WinSetTransparent 150, overlay
+    overlay.Show(Format("x{} y{} w{} h{} NoActivate", rect.left, rect.top, rect.right, rect.bottom))
 
     card := Gui("-Caption +ToolWindow +AlwaysOnTop -DPIScale +Owner" overlay.Hwnd)
     card.BackColor := "282828"
@@ -259,17 +313,14 @@ WorkspaceOverviewToggle() {
     card.SetFont("s10 w400 c928374", "Segoe UI")
     card.AddText("xm y+4", Format("Monitor {}  ·  {} of {} in use", state.monitors.focused + 1, used, workspaces.length))
 
-    wall := LoadWallpaper()
-    tiles := [], byHwnd := Map(), bitmaps := []
+    wall := TileWallpaper(tileW, tileH)
+    tiles := [], byHwnd := Map()
     loop count {
         i := A_Index, ws := workspaces.%i - 1%, list := windows[i]
         x := pad + Mod(i - 1, cols) * (tileW + gap)
         y := pad + headerH + (i - 1) // cols * (tileH + captionH + gap)
-        base := SnapWorkspace(list, rect, tileW, tileH, wall)
-        tile := {index: i, on: DecorateTile(base, tileW, tileH, true, radius, ring),
-            off: DecorateTile(base, tileW, tileH, false, radius, ring)}
-        DllCall("DeleteObject", "Ptr", base)
-        bitmaps.Push(tile.on, tile.off)
+        tile := {index: i, pending: i != focused && list.Length > 0}
+        SetTileBase(tile, i = focused ? current : SnapWorkspace([], rect, tileW, tileH, wall), look)
         ; "*": the picture shows a copy, so both states stay ours to swap in.
         tile.pic := card.AddPicture(Format("x{} y{} w{} h{}", x, y, tileW, tileH), "HBITMAP:*" tile.off)
         ; Caption: "● 2  name" on the left, window count on the right.
@@ -286,8 +337,6 @@ WorkspaceOverviewToggle() {
         }
         tiles.Push(tile)
     }
-    if wall
-        DllCall("DeleteObject", "Ptr", wall.bitmap)
     card.SetFont("s9 w400 c7c6f64", "Segoe UI")
     card.AddText(Format("x{} y{} w{} Center", pad, pad + headerH + rows * (tileH + captionH + gap) - Round(8 * s), gridW),
         "1–9  jump        ←↑↓→  hjkl  move        Enter  open        Shift  take window        Esc  close")
@@ -296,20 +345,22 @@ WorkspaceOverviewToggle() {
     DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
     DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 34, "UInt*", 0x3c3836, "UInt", 4)
 
-    Overview := {overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, cols: cols, bitmaps: bitmaps}
+    Overview := {overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, cols: cols}
     OverviewSelect(focused)
     card.Show("Hide")
     WinGetPos , , &w, &h, card
-    WinMove rect.left + (rect.right - w) // 2, rect.top + (rect.bottom - h) // 2, , , card
-    card.Show()
-    loop 6 {
-        ; A key or click during the fade's Sleep can close (destroy) the overview.
-        if !Overview || Overview.overlay != overlay
-            return
-        WinSetTransparent A_Index * 25, overlay
-        Sleep 10
-    }
+    card.Show(Format("x{} y{}", rect.left + (rect.right - w) // 2, rect.top + (rect.bottom - h) // 2))
     SetTimer OverviewWatchFocus, 100
+
+    for tile in tiles {
+        ; A key or click while a snapshot is drawn can close the overview.
+        if !Overview || Overview.card != card
+            return
+        if !tile.pending
+            continue
+        SetTileBase(tile, SnapWorkspace(windows[tile.index], rect, tileW, tileH, wall), look)
+        tile.pic.Value := "HBITMAP:*" (Overview.tiles[Overview.selected] = tile ? tile.on : tile.off)
+    }
 }
 
 OverviewStep(step, *) => OverviewSelect(Overview.selected + step)
@@ -339,8 +390,8 @@ OverviewClose() {
     SetTimer OverviewWatchFocus, 0
     if Overview {
         Overview.overlay.Destroy()   ; the owned card goes with it
-        for bitmap in Overview.bitmaps
-            DllCall("DeleteObject", "Ptr", bitmap)
+        for tile in Overview.tiles
+            DllCall("DeleteObject", "Ptr", tile.on), DllCall("DeleteObject", "Ptr", tile.off)
     }
     Overview := 0
 }
