@@ -1066,11 +1066,19 @@
     --gb-border: rgba(235, 219, 178, 0.10);
 }
 
-/* Top bar: opaque edge-to-edge strip, widgets in rounded capsules. */
+/* Top bar: a glass sheet hanging from the top edge, matching the dock: square
+   where it meets the screen, rounded below (radius = capsule radius + their
+   3px margin + 1px border, so the corners nest), widgets in capsules. */
 .yasb-bar {
-    background-color: var(--gb-bg);
-    border-bottom: none;
-    padding: 0 6px;
+    background-color: rgba(29, 32, 33, 0.95);
+    border: 1px solid;
+    border-top: none;
+    border-color: transparent rgba(235, 219, 178, 0.12)
+        rgba(235, 219, 178, 0.16) rgba(235, 219, 178, 0.12);
+    border-radius: 0;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    padding: 0 3px;
 }
 .yasb-bar .widget {
     background-color: var(--gb-surface);

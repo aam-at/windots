@@ -25,13 +25,13 @@ bars:
     dimensions:
       width: "100%"
       height: 36
-    # Keep 0: YASB draws this padding outside the stylesheet background, so it
-    # shows through as a transparent strip. Inner spacing lives in styles.css.
+    # YASB leaves padding transparent, so the side padding floats the bar (a
+    # glass sheet hanging from the top edge in styles.css) off the sides.
     padding:
       top: 0
-      left: 0
+      left: 8
       bottom: 0
-      right: 0
+      right: 8
     widgets:
       left:
       - "quick_launch"
