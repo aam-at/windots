@@ -78,7 +78,9 @@
             "id": "User.RenameTab"
         },
         {
-            "command": "closeTab",
+            "command": {
+                "action": "closeTab"
+            },
             "id": "User.CloseTab"
         },
         {
@@ -300,15 +302,15 @@
         },
         {
             "id": "User.MoveTabForward",
-            "keys": "ctrl+shift+."
+            "keys": "ctrl+shift+period"
         },
         {
             "id": "User.MoveTabBackward",
-            "keys": "ctrl+shift+,"
+            "keys": "ctrl+shift+comma"
         },
         {
             "id": "User.SplitDown",
-            "keys": "ctrl+-"
+            "keys": "ctrl+minus"
         },
         {
             "id": "User.SplitRight",
@@ -395,9 +397,13 @@
     "profiles": {
         "defaults": {
             "colorScheme": "GruvboxDark",
+            "cursorShape": "bar",
             "font": {
                 "face": "JetBrainsMono Nerd Font"
-            }
+            },
+            "opacity": 95,
+            "padding": "12, 8",
+            "scrollbarState": "hidden"
         },
         "list": [
             {
@@ -447,6 +453,12 @@
                 "hidden": false,
                 "name": "Developer PowerShell for VS 18",
                 "source": "Windows.Terminal.VisualStudio"
+            },
+            {
+                "guid": "{63c386b6-e89b-5c96-a47e-f45412bd21f0}",
+                "hidden": false,
+                "name": "Ubuntu-26.04",
+                "source": "Microsoft.WSL"
             }
         ]
     },
@@ -476,5 +488,27 @@
         }
     ],
     "showTabsFullscreen": true,
-    "themes": []
+    "theme": "gruvbox",
+    "themes": [
+        {
+            "name": "gruvbox",
+            "tab": {
+                "background": "#282828FF",
+                "iconStyle": "default",
+                "showCloseButton": "hover",
+                "unfocusedBackground": "#1D2021FF"
+            },
+            "tabRow": {
+                "background": "#1D2021FF",
+                "unfocusedBackground": "#1D2021FF"
+            },
+            "window": {
+                "applicationTheme": "dark",
+                "experimental.rainbowFrame": false,
+                "frame": null,
+                "unfocusedFrame": null,
+                "useMica": false
+            }
+        }
+    ]
 }
