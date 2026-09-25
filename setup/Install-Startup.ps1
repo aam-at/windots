@@ -166,7 +166,10 @@ try {
     # Target the real exe, not the Scoop shim, which would stay running beside it.
     # Everything stays in the tray so searches (and the es CLI) are instant.
     [void](Ensure-StartupShortcut -Name 'Everything' -Candidates @((Join-Path $ScoopRoot 'apps\everything\current\Everything.exe')) -Arguments '-startup' -RunningProcessName 'Everything')
-    [void](Ensure-StartupShortcut -Name 'THide' -Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
+    # ActivityWatch logs the active app and AFK time locally, for a daily view
+    # of where focus went (http://localhost:5600).
+    [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @((Join-Path $ScoopRoot 'apps\activitywatch\current\aw-qt.exe'), 'aw-qt') -Arguments '' -RunningProcessName 'aw-qt')
+    [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
     [void](Ensure-StartupShortcut -Name 'Kanata' -Candidates $kanataCandidates -Arguments ('-c "{0}"' -f $kanataConfig))
