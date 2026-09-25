@@ -1,8 +1,8 @@
 #Requires AutoHotkey v2.0
 
 ; niri bindings (~/dotfiles/config/niri/common/binds.kdl and shells/noctalia.kdl)
-; that behave the same in both desktop modes: overview, session, launchers,
-; shell panels, close, monitor off. Win is Mod. Include it after #UseHook:
+; that behave the same in both desktop modes: session, launchers, shell panels,
+; close, monitor off. Each mode binds its own Win+D overview. Win is Mod. Include it after #UseHook:
 ;   #Include %A_ScriptDir%\..\Niri-Common.ahk
 ; Left untouched on purpose (already match niri): Win+Tab overview, Win+E files,
 ; Win+V clipboard, Win+N notifications, Win+Shift+/ Shortcut Guide.
@@ -40,8 +40,7 @@ MonitorOff() {
     PostMessage(0x0112, 0xF170, 2, , "ahk_id " hwnd)
 }
 
-; === System & Overview ===
-#d::Send "#{Tab}"
+; === System ===
 #x::SessionMenuToggle()
 #!l::LockScreen()
 
