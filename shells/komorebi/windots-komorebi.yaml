@@ -124,6 +124,26 @@ Shortcuts:
             Keys:
               - S
 
+  - SectionName: Windows AI
+    Properties:
+      - Name: Click to Do
+        Description: Act on text or an image on screen
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "Z"
+      - Name: AI search
+        Description: Windows Search by description
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "/"
   - SectionName: Shell Panels
     Properties:
       - Name: Session menu
