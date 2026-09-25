@@ -33,7 +33,7 @@
     "QuickAccent": false,
     "RegistryPreview": false,
     "Shortcut Guide": true,
-    "TextExtractor": true,
+    "TextExtractor": false,
     "Workspaces": true,
     "ZoomIt": false
   }
