@@ -250,7 +250,7 @@ widgets:
       exec_options:
         # YASB splits run_cmd on spaces and re-quotes each piece, so no quotes.
         run_cmd: 'pwsh -NoProfile -File %WINDOTS%\scripts\Get-FocusTime.ps1'
-        run_interval: 120000
+        run_interval: 300000
         return_format: "json"
       callbacks:
         on_left: "toggle_label"
