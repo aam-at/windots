@@ -28,8 +28,10 @@ Windows dotfiles and setup scripts.
   `Fonts`. For example: `pwsh -File .\setup\Setup.ps1 -DryRun -Skip Apps,Fonts`.
   The header of `setup\Setup.ps1` says what each step does.
 
-- The setup enables PowerToys FancyZones and Workspaces. Use `-Skip PowerToys`
-  to leave existing PowerToys settings unchanged.
+- The setup turns on only the PowerToys modules listed in
+  `powertoys/settings.json` (Command Palette, Workspaces, Peek, FancyZones and
+  a few others). FancyZones stays off in Komorebi mode, which tiles windows
+  itself. Use `-Skip PowerToys` to leave existing PowerToys settings unchanged.
 
 ## Desktop modes
 
