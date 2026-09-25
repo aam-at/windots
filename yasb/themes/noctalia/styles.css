@@ -1229,19 +1229,21 @@
     background: var(--gb-accent);
 }
 
-/* Dock: one floating translucent pill (Noctalia dock), real app icons, a
-   hover highlight, and a thin indicator under open apps (accent = focused). */
+/* Dock: a macOS / Windows 11 hybrid. One floating glass pill; a soft tile
+   under the hovered app; a dot under running apps (yellow + tile = focused, dim =
+   minimized, orange = wants attention).
+   The taskbar widget has no indicator element, so the dot is the app
+   container's background: a small radial gradient at the bottom centre whose
+   last stop "pads" out to the tile colour (transparent when there's no tile).
+   Keep the running/foreground/... rules and their :hover twins in step. */
+/* Glass edge: brightest on top, fading down the sides. */
 .yasb-dock {
-    background-color: rgba(40, 40, 40, 0.88);
-}
-.yasb-dock.adaptive {
-    -qproperty-railheight: 0;
-    -qproperty-islands: true;
-    -qproperty-islandradius: 20;
-    -qproperty-grouppadding: 8;
-    -qproperty-edgeradius: 0;
-    -qproperty-borderwidth: 1;
-    -qproperty-bordercolor: rgba(235, 219, 178, 0.12);
+    background-color: rgba(29, 32, 33, 0.95);
+    border: 1px solid;
+    border-color: rgba(235, 219, 178, 0.26) rgba(235, 219, 178, 0.12)
+        rgba(235, 219, 178, 0.06) rgba(235, 219, 178, 0.12);
+    border-radius: 24px;
+    padding: 0 6px;
 }
 .yasb-dock .widget {
     background-color: transparent;
@@ -1250,31 +1252,54 @@
 }
 .yasb-dock .taskbar-widget .app-container {
     background-color: transparent;
+    border: none;
     border-radius: 14px;
-    border-bottom: 2px solid transparent;
-    padding: 6px 6px 4px 6px;
-    margin: 2px 3px;
+    padding: 6px 7px 11px 7px;
+    margin: 4px 2px;
 }
 .yasb-dock .taskbar-widget .app-container:hover {
-    background-color: rgba(80, 73, 69, 0.70);
+    background-color: rgba(235, 219, 178, 0.10);
 }
 .yasb-dock .taskbar-widget .app-container.running {
-    border-bottom-color: rgba(168, 153, 132, 0.55);
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.045, fx: 0.5, fy: 0.92,
+        stop: 0 rgba(235, 219, 178, 0.80), stop: 0.7 rgba(235, 219, 178, 0.80), stop: 1 transparent);
+}
+.yasb-dock .taskbar-widget .app-container.running:hover {
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.045, fx: 0.5, fy: 0.92,
+        stop: 0 rgba(235, 219, 178, 0.80), stop: 0.7 rgba(235, 219, 178, 0.80), stop: 1 rgba(235, 219, 178, 0.10));
+}
+.yasb-dock .taskbar-widget .app-container.running.minimized {
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.04, fx: 0.5, fy: 0.92,
+        stop: 0 rgba(168, 153, 132, 0.50), stop: 0.7 rgba(168, 153, 132, 0.50), stop: 1 transparent);
+}
+.yasb-dock .taskbar-widget .app-container.running.minimized:hover {
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.04, fx: 0.5, fy: 0.92,
+        stop: 0 rgba(168, 153, 132, 0.50), stop: 0.7 rgba(168, 153, 132, 0.50), stop: 1 rgba(235, 219, 178, 0.10));
 }
 .yasb-dock .taskbar-widget .app-container.foreground {
-    background-color: rgba(80, 73, 69, 0.45);
-    border-bottom-color: var(--gb-accent);
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.055, fx: 0.5, fy: 0.92,
+        stop: 0 #fabd2f, stop: 0.75 #fabd2f, stop: 1 rgba(235, 219, 178, 0.07));
 }
-.yasb-dock .taskbar-widget .app-container.flashing {
-    border-bottom-color: var(--gb-warn);
+.yasb-dock .taskbar-widget .app-container.foreground:hover {
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.055, fx: 0.5, fy: 0.92,
+        stop: 0 #fabd2f, stop: 0.75 #fabd2f, stop: 1 rgba(235, 219, 178, 0.13));
 }
+.yasb-dock .taskbar-widget .app-container.flashing,
+.yasb-dock .taskbar-widget .app-container.flashing:hover {
+    background-color: qradialgradient(cx: 0.5, cy: 0.92, radius: 0.055, fx: 0.5, fy: 0.92,
+        stop: 0 #fe8019, stop: 0.75 #fe8019, stop: 1 rgba(254, 128, 25, 0.16));
+}
+/* Window count on grouped apps: a small badge tucked against the icon. */
 .yasb-dock .taskbar-widget .app-count {
-    background-color: var(--gb-accent);
+    background-color: #fabd2f;
     color: var(--gb-bg-hard);
     font-size: 9px;
     font-weight: 700;
-    border-radius: 6px;
-    padding: 0 4px;
+    border-radius: 7px;
+    min-width: 14px;
+    max-height: 14px;
+    padding: 0 3px;
+    margin: 0 0 26px -12px;
 }
 .taskbar-preview {
     background-color: rgba(29, 32, 33, 0.96);
