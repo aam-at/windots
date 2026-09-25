@@ -327,8 +327,11 @@ widgets:
       grouping:
         enabled: true
         show_count: true
+      # YASB 2.0.7 crashes the whole app when a window appears while an icon's
+      # animation is being torn down (taskbar.py _add_window_ui: "wrapped C/C++
+      # object of type QPropertyAnimation has been deleted").
       animation:
-        enabled: true
+        enabled: false
         duration: 200
       preview:
         enabled: true
