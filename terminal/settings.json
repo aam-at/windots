@@ -455,6 +455,14 @@
                 "source": "Windows.Terminal.VisualStudio"
             },
             {
+                "commandline": "pwsh.exe -NoLogo",
+                "guid": "{5c3e9a4d-7b21-4f0e-9d6a-2e8f1c0b7a95}",
+                "hidden": true,
+                "name": "Quake",
+                "suppressApplicationTitle": true,
+                "tabTitle": "Quake"
+            },
+            {
                 "guid": "{63c386b6-e89b-5c96-a47e-f45412bd21f0}",
                 "hidden": false,
                 "name": "Ubuntu-26.04",

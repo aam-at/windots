@@ -16,13 +16,15 @@ OpenDefaultBrowser() {
     Run RegExReplace(command, '\s+(--single-argument\s+)?"?%1"?.*$')
 }
 
-; niri's scratch terminal: Windows Terminal's quake window (Win+` toggles it
-; once Terminal is running).
+; niri's scratch terminal: Windows Terminal's quake window, which Win+` then
+; toggles. It opens on the hidden "Quake" profile, whose fixed tab title is how
+; Komorebi's ignore rule leaves the drop-down to Terminal instead of tiling it.
 ScratchTerminal() {
-    if ProcessExist("WindowsTerminal.exe")
+    DetectHiddenWindows true
+    if WinExist("Quake ahk_class CASCADIA_HOSTING_WINDOW_CLASS")
         Send "#``"
     else
-        Run "wt.exe -w _quake"
+        Run "wt.exe -w _quake -p Quake"
 }
 
 ; niri cooldown-ms=150: one wheel flick switches one workspace, not five.
