@@ -92,6 +92,21 @@
   },
   "ignore_rules": [
     {
+      "kind": "Title",
+      "id": "Quake",
+      "matching_strategy": "Equals"
+    },
+    {
+      "kind": "Exe",
+      "id": "ms-teams.exe",
+      "matching_strategy": "Equals"
+    },
+    {
+      "kind": "Exe",
+      "id": "WhatsApp.Root.exe",
+      "matching_strategy": "Equals"
+    },
+    {
       "kind": "Exe",
       "id": "kanata_gui",
       "matching_strategy": "Equals"

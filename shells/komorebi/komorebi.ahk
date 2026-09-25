@@ -28,6 +28,45 @@ CycleColumns() {
     Komorebic("scrolling-layout-columns " presets[i])
 }
 
+; Chat scratchpads: komorebi.json ignores Teams and WhatsApp, so they float over
+; whatever workspace is showing instead of taking one. The key brings the app's
+; main window to the middle of the screen, and hides it again once focused.
+ChatScratchpad(exe, app, *) {
+    DetectHiddenWindows true   ; closed to the tray, their windows are hidden
+    main := 0, area := 0
+    for hwnd in WinGetList("ahk_exe " exe) {
+        ; Titled, captioned, not a tool window (toasts, the call monitor).
+        if WinGetTitle(hwnd) = "" || !(WinGetStyle(hwnd) & 0xC00000) || (WinGetExStyle(hwnd) & 0x80)
+            continue
+        WinGetPos , , &w, &h, hwnd
+        if w * h > area
+            main := hwnd, area := w * h
+    }
+    if !main
+        return Run("shell:AppsFolder\" app)
+    if WinActive(main)
+        return WinMinimize(main)
+    WinShow main
+    if WinGetMinMax(main) != 0
+        WinRestore main
+    CoordMode "Mouse", "Screen"
+    MouseGetPos &mx, &my
+    MonitorGetWorkArea MonitorOf(mx, my), &left, &top, &right, &bottom
+    w := (right - left) * 0.6, h := (bottom - top) * 0.8
+    WinMove left + (right - left - w) / 2, top + (bottom - top - h) / 2, w, h, main
+    WinActivate main
+}
+MonitorOf(x, y) {
+    loop MonitorGetCount() {
+        MonitorGet A_Index, &l, &t, &r, &b
+        if x >= l && x < r && y >= t && y < b
+            return A_Index
+    }
+    return MonitorGetPrimary()
+}
+#w::ChatScratchpad("WhatsApp.Root.exe", "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App")
+#+w::ChatScratchpad("ms-teams.exe", "MSTeams_8wekyb3d8bbwe!MSTeams")
+
 ; === Window Management ===
 #f::Komorebic("toggle-monocle")
 #+f::Komorebic("toggle-maximize")

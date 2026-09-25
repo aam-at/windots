@@ -63,6 +63,24 @@ Shortcuts:
             Alt: false
             Keys:
               - "`"
+      - Name: WhatsApp
+        Description: Chat scratchpad: show or hide
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - W
+      - Name: Teams
+        Description: Chat scratchpad: show or hide
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - W
       - Name: File Explorer
         Shortcut:
           - Win: true
