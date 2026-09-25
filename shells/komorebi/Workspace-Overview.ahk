@@ -270,7 +270,9 @@ WorkspaceOverviewToggle() {
     if Overview
         return OverviewClose()
 
-    state := KomorebiState()
+    try state := KomorebiState()
+    catch   ; komorebi not running (or restarting): no state to show
+        return
     monitor := state.monitors.elements.%state.monitors.focused%
     workspaces := monitor.workspaces.elements
     focused := monitor.workspaces.focused + 1
