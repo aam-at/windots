@@ -1,8 +1,12 @@
 <#
-Configures PowerToys productivity settings.
+Configures PowerToys productivity settings. powertoys/settings.json lists every
+module, so modules this setup doesn't use stay off instead of running at their
+defaults. FancyZones is off with -DesktopMode Komorebi, which tiles windows itself.
 #>
 
 param(
+    [ValidateSet('Native', 'Komorebi')]
+    [string]$DesktopMode = 'Native',
     [switch]$DryRun,
     [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
     [string]$LogLevel = 'Info'
@@ -32,6 +36,7 @@ function Merge-SettingsFile([string]$Name, [string]$TemplatePath, [string]$Setti
         $template = Get-Content -Raw -LiteralPath $TemplatePath | ConvertFrom-Json
         $settings = if (Test-Path -LiteralPath $SettingsPath) { Get-Content -Raw -LiteralPath $SettingsPath | ConvertFrom-Json } else { [pscustomobject]@{} }
         Merge-ObjectProperties -Destination $settings -Source $template
+        if ($DesktopMode -eq 'Komorebi') { $settings.enabled.FancyZones = $false }
         # Deep enough for Command Palette's nested dock/provider settings;
         # ConvertTo-Json silently flattens anything deeper.
         $settingsJson = $settings | ConvertTo-Json -Depth 32

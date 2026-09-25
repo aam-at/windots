@@ -16,6 +16,10 @@ try {
     & (Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1') -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
+    # FancyZones off: two window managers would fight over every window.
+    & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DesktopMode Komorebi -DryRun:$DryRun
+    if (-not $?) { throw 'Failed to configure PowerToys.' }
+
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
     Invoke-IfNotDryRun { Stop-AutoHotkeyScript $nativeBindings }
     Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
@@ -37,6 +41,15 @@ try {
     }
     Invoke-IfNotDryRun {
         Start-Process -FilePath (Get-Command autohotkey.exe -CommandType Application).Source -ArgumentList ('"{0}"' -f $bindings)
+    }
+
+    # PowerToys reads its settings only at startup.
+    $powerToys = Join-Path $env:ProgramFiles 'PowerToys\PowerToys.exe'
+    if (Test-Path -LiteralPath $powerToys) {
+        Invoke-IfNotDryRun {
+            Get-Process -Name PowerToys -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Process -FilePath $powerToys
+        }
     }
 
     $yasb = Get-Command yasb.exe -CommandType Application -ErrorAction SilentlyContinue
