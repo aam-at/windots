@@ -143,12 +143,20 @@ try {
         [void](Ensure-StartupShortcut -Name 'Komorebi' -Candidates @('komorebic-no-console', 'komorebic') -Arguments $komorebiArguments -RunningProcessName 'komorebi')
         $komorebiAhk = WindotsPath 'shells\komorebi\komorebi.ahk'
         [void](Ensure-StartupShortcut -Name 'KomorebiAHK' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $komorebiAhk) -RunningProcessName 'AutoHotkeyUX')
+        # masir: focus follows the mouse, limited to windows Komorebi manages.
+        # It is a console app, which Windows Terminal (the default terminal)
+        # would open a tab for; conhost --headless runs it with no window.
+        if ($masir = Resolve-Executable @((Join-Path $env:ProgramFiles 'masir\bin\masir.exe'), 'masir')) {
+            [void](Ensure-StartupShortcut -Name 'Masir' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $masir) -RunningProcessName 'masir')
+        }
         Remove-StartupShortcut 'VirtualDesktopHelper'
         if (-not $DryRun) { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     }
     else {
         Remove-StartupShortcut 'Komorebi'
         Remove-StartupShortcut 'KomorebiAHK'
+        Remove-StartupShortcut 'Masir'
+        if (-not $DryRun) { Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force }
         $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper') | Where-Object { $_ }
         # Native-Desktop.ahk owns Win+1..9; the helper only shows the desktop number.
         [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments '' -RunningProcessName 'WindowsVirtualDesktopHelper')

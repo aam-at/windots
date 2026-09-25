@@ -85,7 +85,7 @@ $scoopAppsMain = @(
 )
 $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude', 'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
-    'komokana', 'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
+    'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
     'quarto', 'winrar', 'windows-virtualdesktop-helper', 'yasb', 'zed'
 )
 $bunApps = @(
