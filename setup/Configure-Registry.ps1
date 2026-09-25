@@ -46,11 +46,19 @@ Set-Dword $explorerAdvanced 'HideFileExt' 0
 Set-Dword $explorerAdvanced 'ShowSuperHidden' 0
 Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 
-# Edge is the browser here; Chrome re-registers itself to launch at sign-in.
+# Edge is the browser here. Chrome writes its Run entry back every time it
+# runs, so mark it disabled the way Task Manager does instead (StartupApproved:
+# 03 then the FILETIME it was turned off), which Windows honours and Chrome
+# leaves alone.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$approved = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
 foreach ($name in (Get-Item -LiteralPath $runKey).Property -like 'GoogleChromeAutoLaunch_*') {
-    Write-Info "Removing $runKey\$name"
-    Invoke-IfNotDryRun { Remove-ItemProperty -LiteralPath $runKey -Name $name }
+    Write-Info "Disabling sign-in launch: $name"
+    Invoke-IfNotDryRun {
+        if (-not (Test-Path -LiteralPath $approved)) { New-Item -Path $approved -Force | Out-Null }
+        $value = [byte[]](3, 0, 0, 0) + [BitConverter]::GetBytes([DateTime]::UtcNow.ToFileTimeUtc())
+        New-ItemProperty -LiteralPath $approved -Name $name -Value $value -PropertyType Binary -Force | Out-Null
+    }
 }
 
 if (-not (Test-IsAdmin)) {
