@@ -27,6 +27,8 @@ VDA_GetDesktopCount := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor,
 
 #Include %A_ScriptDir%\..\Niri-Common.ahk
 
+#d::Send "#{Tab}"   ; niri overview: Task View
+
 ; === Helpers ===
 
 ToggleMaximize() {

@@ -12,6 +12,9 @@
 ; and other mode-independent keys live in ..\Niri-Common.ahk.
 
 #Include %A_ScriptDir%\..\Niri-Common.ahk
+#Include %A_ScriptDir%\Workspace-Overview.ahk
+
+#d::WorkspaceOverviewToggle()
 
 Komorebic(cmd, *) {
     RunWait(format("komorebic.exe {}", cmd), , "Hide")
