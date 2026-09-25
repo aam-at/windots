@@ -372,6 +372,9 @@ widgets:
         padding: 8
         margin: 8
         blur: true
-        peek: true
+        # Peek fades every other window (and blocks clicks on them) while a
+        # preview is hovered. YASB 2.0.7 marks peek as ended even when DWM
+        # rejects ending it, which can leave the desktop stuck unclickable.
+        peek: false
       title_label:
         enabled: false
