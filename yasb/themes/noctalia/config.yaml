@@ -135,6 +135,16 @@ widgets:
       label: "{title}"
       label_alt: "{artist} - {title}"
       hide_empty: true
+      # The default thumbnail is the cover art at half opacity behind the
+      # title, which reads as a washed-out box on the capsule.
+      show_thumbnail: false
+      # Segoe Fluent like the rest of the bar; the FontAwesome defaults render
+      # cramped from whatever font happens to have them.
+      icons:
+        prev_track: ""
+        next_track: ""
+        play: ""
+        pause: ""
   language:
     type: "yasb.language.LanguageWidget"
     options:

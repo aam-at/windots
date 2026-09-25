@@ -1103,6 +1103,29 @@
 .yasb-bar .active-window-widget .label {
     color: var(--gb-muted);
 }
+/* Media: prev / play-pause / next, then the title. */
+.yasb-bar .media-widget .btn {
+    font-family: "Segoe Fluent Icons";
+    font-size: 11px;
+    color: var(--gb-muted);
+    background-color: transparent;
+    padding: 0 3px;
+    margin: 0;
+}
+.yasb-bar .media-widget .btn:hover {
+    color: var(--gb-fg-bright);
+}
+.yasb-bar .media-widget .btn.play {
+    font-size: 13px;
+    color: var(--gb-fg);
+}
+.yasb-bar .media-widget .btn.disabled,
+.yasb-bar .media-widget .btn.disabled:hover {
+    color: var(--gb-subtle);
+}
+.yasb-bar .media-widget .label {
+    padding: 0 2px 0 6px;
+}
 .yasb-bar .language-widget .label {
     font-weight: 600;
     padding: 0;
