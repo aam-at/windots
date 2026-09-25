@@ -12,6 +12,7 @@ if (-not $env:WINDOTS) { $env:WINDOTS = "$HOME\windots" }
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
 $ENV:STARSHIP_CONFIG = "$env:DOTFILES\config\starship.toml"
 $ENV:STARSHIP_LOG = 'error'
+$ENV:CLAUDE_CODE_USE_POWERSHELL_TOOL = '1'
 
 # fish: EDITOR is an emacsclient, ALTERNATE_EDITOR nvim. Emacs-Daemon.ps1
 # names each daemon's socket after its profile and records the default one.
