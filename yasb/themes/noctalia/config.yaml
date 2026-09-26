@@ -277,8 +277,13 @@ widgets:
         clearNight: "\uec46"
       weather_card:
         blur: true
-        alignment: "right"
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: None
+        alignment: "center"
         direction: "down"
+        offset_top: 6
+        offset_left: 0
         icon_size: 32
         show_hourly_forecast: true
         time_format: "24h"
