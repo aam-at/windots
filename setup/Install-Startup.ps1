@@ -155,6 +155,11 @@ try {
         # any more): it prints a deprecation notice and never actually starts
         # AutoHotkey, so we launch it ourselves against the real script path.
         Remove-StartupShortcut 'NativeDesktop'
+        # komorebi.json's app_specific_configuration_path: the community rules
+        # (floating dialogs, ignored tray windows), fetched fresh, not vendored.
+        Write-Info 'Fetching Komorebi applications.json'
+        $env:KOMOREBI_CONFIG_HOME = WindotsPath 'shells\komorebi'
+        [void](Invoke-NativeCommand -Description 'komorebic fetch-asc' -Action { komorebic fetch-asc })
         $komorebiConfig = WindotsPath 'shells\komorebi\komorebi.json'
         $komorebiArguments = 'start --clean-state --config "{0}"' -f $komorebiConfig
         [void](Ensure-StartupShortcut -Name 'Komorebi' -Candidates @('komorebic-no-console', 'komorebic') -Arguments $komorebiArguments -RunningProcessName 'komorebi')
