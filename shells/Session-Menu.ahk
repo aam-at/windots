@@ -64,32 +64,79 @@ SessionActions := [
     {label: "Restart", key: "r", glyph: 0xE72C, color: "fe8019", fn: (*) => Shutdown(2)},
     {label: "Shut down", key: "p", glyph: 0xE7E8, color: "fb4934", fn: (*) => Shutdown(1 | 8)},
 ]
-SessionMenu := 0    ; {overlay, card, tiles, byHwnd, selected} while open
 
-SessionMenuOpen(*) => SessionMenu && WinActive("ahk_id " SessionMenu.card.Hwnd)
+; A card of tiles over the dimmed monitor, shared with komorebi\Workspace-Overview.ahk.
+; Popup is the open one: {kind, overlay, card, tiles, byHwnd, selected, paint,
+; cleanup?}. paint(tile, on) redraws a tile's selection; cleanup() runs on close.
+Popup := 0
+PopupActive(kind) => Popup && Popup.kind = kind && WinActive("ahk_id " Popup.card.Hwnd)
+OnMessage 0x0200, PopupHover      ; WM_MOUSEMOVE
+OnMessage 0x0201, PopupClickAway  ; WM_LBUTTONDOWN
+
+; Win11 rounded corners and a subtle border (COLORREF is 0x00BBGGRR).
+PopupRoundCorners(card, border) {
+    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
+    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 34, "UInt*", border, "UInt", 4)
+}
+
+PopupSelect(i) {
+    paint := Popup.paint
+    i := Mod(i - 1 + Popup.tiles.Length, Popup.tiles.Length) + 1
+    for index in [Popup.selected, i]
+        if index
+            paint(Popup.tiles[index], index = i)
+    Popup.selected := i
+}
+
+PopupClose() {
+    global Popup
+    SetTimer PopupWatchFocus, 0
+    if !Popup
+        return
+    closing := Popup, Popup := 0
+    closing.overlay.Destroy()   ; the owned card goes with it
+    if closing.HasProp("cleanup")
+        cleanup := closing.cleanup, cleanup()
+}
+
+PopupWatchFocus() {
+    if Popup && !WinActive("ahk_id " Popup.card.Hwnd)
+        PopupClose()
+}
+
+PopupHover(wParam, lParam, msg, hwnd) {
+    if Popup && Popup.byHwnd.Has(hwnd) && Popup.byHwnd[hwnd] != Popup.selected
+        PopupSelect(Popup.byHwnd[hwnd])
+}
+
+PopupClickAway(wParam, lParam, msg, hwnd) {
+    if Popup && hwnd = Popup.overlay.Hwnd
+        PopupClose()
+}
+
 SessionMenuRegisterKeys() {
-    HotIf SessionMenuOpen
+    HotIf (*) => PopupActive("session")
     for i, action in SessionActions {
         Hotkey action.key, SessionMenuRun.Bind(i)
         Hotkey String(i), SessionMenuRun.Bind(i)
     }
-    Hotkey "Left", (*) => SessionMenuSelect(SessionMenu.selected - 1)
-    Hotkey "+Tab", (*) => SessionMenuSelect(SessionMenu.selected - 1)
-    Hotkey "Right", (*) => SessionMenuSelect(SessionMenu.selected + 1)
-    Hotkey "Tab", (*) => SessionMenuSelect(SessionMenu.selected + 1)
-    Hotkey "Enter", (*) => SessionMenuRun(SessionMenu.selected)
-    Hotkey "Space", (*) => SessionMenuRun(SessionMenu.selected)
-    Hotkey "Esc", (*) => SessionMenuClose()
+    for key, step in Map("Left", -1, "+Tab", -1, "Right", 1, "Tab", 1)
+        Hotkey key, ((step, *) => PopupSelect(Popup.selected + step)).Bind(step)
+    Hotkey "Enter", (*) => SessionMenuRun(Popup.selected)
+    Hotkey "Space", (*) => SessionMenuRun(Popup.selected)
+    Hotkey "Esc", (*) => PopupClose()
     HotIf
 }
 SessionMenuRegisterKeys()
-OnMessage 0x0200, SessionMenuHover      ; WM_MOUSEMOVE
-OnMessage 0x0201, SessionMenuClickAway  ; WM_LBUTTONDOWN
 
 SessionMenuToggle() {
-    global SessionMenu
-    if SessionMenu
-        return SessionMenuClose()
+    global Popup
+    if Popup {
+        kind := Popup.kind
+        PopupClose()
+        if kind = "session"
+            return
+    }
 
     ; Dim the whole monitor under the mouse (physical pixels, hence -DPIScale).
     CoordMode "Mouse", "Screen"
@@ -139,67 +186,34 @@ SessionMenuToggle() {
     card.AddText(Format("x{} y{} w{}", pad, tileY + tileH + 16, width),
         "←  →  select      Enter  confirm      Esc  cancel")
 
-    ; Win11 rounded corners and a subtle border (COLORREF is 0x00BBGGRR).
-    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
-    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 34, "UInt*", 0x454950, "UInt", 4)
+    PopupRoundCorners(card, 0x454950)
 
-    SessionMenu := {overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0}
-    SessionMenuSelect(1)
+    Popup := {kind: "session", overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, paint: SessionMenuPaint}
+    PopupSelect(1)
     card.Show("Hide")
     WinGetPos , , &w, &h, card
     WinMove left + (right - left - w) // 2, top + (bottom - top - h) // 2, , , card
     card.Show()
     loop 6 {
         ; A key or click during the fade's Sleep can close (destroy) the menu.
-        if !SessionMenu || SessionMenu.overlay != overlay
+        if !Popup || Popup.overlay != overlay
             return
         WinSetTransparent A_Index * 25, overlay
         Sleep 10
     }
-    SetTimer SessionMenuWatchFocus, 100
+    SetTimer PopupWatchFocus, 100
 }
 
-SessionMenuSelect(i) {
-    state := SessionMenu
-    i := Mod(i - 1 + state.tiles.Length, state.tiles.Length) + 1
-    for index in [state.selected, i] {
-        if !index
-            continue
-        tile := state.tiles[index], on := index = i
-        tile.bg.Opt("Background" (on ? "504945" : "3c3836"))
-        tile.label.SetFont(on ? "cfbf1c7" : "cebdbb2")
-        tile.bar.Visible := on
-        for control in [tile.bg, tile.icon, tile.label, tile.hint]
-            control.Redraw()
-    }
-    state.selected := i
+SessionMenuPaint(tile, on) {
+    tile.bg.Opt("Background" (on ? "504945" : "3c3836"))
+    tile.label.SetFont(on ? "cfbf1c7" : "cebdbb2")
+    tile.bar.Visible := on
+    for control in [tile.bg, tile.icon, tile.label, tile.hint]
+        control.Redraw()
 }
 
 SessionMenuRun(i, *) {
     action := SessionActions[i].fn
-    SessionMenuClose()
+    PopupClose()
     action()
-}
-
-SessionMenuClose() {
-    global SessionMenu
-    SetTimer SessionMenuWatchFocus, 0
-    if SessionMenu
-        SessionMenu.overlay.Destroy()   ; the owned card goes with it
-    SessionMenu := 0
-}
-
-SessionMenuWatchFocus() {
-    if SessionMenu && !WinActive("ahk_id " SessionMenu.card.Hwnd)
-        SessionMenuClose()
-}
-
-SessionMenuHover(wParam, lParam, msg, hwnd) {
-    if SessionMenu && SessionMenu.byHwnd.Has(hwnd) && SessionMenu.byHwnd[hwnd] != SessionMenu.selected
-        SessionMenuSelect(SessionMenu.byHwnd[hwnd])
-}
-
-SessionMenuClickAway(wParam, lParam, msg, hwnd) {
-    if SessionMenu && hwnd = SessionMenu.overlay.Hwnd
-        SessionMenuClose()
 }
