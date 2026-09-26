@@ -41,34 +41,6 @@ function Remove-PathSafe([string]$Path) {
     return $true
 }
 
-function New-FileLink([string]$Path, [string]$Target) {
-    try {
-        Write-Info "Creating file symlink: $Path -> $Target"
-        if (-not $DryRun) { New-Item -ItemType SymbolicLink -Path $Path -Target $Target -Force | Out-Null }
-    }
-    catch {
-        try {
-            Write-Warn "Symlink failed; attempting hardlink: $Path -> $Target"
-            if (-not $DryRun) { New-Item -ItemType HardLink -Path $Path -Target $Target -Force | Out-Null }
-        }
-        catch {
-            Write-Warn "Hardlink failed; copying file: $Path <- $Target"
-            if (-not $DryRun) { Copy-Item -LiteralPath $Target -Destination $Path -Force }
-        }
-    }
-}
-
-function New-DirectoryLink([string]$Path, [string]$Target) {
-    try {
-        Write-Info "Creating junction: $Path -> $Target"
-        if (-not $DryRun) { New-Item -ItemType Junction -Path $Path -Target $Target -Force | Out-Null }
-    }
-    catch {
-        Write-Warn "Junction failed; copying directory: $Path <- $Target"
-        if (-not $DryRun) { Copy-Item -LiteralPath $Target -Destination $Path -Recurse -Force }
-    }
-}
-
 function Ensure-Link([string]$Destination, [string]$Source) {
     try {
         $sourcePath = (Resolve-Path -LiteralPath $Source -ErrorAction Stop).ProviderPath
@@ -86,8 +58,13 @@ function Ensure-Link([string]$Destination, [string]$Source) {
         if (-not $DryRun) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
     }
 
-    if (Test-Path -LiteralPath $sourcePath -PathType Container) { New-DirectoryLink $Destination $sourcePath }
-    else { New-FileLink $Destination $sourcePath }
+    # Files need Developer Mode (the Registry step) to symlink unelevated. No
+    # copy fallback: a copied config silently stops following the repo.
+    $type = if (Test-Path -LiteralPath $sourcePath -PathType Container) { 'Junction' } else { 'SymbolicLink' }
+    Write-Info "Creating ${type}: $Destination -> $sourcePath"
+    if ($DryRun) { return }
+    try { New-Item -ItemType $type -Path $Destination -Target $sourcePath -Force | Out-Null }
+    catch { Write-Warn "Cannot link $Destination -> ${sourcePath}: $($_.Exception.Message)" }
 }
 
 $linkMap = @{

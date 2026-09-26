@@ -100,19 +100,9 @@ $bunApps = @(
 if (Test-Command 'scoop') {
     Write-Info 'Ensuring scoop buckets and apps are installed...'
     $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
+    $existingBuckets = @(scoop bucket list).Name
     foreach ($b in $scoopBuckets) {
-        $bucketExists = (scoop bucket list | Out-String) -match "(?m)^$([regex]::Escape($b))\s"
-        $bucketHealthy = (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\.git\config")) -and
-        (Test-Path -LiteralPath (Join-Path $scoopRoot "buckets\$b\bucket"))
-        if ($bucketExists -and -not $bucketHealthy) {
-            Write-Warn "Scoop bucket $b is incomplete; recreating it."
-            if (-not (Invoke-NativeCommand -Description "Scoop bucket removal $b" -Action { scoop bucket rm $b })) {
-                $packageFailures.Add("scoop bucket:$b")
-                continue
-            }
-            $bucketExists = $false
-        }
-        if (-not $bucketExists) {
+        if ($b -notin $existingBuckets) {
             Write-Info "scoop bucket add $b"
             if (-not (Invoke-NativeCommand -Description "Scoop bucket $b" -Action { scoop bucket add $b })) {
                 $packageFailures.Add("scoop bucket:$b")
