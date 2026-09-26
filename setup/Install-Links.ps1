@@ -96,6 +96,7 @@ $linkMap = @{
     (Join-Path $HOME '.local\bin\cc-work.cmd')                                                                = (WindotsPath 'cmd\cc-work.cmd')
     (Join-Path $HOME '.local\bin\herdr.cmd')                                                                  = (WindotsPath 'cmd\herdr.cmd')
     (Join-Path $HOME '.local\bin\y.cmd')                                                                      = (WindotsPath 'cmd\y.cmd')
+    (Join-Path $env:LOCALAPPDATA 'activitywatch\activitywatch\aw-qt\aw-qt.toml')                              = (WindotsPath 'yasb\activitywatch\aw-qt.toml')
     (Join-Path $env:LOCALAPPDATA 'clink\default_settings')                                                    = (WindotsPath 'clink\default_settings')
     (Join-Path $env:LOCALAPPDATA 'clink\_inputrc')                                                            = (WindotsPath 'clink\_inputrc')
     (Join-Path $env:LOCALAPPDATA 'clink\starship.lua')                                                        = (WindotsPath 'clink\starship.lua')

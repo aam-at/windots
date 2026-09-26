@@ -1,0 +1,8 @@
+# Linked to %LOCALAPPDATA%\activitywatch\activitywatch\aw-qt\aw-qt.toml.
+# aw-watcher-window is left out: window-watcher.exe (next to this file,
+# started at login) replaces it in the same bucket.
+[aw-qt]
+autostart_modules = ["aw-server", "aw-watcher-afk"]
+
+[aw-qt-testing]
+#autostart_modules = ["aw-server", "aw-watcher-afk", "aw-watcher-window"]
