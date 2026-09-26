@@ -12,26 +12,24 @@
 ; windows come out blank, so tiles are drawn with PrintWindow instead. It hangs
 ; on hidden windows, hence komorebi.json's window_hiding_behaviour "Cloak".
 
-Overview := 0   ; {overlay, card, tiles, byHwnd, selected, cols} while open
-
-OverviewOpen(*) => Overview && WinActive("ahk_id " Overview.card.Hwnd)
+; The shared Popup card layer; while the overview is open, Popup also carries
+; the grid's cols.
+#Include %A_LineFile%\..\..\Session-Menu.ahk
 OverviewRegisterKeys() {
-    HotIf OverviewOpen
+    HotIf (*) => PopupActive("overview")
     loop 9
         for key in [String(A_Index), "+" A_Index]
             Hotkey key, OverviewGo.Bind(A_Index)
     for key, step in Map("Left", -1, "h", -1, "+Tab", -1, "Right", 1, "l", 1, "Tab", 1)
-        Hotkey key, OverviewStep.Bind(step)
+        Hotkey key, ((step, *) => PopupSelect(Popup.selected + step)).Bind(step)
     for key, dir in Map("Up", -1, "k", -1, "Down", 1, "j", 1)
-        Hotkey key, ((dir, *) => OverviewStep(dir * Overview.cols)).Bind(dir)
+        Hotkey key, ((dir, *) => PopupSelect(Popup.selected + dir * Popup.cols)).Bind(dir)
     for key in ["Enter", "+Enter", "Space"]
-        Hotkey key, (*) => OverviewGo(Overview.tiles[Overview.selected].index)
-    Hotkey "Esc", (*) => OverviewClose()
+        Hotkey key, (*) => OverviewGo(Popup.tiles[Popup.selected].index)
+    Hotkey "Esc", (*) => PopupClose()
     HotIf
 }
 OverviewRegisterKeys()
-OnMessage 0x0200, OverviewHover      ; WM_MOUSEMOVE
-OnMessage 0x0201, OverviewClickAway  ; WM_LBUTTONDOWN
 
 ; komorebic state as an object, parsed by MSHTML's JSON (AHK has no parser).
 ; JS arrays index as arr.%i% from 0.
@@ -266,9 +264,13 @@ SetTileBase(tile, base, look) {
 ; current workspace grabbed from the screen and the others as bare wallpaper,
 ; then each other workspace gets its PrintWindow snapshot in turn.
 WorkspaceOverviewToggle() {
-    global Overview
-    if Overview
-        return OverviewClose()
+    global Popup
+    if Popup {
+        kind := Popup.kind
+        PopupClose()
+        if kind = "overview"
+            return
+    }
 
     try state := KomorebiState()
     catch   ; komorebi not running (or restarting): no state to show
@@ -343,72 +345,40 @@ WorkspaceOverviewToggle() {
     card.AddText(Format("x{} y{} w{} Center", pad, pad + headerH + rows * (tileH + captionH + gap) - Round(8 * s), gridW),
         "1–9  jump        ←↑↓→  hjkl  move        Enter  open        Shift  take window        Esc  close")
 
-    ; Win11 rounded corners and a subtle border (COLORREF is 0x00BBGGRR).
-    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
-    DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", card.Hwnd, "UInt", 34, "UInt*", 0x3c3836, "UInt", 4)
+    PopupRoundCorners(card, 0x3c3836)
 
-    Overview := {overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, cols: cols}
-    OverviewSelect(focused)
+    Popup := {kind: "overview", overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, cols: cols,
+        paint: OverviewPaint, cleanup: OverviewFreeTiles.Bind(tiles)}
+    PopupSelect(focused)
     card.Show("Hide")
     WinGetPos , , &w, &h, card
     card.Show(Format("x{} y{}", rect.left + (rect.right - w) // 2, rect.top + (rect.bottom - h) // 2))
-    SetTimer OverviewWatchFocus, 100
+    SetTimer PopupWatchFocus, 100
 
     for tile in tiles {
         ; A key or click while a snapshot is drawn can close the overview.
-        if !Overview || Overview.card != card
+        if !Popup || Popup.card != card
             return
         if !tile.pending
             continue
         SetTileBase(tile, SnapWorkspace(windows[tile.index], rect, tileW, tileH, wall), look)
-        tile.pic.Value := "HBITMAP:*" (Overview.tiles[Overview.selected] = tile ? tile.on : tile.off)
+        tile.pic.Value := "HBITMAP:*" (Popup.tiles[Popup.selected] = tile ? tile.on : tile.off)
     }
 }
 
-OverviewStep(step, *) => OverviewSelect(Overview.selected + step)
+OverviewPaint(tile, on) {
+    tile.pic.Value := "HBITMAP:*" (on ? tile.on : tile.off)
+}
 
-OverviewSelect(i) {
-    state := Overview
-    i := Mod(i - 1 + state.tiles.Length, state.tiles.Length) + 1
-    for index in [state.selected, i] {
-        if !index
-            continue
-        tile := state.tiles[index]
-        tile.pic.Value := "HBITMAP:*" (index = i ? tile.on : tile.off)
-    }
-    state.selected := i
+OverviewFreeTiles(tiles) {
+    for tile in tiles
+        DllCall("DeleteObject", "Ptr", tile.on), DllCall("DeleteObject", "Ptr", tile.off)
 }
 
 ; i is the workspace number, which is also the tile number. With Shift held the
 ; focused window moves there too (Komorebi's focus, not the overview card's).
 OverviewGo(i, *) {
     command := GetKeyState("Shift") ? "move-to-workspace " : "focus-workspace "
-    OverviewClose()
+    PopupClose()
     RunWait("komorebic.exe " command (i - 1), , "Hide")
-}
-
-OverviewClose() {
-    global Overview
-    SetTimer OverviewWatchFocus, 0
-    if Overview {
-        Overview.overlay.Destroy()   ; the owned card goes with it
-        for tile in Overview.tiles
-            DllCall("DeleteObject", "Ptr", tile.on), DllCall("DeleteObject", "Ptr", tile.off)
-    }
-    Overview := 0
-}
-
-OverviewWatchFocus() {
-    if Overview && !WinActive("ahk_id " Overview.card.Hwnd)
-        OverviewClose()
-}
-
-OverviewHover(wParam, lParam, msg, hwnd) {
-    if Overview && Overview.byHwnd.Has(hwnd) && Overview.byHwnd[hwnd] != Overview.selected
-        OverviewSelect(Overview.byHwnd[hwnd])
-}
-
-OverviewClickAway(wParam, lParam, msg, hwnd) {
-    if Overview && hwnd = Overview.overlay.Hwnd
-        OverviewClose()
 }
