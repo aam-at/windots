@@ -7,8 +7,8 @@
   "default_container_padding": 6,
   "border": true,
   "border_width": 2,
-  "border_style": "Square",
-  "border_offset": 0,
+  "border_style": "Rounded",
+  "border_offset": -1,
   "mouse_follows_focus": false,
   "border_colours": {
     "single": "#fabd2f",
@@ -29,6 +29,12 @@
   },
   "monitors": [
     {
+      "work_area_offset": {
+        "left": 0,
+        "top": -4,
+        "right": 0,
+        "bottom": -4
+      },
       "workspaces": [
         {
           "name": "1",
