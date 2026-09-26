@@ -229,6 +229,16 @@
                 "direction": "next"
             },
             "id": "User.NextPrompt"
+        },
+        {
+            "command": {
+                "action": "globalSummon",
+                "dropdownDuration": 0,
+                "monitor": "toCurrent",
+                "name": "_quake",
+                "toggleVisibility": true
+            },
+            "id": "User.QuakeInstant"
         }
     ],
     "alwaysOnTop": false,
@@ -236,6 +246,10 @@
     "copyOnSelect": true,
     "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
     "keybindings": [
+        {
+            "id": "User.QuakeInstant",
+            "keys": "win+sc(41)"
+        },
         {
             "id": "Terminal.CopyToClipboard",
             "keys": "ctrl+c"

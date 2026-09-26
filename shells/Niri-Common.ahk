@@ -19,12 +19,54 @@ OpenDefaultBrowser() {
 ; niri's scratch terminal: Windows Terminal's quake window, which Win+` then
 ; toggles. It opens on the hidden "Quake" profile, whose fixed tab title is how
 ; Komorebi's ignore rule leaves the drop-down to Terminal instead of tiling it.
+; Terminal's own slide stops at the work area, under the YASB bar, so
+; terminal\settings.json turns it off (dropdownDuration 0) and QuakeSlide drops
+; the window from the monitor's top edge instead, covering the bar.
 ScratchTerminal() {
+    quake := "Quake ahk_class CASCADIA_HOSTING_WINDOW_CLASS"
     DetectHiddenWindows true
-    if WinExist("Quake ahk_class CASCADIA_HOSTING_WINDOW_CLASS")
-        Send "#``"
-    else
+    if !WinExist(quake) {
         Run "wt.exe -w _quake -p Quake"
+        if WinWait(quake, , 5)
+            QuakeSlide(WinExist(quake), true)
+        return
+    }
+    hwnd := WinExist(quake)
+    ; Each branch waits for Terminal to finish toggling, so a fast re-press is
+    ; dropped (one thread per hotkey) instead of racing Terminal's hide or show.
+    if WinActive(hwnd) {
+        QuakeSlide(hwnd, false)
+        Send "#``"
+        WinWaitNotActive(hwnd, , 1)
+        return
+    }
+    ; Every summon snaps it back under the bar, even when it was already up.
+    Send "#``"
+    if WinWaitActive(hwnd, , 1)
+        QuakeSlide(hwnd, true)
+}
+
+; Slides the quake window between just above its monitor and the monitor's top
+; edge, stretched down to where Terminal put its bottom edge.
+QuakeSlide(hwnd, down) {
+    SetWinDelay -1
+    WinGetPos &x, &y, &w, &h, hwnd
+    top := 0
+    Loop MonitorGetCount() {
+        MonitorGet A_Index, &l, &t, &r
+        if x + w // 2 >= l && x + w // 2 < r
+            top := t
+    }
+    ; Still parked above the monitor from the last slide up: already stretched.
+    if y >= top
+        h += y - top
+    steps := 6
+    Loop steps + 1 {
+        p := (A_Index - 1) / steps
+        p := down ? 1 - (1 - p) ** 3 : p ** 3
+        WinMove x, down ? top - h + Round(h * p) : top - Round(h * p), w, h, hwnd
+        Sleep 12
+    }
 }
 
 ; niri cooldown-ms=150: one wheel flick switches one workspace, not five.
