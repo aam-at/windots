@@ -120,6 +120,23 @@ function Set-LockShortcut([bool]$Enabled) {
     }
 }
 
+# Native helpers: battery.exe behind the YASB battery widget (hidden until it
+# builds) and window-watcher.exe, which replaces aw-watcher-window (no window
+# data until it builds). The build skips an exe newer than its source.
+function Build-NativeHelpers {
+    $buildScript = WindotsPath 'yasb\Build-Native.ps1'
+    $helpers = @(
+        @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
+        @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'winhttp'; Windows = $true }
+    )
+    foreach ($helper in $helpers) {
+        Write-Info "Building $($helper.Source)"
+        if ($DryRun) { continue }
+        try { & $buildScript @helper }
+        catch { Write-Warn "$($_.Exception.Message) (retry: pwsh -File $buildScript $($helper.Source))" }
+    }
+}
+
 try {
     # Both desktop scripts lock via Win+Alt+L / Win+X instead.
     Set-LockShortcut $false
@@ -168,6 +185,7 @@ try {
     $yasbWorkspaces = if ($DesktopMode -eq 'Komorebi') { 'komorebi_workspaces' } else { 'windows_desktops' }
     Write-Info "Setting YASB_WORKSPACES=$yasbWorkspaces"
     Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('YASB_WORKSPACES', $yasbWorkspaces, 'User') }
+    Build-NativeHelpers
     [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb') -Arguments '')
     # thide (scoop\thide.json) hides the Windows taskbar in both modes: the YASB
     # dock slides in from the bottom edge, where the taskbar would pop up too.
@@ -177,6 +195,9 @@ try {
     # ActivityWatch logs the active app and AFK time locally, for a daily view
     # of where focus went (http://localhost:5600).
     [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @((Join-Path $ScoopRoot 'apps\activitywatch\current\aw-qt.exe'), 'aw-qt') -Arguments '' -RunningProcessName 'aw-qt')
+    # aw-qt no longer starts aw-watcher-window (yasb\activitywatch\aw-qt.toml); this
+    # native watcher fills the same bucket at a fraction of the cost.
+    [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -Arguments '' -RunningProcessName 'window-watcher')
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
