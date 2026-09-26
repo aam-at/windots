@@ -18,7 +18,7 @@ repos:
         entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/Format-PowerShell.ps1
         files: \.ps1$
       - id: test-windots
-        name: Validate PowerShell and AutoHotkey
+        name: Validate PowerShell, AutoHotkey and C
         language: system
         entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/Test-Windots.ps1
-        files: \.(ps1|ahk)$
+        files: \.(ps1|ahk|c)$
