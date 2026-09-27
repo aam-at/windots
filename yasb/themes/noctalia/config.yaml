@@ -41,7 +41,7 @@ bars:
       - "media"
       - "clock"
       - "open_meteo"
-      - "focus_time"
+      - "screen_time"
       right:
       - "systray"
       - "status"
@@ -242,23 +242,25 @@ widgets:
         direction: "down"
         offset_top: 6
         offset_left: 0
-  # Today's focus time from ActivityWatch (time not AFK); click for the top
-  # app, right-click for the ActivityWatch dashboard.
-  focus_time:
+  # Today's screen time from dotfiles' tools\wellbeing (ActivityWatch, idle
+  # time left out); a moon instead of the stopwatch while focus mode is on.
+  # Click for the top app, middle-click to toggle focus mode, right-click for
+  # the dashboard (screen time and wellbeing's settings). The icon isn't in a
+  # <span>: custom widgets don't fill placeholders there.
+  screen_time:
     type: "yasb.custom.CustomWidget"
     options:
-      label: "<span>\ue916</span>{data[active]}"
-      label_alt: "<span>\ue916</span>{data[active]} · {data[top]}"
-      class_name: "focus-time-widget"
+      label: "{data[icon]} {data[total]}"
+      label_alt: "{data[icon]} {data[total]} · {data[top]}"
+      class_name: "screen-time-widget"
       exec_options:
-        # YASB splits run_cmd on spaces and re-quotes each piece, so no quotes.
-        run_cmd: 'pwsh -NoProfile -File %WINDOTS%\scripts\Get-FocusTime.ps1'
-        run_interval: 300000
+        run_cmd: '%DOTFILES%\tools\wellbeing\wellbeing.exe --status'
+        run_interval: 60000
         return_format: "json"
       callbacks:
         on_left: "toggle_label"
-        on_middle: "do_nothing"
-        on_right: "exec cmd /c start http://localhost:5600"
+        on_middle: 'exec cmd /c %DOTFILES%\tools\wellbeing\wellbeing.exe --focus'
+        on_right: "exec cmd /c start http://127.0.0.1:5600/pages/wellbeing/"
   open_meteo:
     type: "yasb.open_meteo.OpenMeteoWidget"
     options:

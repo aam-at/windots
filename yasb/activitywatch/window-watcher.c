@@ -1,94 +1,93 @@
 /*
- * Drop-in replacement for ActivityWatch's aw-watcher-window: records the
- * focused app and window title into the same bucket
- * (aw-watcher-window_<host>, events {"app": "x.exe", "title": "..."}), so the
- * dashboard and scripts\Get-FocusTime.ps1 read it unchanged.
+ * Drop-in replacement for ActivityWatch's aw-watcher-window and
+ * aw-watcher-afk: records the focused app and window title, and whether
+ * someone is at the keyboard, into the same buckets
+ * (aw-watcher-window_<host>: {"app": "x.exe", "title": "..."};
+ * aw-watcher-afk_<host>: {"status": "afk" | "not-afk"}), so the dashboard
+ * and scripts\Get-FocusTime.ps1 read them unchanged.
  *
- * The Python watcher polls every second and costs ~1% of a core. This one
- * waits for WinEvents (focus changes, and title changes of the focused
- * process only) plus a 10 s heartbeat, so it idles at ~0% in ~1 MB.
+ * The Python watchers poll every second and every 5 s and cost ~1% of a
+ * core and ~60 MB between them. This waits for WinEvents (focus changes,
+ * and title changes of the focused process only), plus a 30 s window
+ * heartbeat and a 5 s input check, so it idles at ~0% in ~3 MB.
  *
- * Two fixes over the original:
+ * Fixes over the originals:
  *  - When the window or title changes, the old event is closed at that
  *    moment. The original only ever extends the new one, so a title that
  *    changes every second (Claude Code's spinner) became a run of events
  *    lasting 0 s each and that time went missing.
  *  - Leading status glyphs (spinners, "●" unsaved dots, emoji) are dropped
  *    from titles, so such a window stays one event.
+ *  - Afk heartbeats are never timestamped before the event they extend.
+ *    The original sends some 1 ms early, which aw-server can't merge, so an
+ *    away period (or a return followed by no further input) left two
+ *    overlapping events.
  *
- * aw-qt must not start the Python watcher too: see aw-qt.toml.
- * Build: pwsh -File ../Build-Native.ps1 window-watcher.c -Libs winhttp -Windows
+ * Nothing else may run the Python watchers: setup starts aw-server alone.
+ * aw-server is reached through http.h from dotfiles' tools/lib, the C
+ * library shared with dotfiles' tools (Build-Native.ps1 adds it to the
+ * include path).
+ * Build: pwsh -File ../Build-Native.ps1 window-watcher.c -Libs ws2_32 -Windows
  *        (setup runs it too).
  * Tests: window-watcher.test.c (scripts/Test-Windots.ps1 runs them).
  */
+#include "http.h"
 #include <windows.h>
-#include <winhttp.h>
-#include <stdio.h>
-#include <string.h>
 #include <wchar.h>
 
-#define SERVER_PORT 5600
-#define HEARTBEAT_MS 10000
-/* Heartbeats of the same window merge within this; > HEARTBEAT_MS. */
-#define PULSETIME "11"
+static int post(const char *path, const char *body) {
+    int status = http_request("POST", path, body, NULL, 0);
+    /* 304: the bucket already exists. */
+    return (status >= 200 && status < 300) || status == 304;
+}
+
+/* Unchanged state is re-sent this often; changes go out at once. Each
+   request costs the Python aw-server ~10 ms, so this is what keeps it near
+   idle. The current event can lag this much until the next change. */
+#define HEARTBEAT_MS 30000
 /* Title changes are sampled at most this often, like the original's poll. */
 #define MIN_SAMPLE_MS 1000
+/* aw-watcher-afk's defaults: away after 3 min without input, checked every 5 s. */
+#define AFK_TIMEOUT_S 180
+#define AFK_POLL_MS 5000
+
+/* Timestamps are FILETIME ticks: 100 ns since 1601, UTC. */
+#define TICKS_PER_SECOND 10000000ULL
+#define ONE_MS (TICKS_PER_SECOND / 1000)
 
 typedef struct {
     char app[MAX_PATH * 3];
     char title[1024 * 3];
 } Window;
 
-static HINTERNET session, connection;
-static char bucket_path[256], bucket_json[512];
-static int bucket_ready;
+typedef struct {
+    char path[256], json[512];
+    /* Heartbeats of the same data merge within this many seconds. */
+    int pulsetime;
+    int ready;
+} Bucket;
+
+/* Window heartbeats come at least every HEARTBEAT_MS; afk ones may be
+   AFK_TIMEOUT_S apart (the original's timeout + poll). */
+static Bucket window_bucket = {.pulsetime = HEARTBEAT_MS / 1000 + 1};
+static Bucket afk_bucket = {.pulsetime = AFK_TIMEOUT_S + AFK_POLL_MS / 1000};
+
 static Window current;
 static int have_current;
+static int afk;
+/* Start of the current afk or not-afk event (0 before the first change). */
+static ULONGLONG afk_state_start;
+/* When the last afk heartbeat went out, to space unchanged ones. */
+static ULONGLONG afk_last_sent;
 static DWORD last_sample_tick;
 static UINT_PTR pending_timer;
 static HWINEVENTHOOK title_hook;
 static DWORD title_hook_pid;
 
-/* One HTTP request to aw-server; returns the status code, 0 when unreachable.
-   The response body goes to response when given. */
-static DWORD request(const wchar_t *method, const char *path, const char *body, char *response, DWORD response_size) {
-    wchar_t wpath[512];
-    MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, 512);
-    HINTERNET handle = WinHttpOpenRequest(connection, method, wpath, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-    if (!handle) return 0;
-    DWORD length = body ? (DWORD)strlen(body) : 0;
-    DWORD status = 0, size = sizeof status;
-    if (WinHttpSendRequest(handle, L"Content-Type: application/json\r\n", (DWORD)-1, (void *)body, length, length, 0)
-        && WinHttpReceiveResponse(handle, NULL))
-        WinHttpQueryHeaders(handle, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, NULL, &status, &size, NULL);
-    if (response && response_size) {
-        DWORD total = 0, read = 0;
-        while (status && total + 1 < response_size && WinHttpReadData(handle, response + total, response_size - 1 - total, &read) && read)
-            total += read;
-        response[total] = 0;
-    }
-    WinHttpCloseHandle(handle);
-    return status;
-}
-
-static int post(const char *path, const char *body) {
-    DWORD status = request(L"POST", path, body, NULL, 0);
-    /* 304: the bucket already exists. */
-    return (status >= 200 && status < 300) || status == 304;
-}
-
-/* Points the watcher at aw-server on this port, in this bucket. */
-static void connect_server(INTERNET_PORT port, const char *bucket_id, const char *host) {
-    snprintf(bucket_path, sizeof bucket_path, "/api/0/buckets/%s", bucket_id);
-    snprintf(bucket_json, sizeof bucket_json,
-        "{\"client\": \"aw-watcher-window\", \"type\": \"currentwindow\", \"hostname\": \"%s\"}", host);
-    bucket_ready = 0;
-    if (!session) {
-        session = WinHttpOpen(L"windots-window-watcher", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-        WinHttpSetTimeouts(session, 1000, 1000, 2000, 2000);
-    }
-    if (connection) WinHttpCloseHandle(connection);
-    connection = WinHttpConnect(session, L"localhost", port, 0);
+static void setup_bucket(Bucket *bucket, const char *id, const char *client, const char *type, const char *host) {
+    snprintf(bucket->path, sizeof bucket->path, "/api/0/buckets/%s", id);
+    snprintf(bucket->json, sizeof bucket->json, "{\"client\": \"%s\", \"type\": \"%s\", \"hostname\": \"%s\"}", client, type, host);
+    bucket->ready = 0;
 }
 
 /* UTF-16 to a JSON string body (without quotes) in UTF-8. */
@@ -138,43 +137,83 @@ static void read_window(HWND hwnd, Window *window) {
 }
 
 /* aw-server's timestamp format, in UTC. */
-static void format_timestamp(const SYSTEMTIME *t, char *out, size_t size) {
+static void format_timestamp(ULONGLONG ticks, char *out, size_t size) {
+    FILETIME file = {(DWORD)ticks, (DWORD)(ticks >> 32)};
+    SYSTEMTIME t;
+    FileTimeToSystemTime(&file, &t);
     snprintf(out, size, "%04d-%02d-%02dT%02d:%02d:%02d.%03d000+00:00",
-        t->wYear, t->wMonth, t->wDay, t->wHour, t->wMinute, t->wSecond, t->wMilliseconds);
+        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
 }
 
-static void heartbeat_to_server(const Window *window, const char *timestamp) {
-    if (!bucket_ready && !(bucket_ready = post(bucket_path, bucket_json))) return;
-    char path[512], body[sizeof window->app + sizeof window->title + 160];
-    snprintf(path, sizeof path, "%s/heartbeat?pulsetime=" PULSETIME, bucket_path);
-    snprintf(body, sizeof body, "{\"timestamp\": \"%s\", \"duration\": 0, \"data\": {\"app\": \"%s\", \"title\": \"%s\"}}",
-        timestamp, window->app, window->title);
+static ULONGLONG now_ticks(void) {
+    FILETIME file;
+    GetSystemTimeAsFileTime(&file);
+    return (ULONGLONG)file.dwHighDateTime << 32 | file.dwLowDateTime;
+}
+
+static void heartbeat_to_server(Bucket *bucket, ULONGLONG at, double duration, const char *data) {
+    if (!bucket->ready && !(bucket->ready = post(bucket->path, bucket->json))) return;
+    char path[512], timestamp[64], body[sizeof current.app + sizeof current.title + 200];
+    format_timestamp(at, timestamp, sizeof timestamp);
+    snprintf(path, sizeof path, "%s/heartbeat?pulsetime=%d", bucket->path, bucket->pulsetime);
+    snprintf(body, sizeof body, "{\"timestamp\": \"%s\", \"duration\": %.3f, \"data\": %s}", timestamp, duration, data);
     /* Server down: retry the bucket too once it is back. */
-    if (!post(path, body)) bucket_ready = 0;
+    if (!post(path, body)) bucket->ready = 0;
 }
 
 /* Where heartbeats go; the tests record them instead. */
-static void (*send_heartbeat)(const Window *, const char *) = heartbeat_to_server;
+static void (*send_heartbeat)(Bucket *, ULONGLONG, double, const char *) = heartbeat_to_server;
+
+static void send_window(const Window *window, ULONGLONG at) {
+    char data[sizeof window->app + sizeof window->title + 32];
+    snprintf(data, sizeof data, "{\"app\": \"%s\", \"title\": \"%s\"}", window->app, window->title);
+    send_heartbeat(&window_bucket, at, 0, data);
+}
 
 /* The focused window at this time. On a change, closes the old event at
    this moment so its duration is exact, then opens the new one. */
-static void observe(const Window *now, const char *timestamp) {
+static void observe(const Window *now, ULONGLONG at) {
     if (have_current && strcmp(now->app, current.app) == 0 && strcmp(now->title, current.title) == 0) return;
-    if (have_current) send_heartbeat(&current, timestamp);
+    if (have_current) send_window(&current, at);
     current = *now;
     have_current = 1;
-    send_heartbeat(&current, timestamp);
+    send_window(&current, at);
 }
 
 /* Extends the current event to this time; the periodic heartbeat. */
-static void keep_alive(const char *timestamp) {
-    if (have_current) send_heartbeat(&current, timestamp);
+static void keep_alive(ULONGLONG at) {
+    if (have_current) send_window(&current, at);
 }
 
-static void now_timestamp(char *out, size_t size) {
-    SYSTEMTIME t;
-    GetSystemTime(&t);
-    format_timestamp(&t, out, size);
+static void send_afk(int away, ULONGLONG at, double duration) {
+    send_heartbeat(&afk_bucket, at, duration, away ? "{\"status\": \"afk\"}" : "{\"status\": \"not-afk\"}");
+}
+
+/* aw-watcher-afk's state machine (aw_watcher_afk/afk.py heartbeat_loop):
+   not-afk events run until the last input; once idle for AFK_TIMEOUT_S, an
+   afk event starts 1 ms after that input and runs until input again. */
+static void observe_input(ULONGLONG now, double idle_seconds) {
+    ULONGLONG last_input = now - (ULONGLONG)(idle_seconds * TICKS_PER_SECOND);
+    if (afk && idle_seconds < AFK_TIMEOUT_S) {
+        /* Back: the afk event ends at this input. */
+        send_afk(1, last_input, 0);
+        afk = 0;
+        afk_state_start = last_input + ONE_MS;
+        send_afk(0, afk_state_start, 0);
+    }
+    else if (!afk && idle_seconds >= AFK_TIMEOUT_S) {
+        /* Away: the not-afk event ends at the last input. */
+        send_afk(0, last_input > afk_state_start ? last_input : afk_state_start, 0);
+        afk = 1;
+        afk_state_start = last_input + ONE_MS;
+        send_afk(1, afk_state_start, idle_seconds);
+    }
+    else if (now - afk_last_sent < HEARTBEAT_MS * (TICKS_PER_SECOND / 1000)) return;
+    /* Never before the current event's start: aw-server can't merge a
+       heartbeat that precedes it and would open a duplicate event. */
+    else if (afk) send_afk(1, afk_state_start, (now - afk_state_start) / (double)TICKS_PER_SECOND);
+    else send_afk(0, last_input > afk_state_start ? last_input : afk_state_start, 0);
+    afk_last_sent = now;
 }
 
 static void CALLBACK on_title_change(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD);
@@ -197,9 +236,7 @@ static void sample(void) {
     watch_titles_of(hwnd);
     Window now;
     read_window(hwnd, &now);
-    char timestamp[64];
-    now_timestamp(timestamp, sizeof timestamp);
-    observe(&now, timestamp);
+    observe(&now, now_ticks());
 }
 
 static void CALLBACK on_pending(HWND hwnd, UINT message, UINT_PTR id, DWORD time) {
@@ -211,9 +248,13 @@ static void CALLBACK on_pending(HWND hwnd, UINT message, UINT_PTR id, DWORD time
 static void CALLBACK on_heartbeat(HWND hwnd, UINT message, UINT_PTR id, DWORD time) {
     /* Also catches anything the hooks missed. */
     sample();
-    char timestamp[64];
-    now_timestamp(timestamp, sizeof timestamp);
-    keep_alive(timestamp);
+    keep_alive(now_ticks());
+}
+
+static void CALLBACK on_afk_poll(HWND hwnd, UINT message, UINT_PTR id, DWORD time) {
+    LASTINPUTINFO input = {sizeof input};
+    if (!GetLastInputInfo(&input)) return;
+    observe_input(now_ticks(), (GetTickCount() - input.dwTime) / 1000.0);
 }
 
 static void CALLBACK on_focus(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG object, LONG child, DWORD thread, DWORD time) {
@@ -233,15 +274,19 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command_line, i
 
     wchar_t whost[256];
     DWORD size = 256;
-    char host[256], bucket_id[300];
+    char host[256], id[300];
     GetComputerNameExW(ComputerNameDnsHostname, whost, &size);
     json_utf8(whost, host, sizeof host);
-    snprintf(bucket_id, sizeof bucket_id, "aw-watcher-window_%s", host);
-    connect_server(SERVER_PORT, bucket_id, host);
+    snprintf(id, sizeof id, "aw-watcher-window_%s", host);
+    setup_bucket(&window_bucket, id, "aw-watcher-window", "currentwindow", host);
+    snprintf(id, sizeof id, "aw-watcher-afk_%s", host);
+    setup_bucket(&afk_bucket, id, "aw-watcher-afk", "afkstatus", host);
 
     SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, on_focus, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
     SetTimer(NULL, 0, HEARTBEAT_MS, on_heartbeat);
+    SetTimer(NULL, 0, AFK_POLL_MS, on_afk_poll);
     sample();
+    on_afk_poll(NULL, 0, 0, 0);
 
     MSG message;
     while (GetMessageW(&message, NULL, 0, 0) > 0) DispatchMessageW(&message);

@@ -121,13 +121,17 @@ function Set-LockShortcut([bool]$Enabled) {
 }
 
 # Native helpers: battery.exe behind the YASB battery widget (hidden until it
-# builds) and window-watcher.exe, which replaces aw-watcher-window (no window
-# data until it builds). The build skips an exe newer than its source.
+# builds), window-watcher.exe, which replaces aw-watcher-window and
+# aw-watcher-afk (no ActivityWatch data until it builds), and dotfiles'
+# tools\wellbeing\wellbeing.exe
+# (screen time, limits, focus mode, bedtime). The build skips an exe newer
+# than its source.
 function Build-NativeHelpers {
     $buildScript = WindotsPath 'yasb\Build-Native.ps1'
     $helpers = @(
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
-        @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'winhttp'; Windows = $true }
+        @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
+        @{ Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'; Libs = 'ws2_32', 'dwmapi'; Windows = $true }
     )
     foreach ($helper in $helpers) {
         Write-Info "Building $($helper.Source)"
@@ -135,6 +139,26 @@ function Build-NativeHelpers {
         try { & $buildScript @helper }
         catch { Write-Warn "$($_.Exception.Message) (retry: pwsh -File $buildScript $($helper.Source))" }
     }
+}
+
+# aw-server serves dotfiles' tools\wellbeing\dashboard (screen time and
+# wellbeing's settings) at
+# /pages/wellbeing/, on its own origin so the page can query it. Returns
+# whether aw-server.toml changed, which takes a restart.
+function Set-WellbeingDashboard {
+    $config = Join-Path $env:LOCALAPPDATA 'activitywatch\activitywatch\aw-server\aw-server.toml'
+    $entry = "wellbeing = '{0}'" -f ((Join-Path $DotfilesRoot 'tools\wellbeing\dashboard') -replace '\\', '/')
+    $text = if (Test-Path -LiteralPath $config) { Get-Content -LiteralPath $config -Raw } else { "[server]`n`n[server.custom_static]`n" }
+    if ($text.Contains($entry)) { return $false }
+    $text = $text -replace '(?m)^wellbeing\s*=.*\r?\n', ''
+    if ($text -notmatch '(?m)^\[server\.custom_static\]') { $text += "`n[server.custom_static]`n" }
+    $text = $text -replace '(?m)^\[server\.custom_static\][ \t]*\r?\n', "[server.custom_static]`n$entry`n"
+    Write-Info "Serving the wellbeing dashboard from aw-server: $config"
+    Invoke-IfNotDryRun {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $config) -Force | Out-Null
+        Set-Content -LiteralPath $config -Value $text -NoNewline
+    }
+    return $true
 }
 
 try {
@@ -198,11 +222,16 @@ try {
     # Everything stays in the tray so searches (and the es CLI) are instant.
     [void](Ensure-StartupShortcut -Name 'Everything' -Candidates @((Join-Path $ScoopRoot 'apps\everything\current\Everything.exe')) -Arguments '-startup' -RunningProcessName 'Everything')
     # ActivityWatch logs the active app and AFK time locally, for a daily view
-    # of where focus went (http://localhost:5600).
-    [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @((Join-Path $ScoopRoot 'apps\activitywatch\current\aw-qt.exe'), 'aw-qt') -Arguments '' -RunningProcessName 'aw-qt')
-    # aw-qt no longer starts aw-watcher-window (yasb\activitywatch\aw-qt.toml); this
-    # native watcher fills the same bucket at a fraction of the cost.
+    # of where focus went (http://127.0.0.1:5600). Only its server runs: the
+    # native window-watcher.exe replaces both Python watchers, and aw-qt (a
+    # tray icon that starts them) isn't needed. aw-server is a console app,
+    # so conhost --headless runs it with no window, like masir.
+    $awServer = Join-Path $ScoopRoot 'apps\activitywatch\current\aw-server\aw-server.exe'
+    # A running aw-server reads its config only on start.
+    if ((Set-WellbeingDashboard) -and -not $DryRun) { Get-Process -Name aw-server -ErrorAction SilentlyContinue | Stop-Process -Force }
+    [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $awServer) -RunningProcessName 'aw-server')
     [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -Arguments '' -RunningProcessName 'window-watcher')
+    [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -Arguments '' -RunningProcessName 'wellbeing')
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }

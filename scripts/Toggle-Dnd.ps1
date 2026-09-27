@@ -1,12 +1,21 @@
 <#
-Toggles Windows 11 Do Not Disturb and prints the new state (On or Off).
-Bound to Win+Shift+N in shells\Niri-Common.ahk.
+Toggles Windows 11 Do Not Disturb, or sets it with -State, and prints the new
+state (On or Off). Bound to Win+Shift+N in shells\Niri-Common.ahk; the
+wellbeing helper (dotfiles' tools\wellbeing) sets it for focus mode and
+bedtime.
 
 Windows has no API for it (the old quiet-hours WNF state no longer drives the
 button), so this presses the notification centre's own Do Not Disturb button
-through UI Automation. Windows PowerShell 5.1 ships UIAutomationClient; pwsh
-may not, so run it with powershell.exe.
+through UI Automation. Reading the state needs the centre open too. Windows
+PowerShell 5.1 ships UIAutomationClient; pwsh may not, so run it with
+powershell.exe.
+
+Usage:
+  powershell -File Toggle-Dnd.ps1              # toggle
+  powershell -File Toggle-Dnd.ps1 -State On    # on, whatever it was
 #>
+
+param([ValidateSet('On', 'Off')][string]$State)
 
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms
 
@@ -32,6 +41,6 @@ foreach ($attempt in 1..30) {
 if (-not $button) { Write-Output 'unavailable'; exit 1 }
 
 $toggle = $button.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
-$toggle.Toggle()
+if (-not $State -or "$($toggle.Current.ToggleState)" -ne $State) { $toggle.Toggle() }
 Write-Output $toggle.Current.ToggleState
 [System.Windows.Forms.SendKeys]::SendWait('{ESC}')   # close the centre again

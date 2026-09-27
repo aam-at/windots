@@ -25,6 +25,7 @@ $scoopRoot = if ($env:SCOOP) { $env:SCOOP } else { Join-Path $HOME 'scoop' }
 $autoHotkey = Join-Path $scoopRoot 'apps\autohotkey\current\v2\AutoHotkey64.exe'
 $failures = 0
 $checkedC = @()
+$cLibrary = Join-Path $(if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }) 'tools\lib'
 $warnAll = New-TemporaryFile
 Set-Content -LiteralPath $warnAll -Value '#Warn All, StdOut'
 
@@ -38,6 +39,7 @@ foreach ($file in $Path) {
         '.c' {
             # Native helpers: compile with warnings as errors, and run the
             # <name>.test.c next to the source (which includes it) if any.
+            # dotfiles' tools\lib (http.h, json.h) is on the include path.
             $source = $file -replace '\.test\.c$', '.c'
             $test = $source -replace '\.c$', '.test.c'
             if ($source -in $checkedC) { continue }
@@ -50,7 +52,7 @@ foreach ($file in $Path) {
             # .test.c can land in different ones.
             $exe = Join-Path ([IO.Path]::GetTempPath()) "windots-test-$([IO.Path]::GetFileNameWithoutExtension($source))-$PID.exe"
             $build = if (Test-Path -LiteralPath $test) { $test } else { $source }
-            $output = gcc -Wall -Werror -o $exe $build -lwinhttp -lpowrprof 2>&1
+            $output = gcc -Wall -Werror -I $cLibrary -o $exe $build -lws2_32 -lpowrprof 2>&1
             if ($LASTEXITCODE -ne 0) { $output | Write-Host -ForegroundColor Red; $failures++; continue }
             if ($build -eq $test) {
                 $output = & $exe 2>&1
