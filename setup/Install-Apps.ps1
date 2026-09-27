@@ -76,7 +76,7 @@ else {
 
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
-    '7zip', 'ag', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
+    '7zip', 'ag', 'antigravity-cli', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
     'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'gitui',
     'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2',
     'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
@@ -89,7 +89,7 @@ $scoopAppsExtras = @(
     'quarto', 'winrar', 'windows-virtualdesktop-helper', 'yasb', 'zed'
 )
 $bunApps = @(
-    'antigravity-cli', 'copilot-cli', 'opencode-ai', 'oh-my-pi', 'pi-coding-agent',
+    'copilot-cli', 'opencode-ai', 'oh-my-pi', 'pi-coding-agent',
     '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest', '@marp-team/marp-cli',
     '@openai/codex@latest', 'bibtex-tidy',
     'dockerfile-language-server-nodejs', 'js-beautify', 'prettier',
