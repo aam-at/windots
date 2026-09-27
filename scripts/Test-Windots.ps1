@@ -46,7 +46,9 @@ foreach ($file in $Path) {
                 Write-Warning "gcc not found; skipping $file"
                 continue
             }
-            $exe = Join-Path ([IO.Path]::GetTempPath()) "windots-test-$([IO.Path]::GetFileNameWithoutExtension($source)).exe"
+            # $PID: prek runs batches of files in parallel, and a .c and its
+            # .test.c can land in different ones.
+            $exe = Join-Path ([IO.Path]::GetTempPath()) "windots-test-$([IO.Path]::GetFileNameWithoutExtension($source))-$PID.exe"
             $build = if (Test-Path -LiteralPath $test) { $test } else { $source }
             $output = gcc -Wall -Werror -o $exe $build -lwinhttp -lpowrprof 2>&1
             if ($LASTEXITCODE -ne 0) { $output | Write-Host -ForegroundColor Red; $failures++; continue }
