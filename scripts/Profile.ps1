@@ -10,7 +10,26 @@
 if (-not $env:DOTFILES) { $env:DOTFILES = "$HOME\dotfiles" }
 if (-not $env:WINDOTS) { $env:WINDOTS = "$HOME\windots" }
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
+# The shared starship config, minus git_metrics: on Windows it adds ~190 ms
+# to every prompt in a git repo (40 ms without it). The copy is regenerated
+# when the original changes.
 $ENV:STARSHIP_CONFIG = "$env:DOTFILES\config\starship.toml"
+$starshipCopy = Join-Path $env:LOCALAPPDATA 'windots\starship.toml'
+if (Test-Path -LiteralPath $ENV:STARSHIP_CONFIG) {
+    if (-not (Test-Path -LiteralPath $starshipCopy) -or (Get-Item -LiteralPath $starshipCopy).LastWriteTime -lt (Get-Item -LiteralPath $ENV:STARSHIP_CONFIG).LastWriteTime) {
+        # -Encoding: Windows PowerShell reads BOM-less files as ANSI, which
+        # would mangle the prompt's glyphs.
+        $toml = Get-Content -LiteralPath $ENV:STARSHIP_CONFIG -Raw -Encoding UTF8
+        $section = [regex]'(?ms)^\[git_metrics\][ \t]*\r?\n.*?(?=^\[|\z)'
+        $toml = if ($section.IsMatch($toml)) {
+            $section.Replace($toml, { param($m) ($m.Value -replace '(?m)^disabled\s*=.*\r?\n', '') -replace '^\[git_metrics\][ \t]*\r?\n', "[git_metrics]`ndisabled = true`n" }, 1)
+        }
+        else { "$toml`n[git_metrics]`ndisabled = true`n" }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $starshipCopy) -Force | Out-Null
+        Set-Content -LiteralPath $starshipCopy -Value $toml -Encoding utf8 -NoNewline
+    }
+    $ENV:STARSHIP_CONFIG = $starshipCopy
+}
 $ENV:STARSHIP_LOG = 'error'
 $ENV:CLAUDE_CODE_USE_POWERSHELL_TOOL = '1'
 
