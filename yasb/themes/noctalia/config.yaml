@@ -99,6 +99,33 @@ widgets:
           show_recent: true
           max_recent: 5
           show_description: true
+        # "cb " browses Windows Clipboard History (Win+V's store); Enter copies
+        # the entry back for Ctrl+V. One QuickLaunch service backs every
+        # instance, so a separate clipboard-only widget would clobber this list.
+        clipboard_history:
+          enabled: true
+          prefix: "cb"
+          max_items: 50
+        # Default prefixes; the home page shows a tile for each.
+        calculator: {enabled: true}        # =
+        file_search: {enabled: true}       # /  (Everything when running)
+        window_switcher: {enabled: true}   # win
+        windows_terminal: {enabled: true}  # wt
+        vscode: {enabled: true}            # vsc
+        wsl: {enabled: true}               # wsl
+        settings: {enabled: true}          # @
+        system_commands: {enabled: true}   # >
+        kill_process: {enabled: true}      # !
+        web_search: {enabled: true}        # ?
+        emoji: {enabled: true}             # :
+        unit_converter: {enabled: true}    # ~
+        currency: {enabled: true}          # $
+        dev_tools: {enabled: true}         # dev
+      # Win+Space in shells\Niri-Common.ahk sends this chord: RegisterHotKey
+      # can't take Win+Space, which Windows reserves for input switching.
+      keybindings:
+      - keys: "ctrl+alt+shift+space"
+        action: "toggle_quick_launch"
       popup:
         width: 720
         height: 480

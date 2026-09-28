@@ -46,6 +46,22 @@ Set-Dword $explorerAdvanced 'HideFileExt' 0
 Set-Dword $explorerAdvanced 'ShowSuperHidden' 0
 Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 
+# Win+V history; YASB's quick launch "cb" provider reads the same store.
+# The per-user clipboard service reads the flag only at start, so stop its
+# host (user-owned, no admin needed) when turning the flag on; Windows
+# restarts it on the next clipboard use.
+$clipboardKey = 'HKCU:\Software\Microsoft\Clipboard'
+$clipboardWas = try { Get-ItemPropertyValue $clipboardKey 'EnableClipboardHistory' -ErrorAction Stop } catch { 0 }
+Set-Dword $clipboardKey 'EnableClipboardHistory' 1
+if ($clipboardWas -ne 1 -and -not $DryRun) {
+    $cbdhsvc = Get-CimInstance Win32_Service -Filter "Name LIKE 'cbdhsvc[_]%' AND State = 'Running'"
+    # Low-memory machines share svchost hosts; only stop a dedicated one.
+    if ($cbdhsvc -and @(Get-CimInstance Win32_Service -Filter "ProcessId = $($cbdhsvc.ProcessId)").Count -eq 1) {
+        Write-Info "Restarting $($cbdhsvc.Name) to apply clipboard history"
+        Stop-Process -Id $cbdhsvc.ProcessId -Force
+    }
+}
+
 # Edge is the browser here. Chrome writes its Run entry back every time it
 # runs, so mark it disabled the way Task Manager does instead (StartupApproved:
 # 03 then the FILETIME it was turned off), which Windows honours and Chrome

@@ -146,7 +146,7 @@ MonitorOf(x, y) {
 #!l::LockScreen()
 
 ; === Application Launchers ===
-#Space::Send "#!{Space}"        ; PowerToys Command Palette
+#Space::Send "^!+{Space}"       ; YASB Quick Launch (Win+Alt+Space: Command Palette)
 #t::Run "wt.exe"
 #Enter::Run "wt.exe"
 #`::ScratchTerminal()
