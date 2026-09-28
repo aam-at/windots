@@ -4,12 +4,11 @@ module, so modules this setup doesn't use stay off instead of running at their
 defaults. FancyZones is off with -DesktopMode Komorebi, which tiles windows itself.
 #>
 
+[CmdletBinding()]
 param(
     [ValidateSet('Native', 'Komorebi')]
     [string]$DesktopMode = 'Native',
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest

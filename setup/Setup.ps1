@@ -1,6 +1,6 @@
 <#
 Runs every setup step in order; each step is its own script in this folder
-and can be re-run alone with the same -DryRun/-LogLevel switches. The first
+and can be re-run alone with the same -DryRun/-Verbose switches. The first
 column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
 
   Env        Configure-Env       HOME, ~/.local/bin on PATH, keyboards (EN-US, RU),
@@ -27,15 +27,14 @@ Usage:
   pwsh -File .\setup\Setup.ps1 -DesktopMode Komorebi
 #>
 
+[CmdletBinding()]
 param(
     [switch]$DryRun,
     [switch]$Force,
     # Step names from $steps below; pwsh -File passes "a,b" as one string.
     [string[]]$Skip = @(),
     [ValidateSet('Native', 'Komorebi')]
-    [string]$DesktopMode = 'Native',
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [string]$DesktopMode = 'Native'
 )
 
 Set-StrictMode -Version Latest
@@ -55,9 +54,9 @@ function Invoke-ElevatedScript([string]$ScriptPath, [hashtable]$Arguments = @{})
     catch { $false }
 }
 
-# Runs a sibling setup script with the shared -LogLevel/-DryRun switches.
+# Runs a sibling setup script with -DryRun; -Verbose reaches it through
+# $VerbosePreference.
 function Invoke-Step([string]$Name, [hashtable]$Arguments = @{}) {
-    $Arguments['LogLevel'] = $LogLevel
     if ($DryRun) { $Arguments['DryRun'] = $true }
     & (Join-Path $PSScriptRoot "$Name.ps1") @Arguments
     if (-not $?) { throw "$Name failed." }
@@ -67,7 +66,7 @@ function Configure-Registry {
     Invoke-Step 'Configure-Registry'
     if (-not (Test-IsAdmin)) {
         Write-Info 'Requesting administrator approval to enable Sudo, Developer Mode, long paths, and the agent power plan...'
-        $registryArgs = @{ LogLevel = $LogLevel; DryRun = [bool]$DryRun }
+        $registryArgs = @{ DryRun = [bool]$DryRun; Verbose = $VerbosePreference -eq 'Continue' }
         if (-not (Invoke-ElevatedScript (Join-Path $PSScriptRoot 'Configure-Registry.ps1') $registryArgs)) {
             Write-Warn 'Admin-only registry and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
         }
@@ -99,7 +98,7 @@ catch {
     exit 1
 }
 finally {
-    if (($script:Warnings.Count -gt 0) -and (Test-LogLevel 'Warn')) {
+    if ($script:Warnings.Count -gt 0) {
         Write-Host ''
         Write-Host "[SUMMARY] Completed with $($script:Warnings.Count) warning(s):" -ForegroundColor Yellow
         foreach ($w in $script:Warnings) { Write-Host "  - $w" -ForegroundColor Yellow }

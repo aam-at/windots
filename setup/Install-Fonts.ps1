@@ -7,10 +7,9 @@ Usage:
   pwsh -File .\setup\Install-Fonts.ps1 -DryRun
 #>
 
+[CmdletBinding()]
 param(
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest
@@ -85,7 +84,7 @@ function Install-Font {
         }
 
         $state = if ($copied) { 'Installed' } else { 'Registered' }
-        Write-DebugInfo "${state}: $($FontFile.Name)"
+        Write-Verbose "${state}: $($FontFile.Name)"
         return $true
     }
     catch {

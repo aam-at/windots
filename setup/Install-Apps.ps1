@@ -10,10 +10,9 @@ Scoop is the primary package manager for portable applications. Run
 setup\Bootstrap.ps1 first on a machine that doesn't have it yet.
 #>
 
+[CmdletBinding()]
 param(
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest
@@ -26,7 +25,7 @@ function Install-WingetPackage {
 
     winget list -e --id $Id --accept-source-agreements *>$null
     if ($LASTEXITCODE -eq 0) {
-        Write-DebugInfo "winget package is installed; checking for updates: $Id"
+        Write-Verbose "winget package is installed; checking for updates: $Id"
         return Invoke-NativeCommand -Description "winget package update $Id" -SuccessExitCodes @(0, -1978335189) -Action {
             winget upgrade -e --id $Id --silent --accept-source-agreements --accept-package-agreements
         }
@@ -44,7 +43,7 @@ function Install-ScoopPackage {
 
     scoop prefix $Name *>$null
     if ($LASTEXITCODE -eq 0) {
-        Write-DebugInfo "scoop package is installed; checking for updates: $Name"
+        Write-Verbose "scoop package is installed; checking for updates: $Name"
         return Invoke-NativeCommand -Description "Scoop package update $Name" -Action { scoop update $Name }
     }
 
@@ -222,7 +221,7 @@ $vdaUrl = 'https://github.com/Ciantic/VirtualDesktopAccessor/releases/download/2
 $vdaHash = '8740C572A1C000E3B87FFEB1E4C397EAE9AF3BD4A2ABDC3BCFFACAB4493F8FF5'
 $vdaPath = Join-Path $env:LOCALAPPDATA 'VirtualDesktopAccessor\VirtualDesktopAccessor.dll'
 if ((Test-Path -LiteralPath $vdaPath) -and (Get-FileHash -LiteralPath $vdaPath -Algorithm SHA256).Hash -eq $vdaHash) {
-    Write-DebugInfo "VirtualDesktopAccessor already installed: $vdaPath"
+    Write-Verbose "VirtualDesktopAccessor already installed: $vdaPath"
 }
 else {
     Write-Info "Downloading VirtualDesktopAccessor to $vdaPath"

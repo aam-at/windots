@@ -10,10 +10,9 @@ also enable Windows Sudo, Developer Mode, long paths, the closed-lid agent
 power plan, and user control of the Win+L lock policy (see Install-Startup.ps1).
 #>
 
+[CmdletBinding()]
 param(
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest

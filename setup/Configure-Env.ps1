@@ -8,10 +8,9 @@ Usage:
   pwsh -File .\setup\Configure-Env.ps1 -DryRun
 #>
 
+[CmdletBinding()]
 param(
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest

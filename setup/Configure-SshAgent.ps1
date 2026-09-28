@@ -12,11 +12,10 @@ account, so the key remains available after later sign-ins without storing
 its passphrase in this repository or a startup task.
 #>
 
+[CmdletBinding()]
 param(
     [string]$KeyPath = (Join-Path $HOME '.ssh\id_ed25519'),
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest

@@ -8,11 +8,10 @@ Usage:
   pwsh -File .\setup\Install-Links.ps1 -DryRun
 #>
 
+[CmdletBinding()]
 param(
     [switch]$DryRun,
-    [switch]$Force,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -20,8 +19,6 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-$WindotsRoot = Split-Path -Parent $PSScriptRoot
-function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
 function DotfilesPath([string]$Relative) { Join-Path $DotfilesRoot $Relative }
 
 function Remove-PathSafe([string]$Path) {

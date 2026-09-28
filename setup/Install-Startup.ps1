@@ -10,12 +10,11 @@ Usage:
   pwsh -File .\setup\Install-Startup.ps1 -DesktopMode Komorebi -DryRun
 #>
 
+[CmdletBinding()]
 param(
     [switch]$DryRun,
     [ValidateSet('Native', 'Komorebi')]
-    [string]$DesktopMode = 'Native',
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [string]$DesktopMode = 'Native'
 )
 
 Set-StrictMode -Version Latest
@@ -23,9 +22,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-$WindotsRoot = Split-Path -Parent $PSScriptRoot
 $ScoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
-function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
 
 function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$WorkingDirectory) {
     $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)

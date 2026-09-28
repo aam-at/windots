@@ -2,10 +2,9 @@
 Installs and initializes the Doom and Spacemacs distributions.
 #>
 
+[CmdletBinding()]
 param(
-    [switch]$DryRun,
-    [ValidateSet('Debug', 'Info', 'Warn', 'Error')]
-    [string]$LogLevel = 'Info'
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest

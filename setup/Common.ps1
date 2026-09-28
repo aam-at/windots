@@ -1,22 +1,22 @@
 <#
 Shared logging, dry-run, and command-detection helpers for windots scripts.
 Dot-source: . (Join-Path $PSScriptRoot 'Common.ps1')
-Expects the dot-sourcing script to declare -LogLevel (and -DryRun where
-Invoke-IfNotDryRun is used).
+Expects the dot-sourcing script to declare -DryRun where Invoke-IfNotDryRun
+is used; [CmdletBinding()] gives it -Verbose for Write-Verbose detail.
 #>
 
 # The shared dotfiles checkout; Configure-Env.ps1 persists DOTFILES, and a
 # fresh machine (before that step) falls back to Bootstrap.ps1's clone path.
 $DotfilesRoot = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
+# This checkout; $PSScriptRoot is setup\ even when dot-sourced.
+$WindotsRoot = Split-Path -Parent $PSScriptRoot
+function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
 
-$script:LogLevels = @{ Debug = 0; Info = 1; Warn = 2; Error = 3 }
 $script:Warnings = [System.Collections.Generic.List[string]]::new()
 
-function Test-LogLevel([string]$Level) { $script:LogLevels[$Level] -ge $script:LogLevels[$LogLevel] }
-function Write-DebugInfo($msg) { if (Test-LogLevel 'Debug') { Write-Host "[DEBUG] $msg" -ForegroundColor DarkGray } }
-function Write-Info($msg) { if (Test-LogLevel 'Info') { Write-Host "[INFO]  $msg" -ForegroundColor Cyan } }
-function Write-Warn($msg) { $script:Warnings.Add($msg); if (Test-LogLevel 'Warn') { Write-Host "[WARN]  $msg" -ForegroundColor Yellow } }
-function Write-Err($msg) { if (Test-LogLevel 'Error') { Write-Host "[ERROR] $msg" -ForegroundColor Red } }
+function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
+function Write-Warn($msg) { $script:Warnings.Add($msg); Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
+function Write-Err($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 function Test-Command([string]$Name) { $null -ne (Get-Command $Name -ErrorAction SilentlyContinue) }
 
@@ -45,7 +45,7 @@ function Invoke-NativeCommand {
         return $false
     }
 
-    if (Test-LogLevel 'Debug') { $nativeOutput | Out-Host }
+    $nativeOutput | Out-String | Write-Verbose
 
     return $true
 }
