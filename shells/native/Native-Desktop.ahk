@@ -38,6 +38,14 @@ VDA_MoveWindowToDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDeskto
 VDA_GetCurrentDesktopNumber := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
 VDA_GetDesktopCount := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
 
+; A desktop switch, by VDA or Windows itself, can leave the foreground on the
+; old desktop's now-cloaked window: WinExist("A") is then 0, so Win+H/J/K/L do
+; nothing, and new windows (Win+T) open behind. VDA posts this message on every
+; switch; focus the new desktop's top window unless Windows already did.
+VDA_RegisterPostMessageHook := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "RegisterPostMessageHook", "Ptr")
+DllCall(VDA_RegisterPostMessageHook, "Ptr", A_ScriptHwnd, "Int", 0x1400 + 30, "Int")
+OnMessage 0x1400 + 30, (*) => WinExist("A") || FocusTopWindow()
+
 ; WindowsVirtualDesktopHelper 2.0, the latest release, lets Windows show its
 ; hidden host form (a stray "Windows Virtual Desktop Manager" title bar) after
 ; unlock, display changes or an Explorer restart. Fixed upstream (82a2689) but
@@ -79,6 +87,14 @@ IsFocusable(hwnd) {
     cloaked := 0
     DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", 14, "UInt*", &cloaked, "UInt", 4)
     return !cloaked
+}
+
+; Topmost window on this desktop, or the desktop itself when it has none.
+FocusTopWindow() {
+    for hwnd in WinGetList()   ; z-order, topmost first
+        if IsFocusable(hwnd)
+            return WinActivate(hwnd)
+    WinActivate "ahk_class Progman"
 }
 
 ; niri focus-column-left/right: activate the nearest
