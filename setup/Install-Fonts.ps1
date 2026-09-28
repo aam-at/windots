@@ -37,8 +37,8 @@ namespace $namespace {
     public static class NativeMethods {
         [DllImport("gdi32.dll", EntryPoint="AddFontResourceW", CharSet=CharSet.Unicode, SetLastError=true)]
         public static extern int AddFontResource(string lpFileName);
-        [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)]
-        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
+        public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     }
 }
 "@
@@ -125,5 +125,7 @@ foreach ($kvp in $fontsMap.GetEnumerator()) {
     Install-FontFolder $dest $isCurrentUser
 }
 
-if (-not $DryRun) { [void]$Native::SendMessage([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero) }
+# Broadcast WM_FONTCHANGE; a plain SendMessage waits forever on any window that
+# isn't pumping messages, so skip hung ones (SMTO_ABORTIFHUNG) after 1s each.
+if (-not $DryRun) { $result = [IntPtr]::Zero; [void]$Native::SendMessageTimeout([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero, 0x2, 1000, [ref]$result) }
 Write-Info 'Font installation step complete. Restart affected applications to refresh their font lists.'
