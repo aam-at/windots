@@ -196,6 +196,7 @@ if ($init = Import-ToolInit starship init, powershell, --print-full-init) {
     }
 }
 if ($init = Import-ToolInit zoxide init, powershell) { . $init }
+if ($init = Import-ToolInit herdr completions, powershell) { . $init }
 
 if ($PSVersionTable.PSVersion.Major -ge 7 -and ($init = Import-ToolInit direnv hook, pwsh)) { . $init }
 

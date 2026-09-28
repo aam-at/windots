@@ -1,0 +1,23 @@
+#!/bin/sh
+# `tmux` for gpakosz's framework and TPM plugins under rmux:
+#  - they parse `tmux -V`, which rmux answers as "rmux <version>" unless run
+#    as tmux.exe;
+#  - they pass -S #{socket_path} unquoted, which sh mangles for a \\.\pipe\
+#    path; $TMUX already names the server, so -S is dropped;
+#  - they read Windows paths with `read` (resurrect) or paste them into JSON
+#    (aw-watcher-tmux), where \ is an escape, so queries answer with / .
+#  - tmux-thumbs (a Rust build) and tmux-fpp (fpp) don't run here, so
+#    they're dropped from the plugin list gpakosz hands TPM.
+[ "$1" = -S ] && shift 2
+[ "$1 $2 $3" = "set -g @tpm_plugins" ] &&
+    exec rmux set -g @tpm_plugins "$(printf '%s\n' "$4" | grep -vE '/tmux-(thumbs|fpp)$')"
+#  - a popup from a job needs -c here, where tmux would pick the client
+#    (tmux-fzf's fzf-tmux otherwise waits forever on its fifo).
+case "$1" in
+    popup | display-popup)
+        cmd=$1; shift
+        exec rmux "$cmd" -c "$(rmux list-clients -F '#{client_activity} #{client_name}' | sort -rn | head -1 | cut -d' ' -f2)" "$@" ;;
+    -V) exec echo "tmux $(rmux display -p '#{version}' 2>/dev/null || echo 3.4)" ;;
+    display | display-message | list-panes | list-sessions | list-windows) rmux "$@" | sed 's|\\|/|g' ;;
+    *) exec rmux "$@" ;;
+esac

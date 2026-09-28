@@ -90,6 +90,7 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'fastfetch')                                                                 = (WindotsPath 'fastfetch')
     (Join-Path $env:LOCALAPPDATA 'lazygit')                                                                   = (DotfilesPath 'config\lazygit')
     (Join-Path $HOME '.config\starship.toml')                                                                 = (DotfilesPath 'config\starship.toml')
+    (Join-Path $env:APPDATA 'rmux')                                                                           = (WindotsPath 'rmux')
     (Join-Path $HOME '.config\theme')                                                                         = (DotfilesPath 'themes\gruvbox-dark')
     (Join-Path $HOME '.claude\settings.json')                                                                 = (DotfilesPath 'config\agents\claude\settings.json')
     (Join-Path $HOME '.codex\config.toml')                                                                    = (DotfilesPath 'config\agents\codex\config.toml')
