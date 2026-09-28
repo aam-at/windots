@@ -28,7 +28,9 @@ if ($InSandbox) {
         scoop install git
         # Bootstrap would clone origin/master; copy the working tree instead.
         robocopy $sandboxRepo "$HOME\windots" /E /NFL /NDL /NJH /NJS /XD .sandbox | Out-Null
-        & "$HOME\windots\setup\Bootstrap.ps1"
+        # Piping redirects the pwsh child's stdout so the transcript sees it;
+        # stderr stays on the console (redirected, 5.1 makes it terminating).
+        & "$HOME\windots\setup\Bootstrap.ps1" | Out-Host
     }
     catch { Write-Host "[SANDBOX] $_" -ForegroundColor Red }
     finally {

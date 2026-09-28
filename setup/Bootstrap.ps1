@@ -45,5 +45,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $dotfilesRoot '.git'))) {
     git clone https://github.com/aam-at/dotfiles.git $dotfilesRoot
 }
 
+# Setup.ps1 needs pwsh: Windows PowerShell turns native stderr (rustup's
+# info: lines) into terminating errors under ErrorActionPreference=Stop.
+if (-not (Test-Command 'pwsh')) {
+    Write-Host '[INFO] Installing PowerShell via Scoop...'
+    scoop install pwsh
+}
+
 Write-Host '[INFO] Running Setup.ps1...'
-& (Join-Path $windotsRoot 'setup\Setup.ps1')
+pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $windotsRoot 'setup\Setup.ps1')
+exit $LASTEXITCODE
