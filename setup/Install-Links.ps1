@@ -67,8 +67,40 @@ function Ensure-Link([string]$Destination, [string]$Source) {
     catch { Write-Warn "Cannot link $Destination -> ${sourcePath}: $($_.Exception.Message)" }
 }
 
+# PowerShell profiles are a one-line stub that dot-sources scripts\Profile.ps1,
+# not a link: installers that edit $PROFILE replace the file, which breaks a
+# link and leaves a copy that silently stops following the repo. What they
+# add lands in the stub instead, and this warns about it.
+function Ensure-ProfileStub([string]$Path) {
+    $source = WindotsPath 'scripts\Profile.ps1'
+    $stub = ". '$source'"
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($item -and -not ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+        $lines = @(Get-Content -LiteralPath $Path | Where-Object { $_.Trim() })
+        if ($lines.Count -eq 1 -and $lines[0] -eq $stub) { return }
+        if ($lines -contains $stub) {
+            Write-Warn "Profile has lines beyond the windots stub (move them into scripts\Profile.ps1 or drop them): $Path`n  $(($lines | Where-Object { $_ -ne $stub }) -join "`n  ")"
+            return
+        }
+        # A copy of the repo profile is the old drift; anything else is yours.
+        if ((Get-FileHash -LiteralPath $Path).Hash -ne (Get-FileHash -LiteralPath $source).Hash) {
+            if (-not $Force) {
+                Write-Warn "Profile is not the windots stub; preserving it. Re-run with -Force to back it up and replace it: $Path"
+                return
+            }
+            Write-Info "Backing up profile: $Path.bak"
+            Invoke-IfNotDryRun { Copy-Item -LiteralPath $Path -Destination "$Path.bak" -Force }
+        }
+    }
+    Write-Info "Writing profile stub: $Path"
+    Invoke-IfNotDryRun {
+        if ($item) { Remove-Item -LiteralPath $Path -Force }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
+        Set-Content -LiteralPath $Path -Value $stub -Encoding utf8
+    }
+}
+
 $linkMap = @{
-    ($PROFILE.CurrentUserAllHosts)                                                                            = (WindotsPath 'scripts\Profile.ps1')
     (Join-Path $HOME '.local\bin\cc-personal.cmd')                                                            = (WindotsPath 'cmd\cc-personal.cmd')
     (Join-Path $HOME '.local\bin\cc-work.cmd')                                                                = (WindotsPath 'cmd\cc-work.cmd')
     (Join-Path $HOME '.local\bin\herdr.cmd')                                                                  = (WindotsPath 'cmd\herdr.cmd')
@@ -113,13 +145,11 @@ $linkMap = @{
     (Join-Path $HOME '.config\emacs\spacemacs\init.el')                                                       = (DotfilesPath 'emacs\spacemacs\init.el')
 }
 
-$windowsPowerShellProfile = Join-Path $HOME 'Documents\WindowsPowerShell\profile.ps1'
-if ($PROFILE.CurrentUserAllHosts -ne $windowsPowerShellProfile) {
-    $linkMap[$windowsPowerShellProfile] = WindotsPath 'scripts\Profile.ps1'
-}
-
 try {
     foreach ($link in $linkMap.GetEnumerator()) { Ensure-Link $link.Key $link.Value }
+    # pwsh 7's and Windows PowerShell 5.1's (herdr's fallback shell).
+    $profiles = @($PROFILE.CurrentUserAllHosts, (Join-Path $HOME 'Documents\WindowsPowerShell\profile.ps1')) | Select-Object -Unique
+    foreach ($path in $profiles) { Ensure-ProfileStub $path }
 
     # The psmux plugins psmux\psmux.conf declares, from the psmux-plugins monorepo.
     $plugins = Join-Path $HOME '.psmux\plugins'
