@@ -1,5 +1,5 @@
 <#
-Installs applications via winget, Scoop, and Bun, plus PowerShell modules and
+Installs applications via winget, Scoop, Bun and uv, plus PowerShell modules and
 VirtualDesktopAccessor.dll (used by shells\native\Native-Desktop.ahk).
 
 Usage:
@@ -59,7 +59,7 @@ $wingetApps = @(
     'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'Helvesec.RMUX',
     'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal', 'marlocarlo.psmux',
     'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.VisualStudio.BuildTools',
-    'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'WinFsp.WinFsp'
+    'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'WinFsp.WinFsp'
 )
 
 if (Test-Command 'winget') {
@@ -67,6 +67,18 @@ if (Test-Command 'winget') {
     foreach ($id in $wingetApps) {
         if (-not (Install-WingetPackage -Id $id)) {
             $packageFailures.Add("winget:$id")
+        }
+    }
+    # tailscale login needs the Tailscale service (tailscaled) running.
+    $tailscaled = Get-Service -Name Tailscale -ErrorAction SilentlyContinue
+    if ($tailscaled -and ($tailscaled.Status -ne 'Running' -or $tailscaled.StartType -ne 'Automatic')) {
+        Write-Info 'Requesting administrator approval to enable and start the Tailscale service...'
+        Invoke-IfNotDryRun {
+            try {
+                Start-Process -FilePath (Get-Process -Id $PID).Path -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command',
+                'Set-Service -Name Tailscale -StartupType Automatic -Status Running'
+            }
+            catch { Write-Warn 'Tailscale service was not started (elevation declined); run: Start-Service Tailscale' }
         }
     }
 }
@@ -91,9 +103,10 @@ $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
     'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
     'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
-    'tailscale', 'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm',
+    'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm',
     'windows-virtualdesktop-helper', 'winrar', 'yasb', 'zed'
 )
+$uvTools = @('tmuxp')
 $bunApps = @(
     '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest',
     '@marp-team/marp-cli', '@openai/codex@latest', 'bibtex-tidy', 'copilot-cli',
@@ -183,6 +196,19 @@ if (Test-Command 'scoop') {
     }
     else {
         Write-Warn 'bun not found after Scoop installation; skipping Bun packages.'
+    }
+
+    # tmuxp: tmux session templates, run against rmux (rmux\tmux.cmd) or psmux.
+    if (Test-Command 'uv') {
+        foreach ($tool in $uvTools) {
+            Write-Info "uv tool install $tool"
+            if (-not (Invoke-NativeCommand -Description "uv tool $tool" -Action { uv tool install $tool })) {
+                $packageFailures.Add("uv:$tool")
+            }
+        }
+    }
+    else {
+        Write-Warn 'uv not found after Scoop installation; skipping uv tools.'
     }
 }
 else {
