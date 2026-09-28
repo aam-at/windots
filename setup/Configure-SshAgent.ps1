@@ -25,7 +25,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
 if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
-    throw "SSH private key not found: $KeyPath"
+    # Expected on a fresh machine; copy the key over and rerun this step.
+    Write-Warn "SSH private key not found, skipping ssh-agent: $KeyPath"
+    exit 0
 }
 
 $agent = Get-Service -Name ssh-agent -ErrorAction SilentlyContinue
