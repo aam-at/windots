@@ -107,8 +107,8 @@ $scoopAppsExtras = @(
 )
 $uvTools = @('tmuxp')
 $bunApps = @(
-    '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest',
-    '@marp-team/marp-cli', '@openai/codex@latest', 'bibtex-tidy', 'copilot-cli',
+    '@anthropic-ai/claude-code@latest', '@github/copilot', '@google/gemini-cli@latest',
+    '@marp-team/marp-cli', '@openai/codex@latest', 'bibtex-tidy',
     'dockerfile-language-server-nodejs', 'js-beautify', 'oh-my-pi', 'opencode-ai',
     'pi-coding-agent', 'prettier', 'typescript', 'typescript-formatter',
     'typescript-language-server', 'vim-language-server', 'vscode-json-languageserver',
