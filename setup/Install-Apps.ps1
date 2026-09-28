@@ -140,7 +140,8 @@ if (Test-Command 'scoop') {
     if (Test-Path -LiteralPath $checkver) {
         Write-Info 'Checking repo scoop manifests for new versions'
         Invoke-IfNotDryRun {
-            try { & $checkver -App '*' -Dir $manifestDir -Update -SkipUpdated }
+            # Scoop's scripts read absent config keys, which our strict mode rejects.
+            try { & { Set-StrictMode -Off; & $checkver -App '*' -Dir $manifestDir -Update -SkipUpdated } }
             catch { Write-Warn "checkver failed; installing manifests as they are: $_" }
         }
     }
