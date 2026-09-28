@@ -2,7 +2,7 @@
 
 ; niri bindings (~/dotfiles/config/niri/common/binds.kdl and shells/noctalia.kdl)
 ; that behave the same in both desktop modes: session, launchers, shell panels,
-; close, monitor off. Each mode binds its own Win+D overview. Win is Mod. Include it after #UseHook:
+; wellbeing, close, monitor off. Each mode binds its own Win+D overview. Win is Mod. Include it after #UseHook:
 ;   #Include %A_ScriptDir%\..\Niri-Common.ahk
 ; Left untouched on purpose (already match niri): Win+Tab overview, Win+E files,
 ; Win+V clipboard, Win+N notifications, Win+Shift+/ Shortcut Guide.
@@ -89,6 +89,13 @@ ToggleDnd() {
     SetTimer () => ToolTip(), -1500
 }
 
+; dotfiles' wellbeing helper, which shows its own popup: --focus toggles focus
+; mode, --bedtime turns bedtime on or off.
+Wellbeing(command) {
+    dotfiles := EnvGet("DOTFILES") || EnvGet("USERPROFILE") "\dotfiles"
+    Run(Format('"{}\tools\wellbeing\wellbeing.exe" {}', dotfiles, command))
+}
+
 ; Power off the display without locking or sleeping (niri power-off-monitors).
 MonitorOff() {
     hwnd := DllCall("FindWindow", "Str", "Progman", "Ptr", 0, "Ptr")
@@ -118,8 +125,12 @@ MonitorOff() {
 
 ; === Shell panels (Noctalia equivalents) ===
 #m::Send "#a"                   ; quick settings
-#+n::ToggleDnd()                ; Do Not Disturb (Win+N: notifications)
+#!n::ToggleDnd()                ; Do Not Disturb (Win+N: notifications), Mod+Alt+N on Linux
 #y::Run "ms-settings:personalization-background"
+
+; === Wellbeing (the same Mod+Alt keys as on Linux) ===
+#!z::Wellbeing("--focus")       ; focus mode (the bar timer's middle-click too)
+#!s::Wellbeing("--bedtime")     ; bedtime on or off (not Win+Alt+B: Game Bar owns it)
 #,::Run "ms-settings:personalization"
 
 ; === Window Management ===

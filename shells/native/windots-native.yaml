@@ -175,10 +175,28 @@ Shortcuts:
         Shortcut:
           - Win: true
             Ctrl: false
-            Shift: true
-            Alt: false
+            Shift: false
+            Alt: true
             Keys:
               - N
+      - Name: Focus mode
+        Description: Wellbeing: Do Not Disturb and nudges for distracting apps and sites
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - Z
+      - Name: Bedtime
+        Description: Wellbeing: grayscale and Do Not Disturb on or off
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: true
+            Keys:
+              - S
       - Name: Change wallpaper
         Shortcut:
           - Win: true
