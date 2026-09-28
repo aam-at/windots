@@ -45,12 +45,15 @@ desktop options; automatic monitor detection is intentionally not used.
   Stops Komorebi, enables the native Windows virtual-desktop workflow with
   PowerToys Workspaces and FancyZones, hides the bottom taskbar, and keeps the
   YASB top bar (showing the numbered virtual desktops).
-  Keybindings follow niri with Win as Mod: `Win+H/J/K/L` focus,
-  `Win+1`..`Win+9` jump to numbered virtual desktops (add Shift to move the
+  Keybindings follow niri with Win as Mod: `Win+H/L` focus left/right,
+  `Win+J/K` cycle the windows on the monitor, `Win+1`..`Win+9` jump to numbered virtual desktops (add Shift to move the
   focused window there), and `Win+X` opens the lock/sleep/restart/shut down
   menu. Win+L is freed for focus-right in this mode, so lock with `Win+Alt+L`
   or the `Win+X` menu. Caps Lock taps as Escape (or holds as Left Ctrl), while
-  Escape is Caps Lock.
+  Escape is Caps Lock. Unlike Komorebi mode, Windows keeps its own Win+Arrow,
+  Win+Shift+Arrow and Win+Ctrl+Left/Right keys (snap, move to monitor, switch
+  desktop); the trade-offs are listed at the top of
+  `shells\native\Native-Desktop.ahk`.
 
 - **External monitor / Komorebi:**
   `pwsh -File .\shells\komorebi\Use-Desktop.ps1`

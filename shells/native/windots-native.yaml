@@ -63,6 +63,24 @@ Shortcuts:
             Alt: false
             Keys:
               - "`"
+      - Name: WhatsApp
+        Description: Chat scratchpad: show or hide
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - W
+      - Name: Teams
+        Description: Chat scratchpad: show or hide
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: true
+            Alt: false
+            Keys:
+              - W
       - Name: File Explorer
         Shortcut:
           - Win: true
@@ -262,7 +280,7 @@ Shortcuts:
   - SectionName: Focus
     Properties:
       - Name: Focus window left
-        Description: Also Win+Left
+        Description: Nearest window that way. Win+Arrows stay Windows snap
         Recommended: true
         Shortcut:
           - Win: true
@@ -271,8 +289,8 @@ Shortcuts:
             Alt: false
             Keys:
               - H
-      - Name: Focus window down
-        Description: Also Win+Down
+      - Name: Next window on monitor
+        Description: Sends the current one to the back
         Shortcut:
           - Win: true
             Ctrl: false
@@ -280,8 +298,8 @@ Shortcuts:
             Alt: false
             Keys:
               - J
-      - Name: Focus window up
-        Description: Also Win+Up
+      - Name: Previous window on monitor
+        Description: Brings back the one at the back
         Shortcut:
           - Win: true
             Ctrl: false
@@ -290,7 +308,7 @@ Shortcuts:
             Keys:
               - K
       - Name: Focus window right
-        Description: Also Win+Right
+        Description: Nearest window that way
         Recommended: true
         Shortcut:
           - Win: true
@@ -299,11 +317,28 @@ Shortcuts:
             Alt: false
             Keys:
               - L
+      - Name: Focus monitor left
+        Description: Win+Ctrl+Left/Right stay previous/next desktop
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - H
+      - Name: Focus monitor right
+        Shortcut:
+          - Win: true
+            Ctrl: true
+            Shift: false
+            Alt: false
+            Keys:
+              - L
 
   - SectionName: Window Placement
     Properties:
       - Name: Snap window left
-        Description: Via FancyZones. Also Win+Shift+Left
+        Description: Via FancyZones, as Win+Left
         Shortcut:
           - Win: true
             Ctrl: false
@@ -311,8 +346,8 @@ Shortcuts:
             Alt: false
             Keys:
               - H
-      - Name: Snap window down
-        Description: Via FancyZones. Also Win+Shift+Down
+      - Name: Restore or minimize window
+        Description: As Win+Down
         Shortcut:
           - Win: true
             Ctrl: false
@@ -320,8 +355,8 @@ Shortcuts:
             Alt: false
             Keys:
               - J
-      - Name: Snap window up
-        Description: Via FancyZones. Also Win+Shift+Up
+      - Name: Maximize window
+        Description: As Win+Up
         Shortcut:
           - Win: true
             Ctrl: false
@@ -330,7 +365,7 @@ Shortcuts:
             Keys:
               - K
       - Name: Snap window right
-        Description: Via FancyZones. Also Win+Shift+Right
+        Description: Via FancyZones, as Win+Right
         Shortcut:
           - Win: true
             Ctrl: false
@@ -339,6 +374,7 @@ Shortcuts:
             Keys:
               - L
       - Name: Move window to monitor left
+        Description: Also Windows' own Win+Shift+Left
         Shortcut:
           - Win: true
             Ctrl: true
@@ -347,6 +383,7 @@ Shortcuts:
             Keys:
               - H
       - Name: Move window to monitor right
+        Description: Also Windows' own Win+Shift+Right
         Shortcut:
           - Win: true
             Ctrl: true
@@ -354,6 +391,33 @@ Shortcuts:
             Alt: false
             Keys:
               - L
+
+  - SectionName: Sizing
+    Properties:
+      - Name: Cycle window width
+        Description: 1/3, 1/2 or full width
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - R
+      - Name: Narrower / wider
+        Description: Add Shift for height
+        Shortcut:
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "-"
+          - Win: true
+            Ctrl: false
+            Shift: false
+            Alt: false
+            Keys:
+              - "="
 
   - SectionName: Virtual Desktops
     Properties:
@@ -377,7 +441,7 @@ Shortcuts:
             Keys:
               - "1"
       - Name: Next desktop
-        Description: Also scroll down while holding Win
+        Description: Also Win+Ctrl+Right, or scroll down while holding Win
         Shortcut:
           - Win: true
             Ctrl: false
@@ -392,7 +456,7 @@ Shortcuts:
             Keys:
               - PgDn
       - Name: Previous desktop
-        Description: Also scroll up while holding Win
+        Description: Also Win+Ctrl+Left, or scroll up while holding Win
         Shortcut:
           - Win: true
             Ctrl: false

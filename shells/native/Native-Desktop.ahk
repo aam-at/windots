@@ -10,6 +10,19 @@
 ; Win+L is free for focus-right because setup\Install-Startup.ps1 sets
 ; DisableLockWorkstation; Win+Alt+L and the Win+X menu lock. Launchers, panels
 ; and other mode-independent keys live in ..\Niri-Common.ahk.
+;
+; Trade-offs against komorebi.ahk, taken so Windows keeps its own keys where it
+; already does the job:
+; - Win+Arrows stay Windows': Snap/FancyZones on Left/Right, maximize and
+;   minimize on Up/Down. Komorebi aliases them to Win+H/J/K/L focus.
+; - Win+Shift+Left/Right stay Windows' move-to-monitor, Win+Shift+Up/Down its
+;   vertical stretch. Komorebi aliases them to Win+Shift+H/J/K/L.
+; - Win+Ctrl+Left/Right stay Windows' previous/next desktop. Komorebi uses them
+;   for monitor focus; Win+Ctrl+H/L do that here too.
+; - Win+J/K cycle the windows on the focused monitor, topmost first. Windows
+;   overlap or sit maximized here, so this stands in for Komorebi's stack cycle.
+; - No column stacking (Win+[ ] .) or floating layer (Win+Shift+V): nothing
+;   tiles. Win+Shift+T pins on top instead of floating.
 
 ; VirtualDesktopAccessor switches and moves windows between desktops, which
 ; Windows has no public API for (https://github.com/Ciantic/VirtualDesktopAccessor).
@@ -52,7 +65,7 @@ IsFocusable(hwnd) {
     return !cloaked
 }
 
-; niri focus-column-left/right and focus-window-up/down: activate the nearest
+; niri focus-column-left/right: activate the nearest
 ; window whose centre lies in that direction, preferring ones in line.
 ; ponytail: centre-distance heuristic; overlapping windows with the same centre are skipped.
 FocusDirection(dir, *) {
@@ -66,20 +79,39 @@ FocusDirection(dir, *) {
             continue
         WinGetPos &x2, &y2, &w2, &h2, candidate
         dx := x2 + w2 / 2 - cx, dy := y2 + h2 / 2 - cy
-        switch dir {
-            case "left": along := -dx, across := Abs(dy)
-            case "right": along := dx, across := Abs(dy)
-            case "up": along := -dy, across := Abs(dx)
-            case "down": along := dy, across := Abs(dx)
-        }
+        along := dir = "left" ? -dx : dx
         if along <= 0
             continue
-        score := along + 2 * across
+        score := along + 2 * Abs(dy)
         if !best || score < bestScore
             best := candidate, bestScore := score
     }
     if best
         WinActivate best
+}
+
+; niri focus-window-down/up (Komorebi cycle-stack): walk the windows on the
+; active window's monitor in z-order. Next sends the active window to the back.
+CycleWindow(next) {
+    if !(hwnd := WinExist("A"))
+        return
+    WinGetPos &x, &y, &w, &h, hwnd
+    monitor := MonitorOf(x + w / 2, y + h / 2)
+    windows := []
+    for candidate in WinGetList() {   ; z-order, topmost first
+        if candidate != hwnd && IsFocusable(candidate) {
+            WinGetPos &x, &y, &w, &h, candidate
+            if MonitorOf(x + w / 2, y + h / 2) = monitor
+                windows.Push(candidate)
+        }
+    }
+    if !windows.Length
+        return
+    if next {
+        WinMoveBottom hwnd
+        WinActivate windows[1]
+    } else
+        WinActivate windows[-1]
 }
 
 ; niri center-column
@@ -97,6 +129,52 @@ CenterWindow() {
             return
         }
     }
+}
+
+; niri focus-monitor-left/right (Komorebi cycle-monitor): activate the topmost
+; window on the previous or next monitor, in monitor index order.
+FocusMonitor(delta) {
+    if !(hwnd := WinExist("A"))
+        return
+    WinGetPos &x, &y, &w, &h, hwnd
+    count := MonitorGetCount()
+    target := Mod(MonitorOf(x + w / 2, y + h / 2) - 1 + delta + count, count) + 1
+    for candidate in WinGetList() {   ; z-order, topmost first
+        if candidate = hwnd || !IsFocusable(candidate)
+            continue
+        WinGetPos &x, &y, &w, &h, candidate
+        if MonitorOf(x + w / 2, y + h / 2) = target
+            return WinActivate(candidate)
+    }
+}
+
+; niri set-column-width/set-window-height by a tenth of the work area, about
+; the window's centre.
+ResizeActive(dw, dh) {
+    if !(hwnd := WinExist("A"))
+        return
+    if WinGetMinMax(hwnd) != 0
+        WinRestore hwnd
+    WinGetPos &x, &y, &w, &h, hwnd
+    MonitorGetWorkArea MonitorOf(x + w / 2, y + h / 2), &left, &top, &right, &bottom
+    dw *= (right - left) / 10, dh *= (bottom - top) / 10
+    WinMove x - dw / 2, y - dh / 2, w + dw, h + dh, hwnd
+}
+
+; niri switch-preset-column-width: cycle 1/3, 1/2 and full work-area width.
+; ponytail: one counter for all windows, as komorebi.ahk's CycleColumns.
+CycleWidth() {
+    static presets := [1 / 3, 1 / 2, 1], i := 2
+    if !(hwnd := WinExist("A"))
+        return
+    i := Mod(i, presets.Length) + 1
+    if WinGetMinMax(hwnd) != 0
+        WinRestore hwnd
+    WinGetPos &x, &y, &w, &h, hwnd
+    MonitorGetWorkArea MonitorOf(x + w / 2, y + h / 2), &left, &top, &right, &bottom
+    nw := (right - left) * presets[i]
+    nx := Min(Max(x + (w - nw) / 2, left), right - nw)
+    WinMove nx, , nw, , hwnd
 }
 
 GoToDesktop(target, *) {
@@ -126,31 +204,30 @@ MoveWindowToRelativeDesktop(delta) {
 #+t::Send "#^t"                 ; PowerToys Always On Top (niri toggle-window-floating)
 #+c::CenterWindow()
 
+; === Sizing ===
+#r::CycleWidth()
+#-::ResizeActive(-1, 0)
+#=::ResizeActive(1, 0)
+#+-::ResizeActive(0, -1)
+#+=::ResizeActive(0, 1)
+
 ; === Focus Navigation ===
 #h::FocusDirection("left")
-#j::FocusDirection("down")
-#k::FocusDirection("up")
+#j::CycleWindow(true)
+#k::CycleWindow(false)
 #l::FocusDirection("right")
-#Left::FocusDirection("left")
-#Down::FocusDirection("down")
-#Up::FocusDirection("up")
-#Right::FocusDirection("right")
 
 ; === Window Movement (FancyZones snaps on Win+Arrow) ===
 #+h::Send "#{Left}"
 #+j::Send "#{Down}"
 #+k::Send "#{Up}"
 #+l::Send "#{Right}"
-#+Left::Send "#{Left}"
-#+Down::Send "#{Down}"
-#+Up::Send "#{Up}"
-#+Right::Send "#{Right}"
 
-; === Move to Monitor ===
+; === Monitor Navigation ===
+#^h::FocusMonitor(-1)
+#^l::FocusMonitor(1)
 #+^h::Send "#+{Left}"
 #+^l::Send "#+{Right}"
-#+^Left::Send "#+{Left}"
-#+^Right::Send "#+{Right}"
 
 ; === Workspace Navigation ===
 #u::Send "#^{Right}"
@@ -169,6 +246,14 @@ MoveWindowToRelativeDesktop(delta) {
 #WheelUp:: WheelReady() && Send("#^{Left}")
 #^WheelDown:: WheelReady() && MoveWindowToRelativeDesktop(1)
 #^WheelUp:: WheelReady() && MoveWindowToRelativeDesktop(-1)
+#WheelRight::FocusDirection("right")
+#WheelLeft::FocusDirection("left")
+#^WheelRight::Send "#{Right}"
+#^WheelLeft::Send "#{Left}"
+#+WheelDown::FocusDirection("right")
+#+WheelUp::FocusDirection("left")
+#^+WheelDown::Send "#{Right}"
+#^+WheelUp::Send "#{Left}"
 
 ; === Numbered Workspaces: Win+1..9 go, Win+Shift+1..9 move (follows the window) ===
 loop 9 {
