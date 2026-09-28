@@ -1,8 +1,8 @@
 <#
 Builds a native helper, <name>.exe next to <name>.c, with gcc. The C library
 shared with dotfiles' tools (dotfiles\tools\lib: http.h, json.h) is on the
-include path. Skips the build when the exe is newer than the source and every
-header it may include (beside it, and the shared library's), unless -Force.
+include path. Skips the build when the exe is newer than every .c and .h
+beside the source and in the shared library, unless -Force.
 A running copy is stopped for the build; a long-running -Windows helper is
 started again after. Setup (Install-Startup.ps1) runs this for each helper.
 
@@ -28,22 +28,10 @@ $exe = [IO.Path]::ChangeExtension($Source, '.exe')
 $dotfiles = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
 $library = Join-Path $dotfiles 'tools\lib'
 
-# The source and the headers it includes ("..."), found beside it or in the
-# library, and theirs in turn.
-$inputs = @{}
-$pending = [Collections.Generic.Queue[string]]::new()
-$pending.Enqueue($Source)
-while ($pending.Count) {
-    $file = $pending.Dequeue()
-    if ($inputs.ContainsKey($file)) { continue }
-    $inputs[$file] = Get-Item -LiteralPath $file
-    foreach ($match in Select-String -LiteralPath $file -Pattern '^\s*#\s*include\s+"([^"]+)"') {
-        $name = $match.Matches[0].Groups[1].Value
-        $header = @((Join-Path (Split-Path -Parent $file) $name), (Join-Path $library $name)) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-        if ($header) { $pending.Enqueue((Resolve-Path -LiteralPath $header).Path) }
-    }
-}
-$newest = ($inputs.Values | Measure-Object -Property LastWriteTime -Maximum).Maximum
+# Any C file beside the source or in the library, included or not: a
+# needless rebuild is cheap.
+$inputs = Get-ChildItem -Path "$(Split-Path -Parent $Source)\*", "$library\*" -Include *.c, *.h -File -ErrorAction SilentlyContinue
+$newest = ($inputs | Measure-Object -Property LastWriteTime -Maximum).Maximum
 if (-not $Force -and (Test-Path -LiteralPath $exe) -and (Get-Item -LiteralPath $exe).LastWriteTime -ge $newest) {
     Write-Host "Up to date: $exe"
     return
