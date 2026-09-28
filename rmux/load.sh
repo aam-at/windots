@@ -21,9 +21,13 @@ fi
 # tmux.conf.local's Linux default-command (fish) goes back to pwsh, and
 # gpakosz's F (fpp, not installed here) is unbound.
 tmux source-file "$TMUX_CONF" \; set -g default-command pwsh \; unbind F
+# Helix is hx here, not helix, for tmux-resurrect's restore.
+tmux set -ga @resurrect-processes ' hx'
 # gpakosz runs TPM in a background job; snapshot once it has come and gone.
 for _ in $(seq 60); do ps -ef | grep -q '[_]_apply_plugins' && break; sleep 1; done
 while ps -ef | grep -q '[_]_apply_plugins'; do sleep 2; done
+# gpakosz's r reload would skip the snapshot; reset.sh rebuilds it.
+tmux bind r run-shell -b "$here/reset.sh"
 mkdir -p "${cache%/*}"
 {
     tmux show -g | sed 's/^/set -g /'
@@ -31,3 +35,4 @@ mkdir -p "${cache%/*}"
     tmux show-environment -g TMUX_PLUGIN_MANAGER_PATH | sed 's/^\([^=]*\)=\(.*\)$/setenv -g \1 "\2"/'
     tmux list-keys
 } > "$cache.tmp" && mv "$cache.tmp" "$cache"
+tmux display 'tmux config loaded'
