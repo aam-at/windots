@@ -56,10 +56,10 @@ $packageFailures = [System.Collections.Generic.List[string]]::new()
 
 # Winget apps (install per-ID for clearer output and retries)
 $wingetApps = @(
-    'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'Helvesec.RMUX', 'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
-    'lin-ycv.EverythingCmdPal',
-    'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal',
-    'WinFsp.WinFsp'
+    'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'Helvesec.RMUX',
+    'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal',
+    'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.VisualStudio.BuildTools',
+    'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'WinFsp.WinFsp'
 )
 
 if (Test-Command 'winget') {
@@ -76,25 +76,31 @@ else {
 
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
-    '7zip', 'ag', 'antigravity-cli', 'aspell', 'bat', 'bitwarden-cli', 'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl', 'everything-cli',
-    'delta', 'direnv', 'dust', 'eza', 'far', 'fastfetch', 'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'gitui',
-    'glow', 'gnupg', 'go', 'gping', 'git-crypt', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2',
-    'navi', 'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'ripgrep', 'rustup',
-    'rclone', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
-    'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
+    '7zip', 'ag', 'antigravity-cli', 'aspell', 'bat', 'bitwarden-cli', 'bottom',
+    'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl',
+    'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch', 'fd',
+    'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt', 'gitui',
+    'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd',
+    'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim', 'nodejs-lts', 'ouch',
+    'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'rclone', 'ripgrep',
+    'rustup', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals',
+    'tealdeer', 'tectonic', 'texlab', 'tree-sitter', 'uv', 'vale', 'vim', 'watchexec',
+    'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
-    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude', 'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr', 'kanata',
-    'komorebi', 'mupdf', 'notepadplusplus', 'television', 'totalcommander', 'vlc', 'wezterm',
-    'quarto', 'winrar', 'windows-virtualdesktop-helper', 'yasb', 'zed'
+    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
+    'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
+    'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
+    'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm',
+    'windows-virtualdesktop-helper', 'winrar', 'yasb', 'zed'
 )
 $bunApps = @(
-    'copilot-cli', 'opencode-ai', 'oh-my-pi', 'pi-coding-agent',
-    '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest', '@marp-team/marp-cli',
-    '@openai/codex@latest', 'bibtex-tidy',
-    'dockerfile-language-server-nodejs', 'js-beautify', 'prettier',
-    'typescript', 'typescript-formatter', 'typescript-language-server', 'vim-language-server',
-    'vscode-json-languageserver', 'yaml-language-server'
+    '@anthropic-ai/claude-code@latest', '@google/gemini-cli@latest',
+    '@marp-team/marp-cli', '@openai/codex@latest', 'bibtex-tidy', 'copilot-cli',
+    'dockerfile-language-server-nodejs', 'js-beautify', 'oh-my-pi', 'opencode-ai',
+    'pi-coding-agent', 'prettier', 'typescript', 'typescript-formatter',
+    'typescript-language-server', 'vim-language-server', 'vscode-json-languageserver',
+    'yaml-language-server'
 )
 
 if (Test-Command 'scoop') {

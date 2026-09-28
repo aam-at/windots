@@ -73,7 +73,13 @@ function Import-ToolInit([string]$Name, [string[]]$InitArgs) {
     $cache = Join-Path $env:LOCALAPPDATA "windots\init\$Name.ps1"
     if (-not (Test-Path -LiteralPath $cache) -or (Get-Item -LiteralPath $cache).LastWriteTime -lt (Get-Item -LiteralPath $source).LastWriteTime) {
         New-Item -ItemType Directory -Path (Split-Path -Parent $cache) -Force | Out-Null
-        & $exe.Source @InitArgs | Out-File -LiteralPath $cache -Encoding utf8
+        # Windows PowerShell's console codepage isn't UTF-8 by default, which
+        # mangles non-ASCII output (e.g. starship's prompt glyphs) as it's
+        # captured from the pipeline.
+        $prevEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [Text.Encoding]::UTF8
+        try { & $exe.Source @InitArgs | Out-File -LiteralPath $cache -Encoding utf8 }
+        finally { [Console]::OutputEncoding = $prevEncoding }
     }
     $cache
 }
