@@ -75,32 +75,37 @@ $spacemacsFramework = Join-Path $emacsDataRoot 'spacemacs'
 [void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/aam-at/spacemacs.git' -Upstream 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
 
 if ($DryRun) {
-    Write-Info 'Doom installation would run after the frameworks and profiles are available.'
+    Write-Info 'Doom and Spacemacs installs would open in separate terminal windows.'
     return
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $emacsConfigRoot 'doom\init.el'))) {
-    Write-Warn "Doom profile is not linked at $emacsConfigRoot\doom; skipping Doom installation."
-    return
-}
+$shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
 
-$doomMarker = Join-Path $emacsStateRoot 'doom\.windots-installed'
-if (-not (Test-Path -LiteralPath $doomMarker)) {
-    $doomProfileScript = Join-Path $repoRoot 'scripts\Doom-Profile.ps1'
-
-    $shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
-
-    Write-Info 'Installing Doom packages and generating its initial state...'
-    if (-not (Invoke-NativeCommand -Description 'Doom installation' -Action { & $shell.Source -NoProfile -ExecutionPolicy Bypass -File $doomProfileScript install --force })) {
-        throw 'Doom installation failed.'
+# Runs a framework's first install in its own terminal window so the slow
+# package downloads don't block the rest of setup; the marker is written only
+# when the install exits 0, so a failed one is retried on the next run.
+function Start-FrameworkInstall([string]$Name, [string]$Command) {
+    $marker = Join-Path $emacsStateRoot "$Name\.windots-installed"
+    if (Test-Path -LiteralPath (Join-Path $emacsConfigRoot "$Name\init.el")) {
+        if (Test-Path -LiteralPath $marker) {
+            Write-Info "$Name initial installation already completed."
+            return
+        }
+        Write-Info "Installing $Name packages in a separate terminal window..."
+        $script = "`$Host.UI.RawUI.WindowTitle = '$Name install'; $Command; " +
+        "if (`$LASTEXITCODE -eq 0) { New-Item -ItemType Directory -Force '$(Split-Path -Parent $marker)' | Out-Null; " +
+        "Set-Content -LiteralPath '$marker' -Value 'Installed by windots Setup.ps1' -NoNewline; '$Name installed.' } " +
+        "else { Write-Host '$Name installation failed; rerun Install-Emacs.ps1.' -ForegroundColor Red }"
+        Start-Process -FilePath $shell.Source -ArgumentList @('-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $script)
     }
-
-    New-Item -ItemType Directory -Path (Split-Path -Parent $doomMarker) -Force | Out-Null
-    Set-Content -LiteralPath $doomMarker -Value 'Installed by windots Setup.ps1' -Encoding utf8 -NoNewline
-}
-else {
-    Write-Info 'Doom initial installation already completed.'
+    else {
+        Write-Warn "$Name profile is not linked at $emacsConfigRoot\$Name; skipping $Name installation."
+    }
 }
 
-Write-Info 'Spacemacs will install its profile packages when you first open a Spacemacs profile.'
+$doomProfileScript = Join-Path $repoRoot 'scripts\Doom-Profile.ps1'
+Start-FrameworkInstall 'doom' "& '$doomProfileScript' install --force"
+# Loading Spacemacs in batch mode installs its layers' packages, then exits.
+Start-FrameworkInstall 'spacemacs' ("`$env:SPACEMACSDIR = '$(Join-Path $emacsConfigRoot 'spacemacs')'; " +
+    "emacs --batch --init-directory='$spacemacsFramework' -l '$(Join-Path $spacemacsFramework 'init.el')'")
