@@ -163,3 +163,5 @@
     #add bitbucket remote
     ra = "!f() { git remote add $1 https://bitbucket.org/$2.git; }; f"
     # }}}
+[credential "helperselector"]
+	selected = manager
