@@ -177,11 +177,25 @@ widgets:
         next_track: ""
         play: ""
         pause: ""
+  # Windows has no system-wide input-language event, so this polls; the
+  # built-in LanguageWidget only takes whole seconds. language.exe is native
+  # and started without cmd.exe (use_shell: false; YASB itself expands
+  # $env:), so a poll every 500ms is one small process.
   language:
-    type: "yasb.language.LanguageWidget"
+    type: "yasb.custom.CustomWidget"
     options:
-      label: "{lang[language_code]}"
-      label_alt: "{lang[full_name]}"
+      label: "{data[code]}"
+      label_alt: "{data[name]}"
+      class_name: "language-widget"
+      exec_options:
+        run_cmd: '$env:WINDOTS\yasb\language\language.exe'
+        run_interval: 500
+        return_format: "json"
+        use_shell: false
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
   # Status widgets share one capsule, like Noctalia's grouped right section.
   status:
     type: "yasb.grouper.GrouperWidget"
@@ -218,10 +232,11 @@ widgets:
       label_alt: "{data[icon]} {data[time]}"
       class_name: "battery-widget"
       exec_options:
-        run_cmd: '%WINDOTS%\yasb\battery\battery.exe'
+        run_cmd: '$env:WINDOTS\yasb\battery\battery.exe'
         run_interval: 1000
         return_format: "json"
         hide_empty: true
+        use_shell: false
       callbacks:
         on_left: "toggle_label"
         on_middle: "do_nothing"
@@ -281,9 +296,10 @@ widgets:
       label_alt: "{data[icon]} {data[total]} · {data[top]}"
       class_name: "screen-time-widget"
       exec_options:
-        run_cmd: '%DOTFILES%\tools\wellbeing\wellbeing.exe --status'
+        run_cmd: '$env:DOTFILES\tools\wellbeing\wellbeing.exe --status'
         run_interval: 60000
         return_format: "json"
+        use_shell: false
       callbacks:
         on_left: "toggle_label"
         on_middle: 'exec cmd /c %DOTFILES%\tools\wellbeing\wellbeing.exe --focus'

@@ -121,7 +121,7 @@ function Set-LockShortcut([bool]$Enabled) {
 }
 
 # Native helpers: battery.exe behind the YASB battery widget (hidden until it
-# builds), window-watcher.exe, which replaces aw-watcher-window and
+# builds), language.exe behind the language widget, window-watcher.exe, which replaces aw-watcher-window and
 # aw-watcher-afk (no ActivityWatch data until it builds), psmux-agent.exe
 # (psmux's status stats, auto-save and aw-watcher-tmux), and dotfiles'
 # tools\wellbeing\wellbeing.exe
@@ -131,6 +131,7 @@ function Build-NativeHelpers {
     $buildScript = WindotsPath 'yasb\Build-Native.ps1'
     $helpers = @(
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
+        @{ Source = WindotsPath 'yasb\language\language.c' }
         @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'; Libs = 'ws2_32', 'dwmapi'; Windows = $true }
