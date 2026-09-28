@@ -5,14 +5,36 @@
 #  - they pass -S #{socket_path} unquoted, which sh mangles for a \\.\pipe\
 #    path; $TMUX already names the server, so -S is dropped;
 #  - they read Windows paths with `read` (resurrect) or paste them into JSON
-#    (aw-watcher-tmux), where \ is an escape, so queries answer with / .
+#    (aw-watcher-tmux), where \ is an escape, so queries answer with / ;
+#  - a popup from a job needs -c here, where tmux would pick the client
+#    (tmux-fzf's fzf-tmux otherwise waits forever);
 #  - tmux-thumbs (a Rust build) and tmux-fpp (fpp) don't run here, so
 #    they're dropped from the plugin list gpakosz hands TPM.
+# And for speed, since each sh here is a slow MSYS fork:
+#  - the status line's #() calls are dropped: gpakosz's _username (~0.25 s
+#    each, twice per redraw, and blank here: MSYS ps can't see Windows
+#    processes) becomes $USERNAME, _hostname becomes #h (the same off
+#    ssh), and continuum's save check (~1.2 s) goes, as rmux.conf's loop
+#    saves instead;
+#  - plugins aren't updated on every launch or reload (15 git fetches);
+#    prefix + u still updates them.
 [ "$1" = -S ] && shift 2
 [ "$1 $2 $3" = "set -g @tpm_plugins" ] &&
     exec rmux set -g @tpm_plugins "$(printf '%s\n' "$4" | grep -vE '/tmux-(thumbs|fpp)$')"
-#  - a popup from a job needs -c here, where tmux would pick the client
-#    (tmux-fzf's fzf-tmux otherwise waits forever on its fifo).
+# gpakosz chains many commands per call (set … \; setw … \; set -g
+# status-left …), so every argument is checked.
+for a; do
+    shift
+    case $a in
+        *'#('*_username* | *'#('*_hostname* | *continuum_save*)
+            a=$(printf '%s' "$a" | sed -e "s%#(cut -c3- [^)]* _username [^)]*)%$USERNAME%g" \
+                -e 's%#(cut -c3- [^)]* _hostname [^)]*)%#h%g' -e 's%#([^)]*continuum_save[^)]*)%%g') ;;
+        *__apply_plugins*)
+            # startup counts as a reload here (a session exists by then)
+            a=$(printf '%s' "$a" | sed "s/\(__apply_plugins '[^']*' '[^']*'\) '[^']*' '[^']*'/\1 'false' 'false'/") ;;
+    esac
+    set -- "$@" "$a"
+done
 case "$1" in
     popup | display-popup)
         cmd=$1; shift
