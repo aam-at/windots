@@ -10,6 +10,11 @@
 if (-not $env:DOTFILES) { $env:DOTFILES = "$HOME\dotfiles" }
 if (-not $env:WINDOTS) { $env:WINDOTS = "$HOME\windots" }
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
+# In an rmux pane, `tmux` (for tmuxp and the like) is windots\rmux\tmux.cmd,
+# not psmux's tmux.exe; rmux gives panes its own PATH, not its global one.
+if ($env:TMUX -like '*\pipe\rmux-*') { $env:PATH = "$env:APPDATA\rmux;$env:PATH" }
+# In a psmux pane it's psmux\tmux.cmd, which fixes psmux's start directories.
+elseif ($env:TMUX -like '/tmp/psmux-*') { $env:PATH = "$HOME\.config\psmux;$env:PATH" }
 # The shared starship config, minus git_metrics: on Windows it adds ~190 ms
 # to every prompt in a git repo (40 ms without it). The copy is regenerated
 # when the original changes.
