@@ -90,6 +90,7 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'fastfetch')                                                                 = (WindotsPath 'fastfetch')
     (Join-Path $env:LOCALAPPDATA 'lazygit')                                                                   = (DotfilesPath 'config\lazygit')
     (Join-Path $HOME '.config\starship.toml')                                                                 = (DotfilesPath 'config\starship.toml')
+    (Join-Path $HOME '.config\psmux')                                                                         = (WindotsPath 'psmux')
     (Join-Path $env:APPDATA 'rmux')                                                                           = (WindotsPath 'rmux')
     (Join-Path $HOME '.config\theme')                                                                         = (DotfilesPath 'themes\gruvbox-dark')
     (Join-Path $HOME '.claude\settings.json')                                                                 = (DotfilesPath 'config\agents\claude\settings.json')
@@ -119,6 +120,22 @@ if ($PROFILE.CurrentUserAllHosts -ne $windowsPowerShellProfile) {
 
 try {
     foreach ($link in $linkMap.GetEnumerator()) { Ensure-Link $link.Key $link.Value }
+
+    # The psmux plugins psmux\psmux.conf declares, from the psmux-plugins monorepo.
+    $plugins = Join-Path $HOME '.psmux\plugins'
+    $missing = @('psmux-logging', 'psmux-resurrect') | Where-Object { -not (Test-Path -LiteralPath (Join-Path $plugins $_)) }
+    if ($missing) {
+        Write-Info "Installing psmux plugins: $missing"
+        Invoke-IfNotDryRun {
+            $clone = Join-Path ([IO.Path]::GetTempPath()) 'psmux-plugins'
+            Remove-Item -LiteralPath $clone -Recurse -Force -ErrorAction SilentlyContinue
+            git clone --quiet --depth 1 https://github.com/psmux/psmux-plugins.git $clone
+            if ($LASTEXITCODE -ne 0) { throw 'Cloning psmux-plugins failed.' }
+            New-Item -ItemType Directory -Path $plugins -Force | Out-Null
+            foreach ($name in $missing) { Copy-Item -LiteralPath (Join-Path $clone $name) -Destination $plugins -Recurse }
+            Remove-Item -LiteralPath $clone -Recurse -Force
+        }
+    }
 }
 catch {
     Write-Error $_

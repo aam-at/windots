@@ -122,7 +122,8 @@ function Set-LockShortcut([bool]$Enabled) {
 
 # Native helpers: battery.exe behind the YASB battery widget (hidden until it
 # builds), window-watcher.exe, which replaces aw-watcher-window and
-# aw-watcher-afk (no ActivityWatch data until it builds), and dotfiles'
+# aw-watcher-afk (no ActivityWatch data until it builds), psmux-agent.exe
+# (psmux's status stats, auto-save and aw-watcher-tmux), and dotfiles'
 # tools\wellbeing\wellbeing.exe
 # (screen time, limits, focus mode, bedtime). The build skips an exe newer
 # than its source.
@@ -131,6 +132,7 @@ function Build-NativeHelpers {
     $helpers = @(
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
         @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
+        @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'; Libs = 'ws2_32', 'dwmapi'; Windows = $true }
     )
     foreach ($helper in $helpers) {
@@ -231,6 +233,7 @@ try {
     if ((Set-WellbeingDashboard) -and -not $DryRun) { Get-Process -Name aw-server -ErrorAction SilentlyContinue | Stop-Process -Force }
     [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $awServer) -RunningProcessName 'aw-server')
     [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -Arguments '' -RunningProcessName 'window-watcher')
+    [void](Ensure-StartupShortcut -Name 'PsmuxAgent' -Candidates @((WindotsPath 'psmux\psmux-agent.exe')) -Arguments '' -RunningProcessName 'psmux-agent')
     [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -Arguments '' -RunningProcessName 'wellbeing')
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'

@@ -11,9 +11,10 @@ column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
   Apps       Install-Apps        winget, Scoop, Bun packages, PowerShell modules
   PowerToys  Configure-PowerToys merge powertoys/settings.json (no FancyZones
                                  with -DesktopMode Komorebi)
-  Links      Install-Links       link configs from this repo and ~/dotfiles
+  Links      Install-Links       link configs from this repo and ~/dotfiles,
+                                 install psmux plugins
   Startup    Install-Startup     Startup shortcuts for -DesktopMode, plus YASB,
-                                 thide and Kanata
+                                 thide, Kanata and native helpers (psmux-agent)
   Emacs      Install-Emacs       Doom and Spacemacs frameworks
   Fonts      Install-Fonts       clone and install font repositories
 
