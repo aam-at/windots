@@ -93,7 +93,7 @@ $scoopAppsMain = @(
     'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt', 'gitui',
     'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd',
     'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim', 'nodejs-lts', 'ouch',
-    'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'rclone', 'ripgrep',
+    'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'rclone', 'ripgrep', 'rtk',
     'rustup', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals',
     'tealdeer', 'tectonic', 'texlab', 'tree-sitter', 'uv', 'vale', 'vim', 'watchexec',
     'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
