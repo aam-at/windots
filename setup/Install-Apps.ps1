@@ -177,6 +177,13 @@ if (Test-Command 'scoop') {
         }
     }
 
+    # fswatch has no Windows release or Scoop package; built from source in MSYS2.
+    # ponytail: skipped once installed; bump -Version in Install-Fswatch.ps1 to upgrade.
+    Write-Info 'Building fswatch (MSYS2)'
+    if (-not (Invoke-NativeCommand -Description 'fswatch build' -Action { & (Join-Path $PSScriptRoot 'Install-Fswatch.ps1') })) {
+        $packageFailures.Add('build:fswatch')
+    }
+
     # Scoop's rustup ships no toolchain; install stable so cargo/rustc work.
     # (CopilotChat's tiktoken_core is fetched by its lazy.nvim build step.)
     if (Test-Command 'rustup') {
