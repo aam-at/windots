@@ -6,6 +6,8 @@
     autocrlf = input
     pager = delta
     fsmonitor = true
+    # Scoop git bundles an MSYS ssh that can't talk to the Windows ssh-agent
+    sshCommand = C:/Windows/System32/OpenSSH/ssh.exe
 [feature]
     manyFiles = true
 [interactive]
