@@ -28,7 +28,7 @@ if (-not $Force -and (Test-Path -LiteralPath $exe) -and ((& $exe --version | Sel
     Write-Host "fswatch $Version already installed: $exe"
 }
 else {
-    # Static link so the shimmed exe needs no MSYS2 DLLs on PATH.
+    # Static link and no NLS (libintl-8.dll), so the shimmed exe needs no MSYS2 DLLs on PATH.
     $script = @'
 set -euo pipefail
 pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-{gcc,cmake,ninja} tar
@@ -43,7 +43,7 @@ sed -i '/^static void register_signal_handlers()/,/^}/{/^{/a #ifndef _WIN32
 /^}/i #endif
 }' fswatch/src/fswatch.cpp
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -u "$FSW_PREFIX")" \
-    -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static
+    -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static -DUSE_NLS=OFF
 cmake --build build --target fswatch
 install -D build/fswatch/src/fswatch.exe "$(cygpath -u "$FSW_PREFIX")/bin/fswatch.exe"
 '@ -replace "`r`n", "`n"
