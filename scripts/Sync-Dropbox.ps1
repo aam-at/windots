@@ -29,13 +29,14 @@ Usage:
   pwsh -File .\scripts\Sync-Dropbox.ps1 [-Tier Rest]               # one sync
   pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Watch [-Tier Rest] # sync on its interval
   pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Install            # both tiers at sign-in, hidden
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Uninstall          # undo Install, stop the watchers
   pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Resolve            # ediff the conflicts in Emacs
 Logs: %LOCALAPPDATA%\windots\sync-dropbox-<tier>.log
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet('Sync', 'Watch', 'Install', 'Resolve')]
+    [ValidateSet('Sync', 'Watch', 'Install', 'Uninstall', 'Resolve')]
     [string]$Action = 'Sync',
     [ValidateSet('Hot', 'Rest')]
     [string]$Tier = 'Hot',
@@ -165,5 +166,16 @@ switch ($Action) {
             $shortcut.Save()
             Write-Host "Startup: Dropbox $name"
         }
+    }
+    'Uninstall' {
+        # Undoes Install and stops the running watchers.
+        $startup = [Environment]::GetFolderPath('Startup')
+        foreach ($name in $tiers.Keys) {
+            Remove-Item (Join-Path $startup "Dropbox $name.lnk") -ErrorAction SilentlyContinue
+        }
+        Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" |
+            Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'Sync-Dropbox\.ps1.*-Action Watch' } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force; Write-Host "Stopped $($_.ProcessId)" }
+        Write-Host 'Uninstalled'
     }
 }
