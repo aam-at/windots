@@ -52,8 +52,8 @@ HibernateComputer() {
     DllCall("PowrProf\SetSuspendState", "Int", 1, "Int", 0, "Int", 0)
 }
 
-; niri Super+X session menu, Noctalia/COSMIC style: the screen under the mouse
-; dims and a rounded gruvbox card shows one tile per action.
+; niri Super+X session menu: the screen under the mouse dims and a Noctalia-
+; style panel in the yasb dock's colours shows one round button per action.
 ; While open: the tile letter or 1-6 runs it, Left/Right/Tab move the
 ; selection, Enter/Space confirm, Esc or a click on the dimmed area cancels.
 SessionActions := [
@@ -64,6 +64,43 @@ SessionActions := [
     {label: "Restart", key: "r", glyph: 0xE72C, color: "fe8019", fn: (*) => Shutdown(2)},
     {label: "Shut down", key: "p", glyph: 0xE7E8, color: "fb4934", fn: (*) => Shutdown(1 | 8)},
 ]
+
+; GDI+ for antialiased shapes; GDI regions and RoundRect have jagged edges.
+DllCall("LoadLibrary", "Str", "gdiplus")
+GdiplusInput := Buffer(24, 0), NumPut("UInt", 1, GdiplusInput)   ; GdiplusVersion 1
+DllCall("gdiplus\GdiplusStartup", "Ptr*", 0, "Ptr", GdiplusInput, "Ptr", 0)
+
+RoundedPath(path, x, y, w, h, r) {
+    d := 2 * r
+    for arc in [[x, y, 180], [x + w - d, y, 270], [x + w - d, y + h - d, 0], [x, y + h - d, 90]]
+        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", arc[1], "Float", arc[2], "Float", d, "Float", d, "Float", arc[3], "Float", 90)
+    DllCall("gdiplus\GdipClosePathFigure", "Ptr", path)
+}
+
+; An antialiased w x h pill (a circle when w = h) of fill on the card colour,
+; both hex RRGGBB, in physical pixels. Cached: the menu reuses the same few.
+PillBitmap(w, h, fill) {
+    static cache := Map()
+    if cache.Has(key := w "x" h fill)
+        return cache[key]
+    DllCall("gdiplus\GdipCreateBitmapFromScan0", "Int", w, "Int", h, "Int", 0, "Int", 0x26200A, "Ptr", 0, "Ptr*", &bitmap := 0)
+    DllCall("gdiplus\GdipGetImageGraphicsContext", "Ptr", bitmap, "Ptr*", &g := 0)
+    DllCall("gdiplus\GdipSetSmoothingMode", "Ptr", g, "Int", 4)   ; AntiAlias
+    DllCall("gdiplus\GdipGraphicsClear", "Ptr", g, "UInt", 0xFF000000 | ("0x" SessionCard))
+    DllCall("gdiplus\GdipCreateSolidFill", "UInt", 0xFF000000 | ("0x" fill), "Ptr*", &brush := 0)
+    DllCall("gdiplus\GdipCreatePath", "Int", 0, "Ptr*", &path := 0)
+    RoundedPath(path, 0.5, 0.5, w - 1, h - 1, (h - 1) / 2)
+    DllCall("gdiplus\GdipFillPath", "Ptr", g, "Ptr", brush, "Ptr", path)
+    DllCall("gdiplus\GdipDeletePath", "Ptr", path)
+    DllCall("gdiplus\GdipDeleteBrush", "Ptr", brush)
+    DllCall("gdiplus\GdipDeleteGraphics", "Ptr", g)
+    DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "Ptr", bitmap, "Ptr*", &hbitmap := 0, "UInt", 0)
+    DllCall("gdiplus\GdipDisposeImage", "Ptr", bitmap)
+    return cache[key] := hbitmap
+}
+
+; The card's colours: the dock's glass and the bar's capsules.
+SessionCard := "1d2021", SessionSurface := "32302f"
 
 ; A card of tiles over the dimmed monitor, shared with komorebi\Workspace-Overview.ahk.
 ; Popup is the open one: {kind, overlay, card, tiles, byHwnd, selected, paint,
@@ -153,40 +190,55 @@ SessionMenuToggle() {
     WinSetTransparent 0, overlay
     overlay.Show(Format("x{} y{} w{} h{} NoActivate", left, top, right - left, bottom - top))
 
-    tileW := 118, tileH := 132, gap := 12, pad := 28, tileY := 92
-    width := SessionActions.Length * (tileW + gap) - gap
+    ; The yasb dock's dark glass with a Noctalia panel layout: a header (icon,
+    ; title, close button) over a divider, then a macOS-style row of round
+    ; buttons. The selected one fills with its accent, Material style.
+    colW := 92, gap := 6, pad := 28, dot := 60, tileY := 96
+    width := SessionActions.Length * (colW + gap) - gap
+    s := A_ScreenDPI / 96, px := (n) => Round(n * s)   ; bitmaps are physical pixels
     card := Gui("-Caption +ToolWindow +AlwaysOnTop +Owner" overlay.Hwnd)
-    card.BackColor := "282828"
-    card.MarginX := pad, card.MarginY := 24
-    card.SetFont("s17 w600 cebdbb2", "Segoe UI Variable Display")
-    card.AddText("xm", "Session")
+    card.BackColor := SessionCard
+    card.MarginX := pad, card.MarginY := 20
+
+    card.AddPicture(Format("x{} y20 w36 h36", pad), "HBITMAP:*" PillBitmap(px(36), px(36), SessionSurface))
+    card.SetFont("s13 w400 cfabd2f", "Segoe Fluent Icons")
+    card.AddText(Format("x{} y20 w36 h36 Center +0x200 BackgroundTrans", pad), Chr(0xE7E8))
+    card.SetFont("s12 w600 cebdbb2", "Segoe UI Variable Display")
+    card.AddText(Format("x{} y18", pad + 48), "Session")
     uptime := A_TickCount // 60000
-    card.SetFont("s10 w400 ca89984", "Segoe UI")
-    card.AddText("xm y+2", Format("{}@{}  ·  up {}h {}m", A_UserName, A_ComputerName, uptime // 60, Mod(uptime, 60)))
+    card.SetFont("s9 w400 ca89984", "Segoe UI Variable Text")
+    card.AddText(Format("x{} y40", pad + 48), Format("{}@{}  ·  up {}h {}m", A_UserName, A_ComputerName, uptime // 60, Mod(uptime, 60)))
+    closeX := pad + width - 30
+    close := card.AddPicture(Format("x{} y23 w30 h30", closeX), "HBITMAP:*" PillBitmap(px(30), px(30), SessionSurface))
+    card.SetFont("s8 w400 ca89984", "Segoe Fluent Icons")
+    closeGlyph := card.AddText(Format("x{} y23 w30 h30 Center +0x200 BackgroundTrans", closeX), Chr(0xE711))
+    for control in [close, closeGlyph]
+        control.OnEvent("Click", (*) => PopupClose())
+    card.AddText(Format("x{} y72 w{} h1 Background{}", pad, width, SessionSurface))
 
     tiles := [], byHwnd := Map()
     for i, action in SessionActions {
-        x := pad + (i - 1) * (tileW + gap)
-        tile := {}
-        tile.bg := card.AddText(Format("x{} y{} w{} h{} Background3c3836", x, tileY, tileW, tileH))
-        tile.bar := card.AddText(Format("x{} y{} w{} h3 Hidden Background{}", x, tileY + tileH - 3, tileW, action.color))
-        card.SetFont("s26 w400 c" action.color, "Segoe Fluent Icons")
-        tile.icon := card.AddText(Format("x{} y{} w{} h44 Center BackgroundTrans", x, tileY + 20, tileW), Chr(action.glyph))
-        card.SetFont("s11 w600 cebdbb2", "Segoe UI")
-        tile.label := card.AddText(Format("x{} y{} w{} Center BackgroundTrans", x, tileY + 72, tileW), action.label)
-        card.SetFont("s9 w400 c928374", "Segoe UI")
-        tile.hint := card.AddText(Format("x{} y{} w{} Center BackgroundTrans", x, tileY + 98, tileW), StrUpper(action.key) "  ·  " i)
-        for control in [tile.bg, tile.icon, tile.label, tile.hint] {
+        x := pad + (i - 1) * (colW + gap), dotX := x + (colW - dot) // 2, chipX := x + (colW - 22) // 2
+        tile := {color: action.color,
+            off: PillBitmap(px(dot), px(dot), SessionSurface), on: PillBitmap(px(dot), px(dot), action.color),
+            chipOff: PillBitmap(px(22), px(18), SessionSurface), chipOn: PillBitmap(px(22), px(18), ColorMix(action.color, SessionCard, 0.25))}
+        tile.bg := card.AddPicture(Format("x{} y{} w{} h{}", dotX, tileY, dot, dot), "HBITMAP:*" tile.off)
+        card.SetFont("s19 w400 c" action.color, "Segoe Fluent Icons")
+        tile.icon := card.AddText(Format("x{} y{} w{} h{} Center +0x200 BackgroundTrans", dotX, tileY, dot, dot), Chr(action.glyph))
+        card.SetFont("s10 w500 cd5c4a1", "Segoe UI Variable Text")
+        tile.label := card.AddText(Format("x{} y{} w{} Center BackgroundTrans", x, tileY + dot + 10, colW), action.label)
+        tile.chip := card.AddPicture(Format("x{} y{} w22 h18", chipX, tileY + dot + 36), "HBITMAP:*" tile.chipOff)
+        card.SetFont("s8 w600 c928374", "Segoe UI Variable Text")
+        tile.hint := card.AddText(Format("x{} y{} w22 h18 Center +0x200 BackgroundTrans", chipX, tileY + dot + 36), StrUpper(action.key))
+        for control in [tile.bg, tile.icon, tile.label, tile.chip, tile.hint] {
             control.OnEvent("Click", SessionMenuRun.Bind(i))
             byHwnd[control.Hwnd] := i
         }
         tiles.Push(tile)
     }
-    card.SetFont("s9 w400 c7c6f64", "Segoe UI")
-    card.AddText(Format("x{} y{} w{}", pad, tileY + tileH + 16, width),
-        "←  →  select      Enter  confirm      Esc  cancel")
+    card.AddText(Format("x{} y{} w1 h1", pad, tileY + dot + 58), "")   ; bottom margin
 
-    PopupRoundCorners(card, 0x454950)
+    PopupRoundCorners(card, 0x475153)   ; the dock's glass edge
 
     Popup := {kind: "session", overlay: overlay, card: card, tiles: tiles, byHwnd: byHwnd, selected: 0, paint: SessionMenuPaint}
     PopupSelect(1)
@@ -205,11 +257,21 @@ SessionMenuToggle() {
 }
 
 SessionMenuPaint(tile, on) {
-    tile.bg.Opt("Background" (on ? "504945" : "3c3836"))
-    tile.label.SetFont(on ? "cfbf1c7" : "cebdbb2")
-    tile.bar.Visible := on
-    for control in [tile.bg, tile.icon, tile.label, tile.hint]
+    tile.bg.Value := "HBITMAP:*" (on ? tile.on : tile.off)
+    tile.icon.SetFont("c" (on ? SessionCard : tile.color))
+    tile.label.SetFont(on ? "cfbf1c7" : "cd5c4a1")
+    tile.chip.Value := "HBITMAP:*" (on ? tile.chipOn : tile.chipOff)
+    tile.hint.SetFont(on ? "cfbf1c7" : "c928374")
+    for control in [tile.bg, tile.icon, tile.label, tile.chip, tile.hint]
         control.Redraw()
+}
+
+; Blend hex colors a and b: t of a, the rest b.
+ColorMix(a, b, t) {
+    out := ""
+    loop 3
+        out .= Format("{:02x}", Round(t * ("0x" SubStr(a, 2 * A_Index - 1, 2)) + (1 - t) * ("0x" SubStr(b, 2 * A_Index - 1, 2))))
+    return out
 }
 
 SessionMenuRun(i, *) {

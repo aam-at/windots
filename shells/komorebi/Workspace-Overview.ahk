@@ -152,18 +152,6 @@ SnapWorkspace(hwnds, rect, w, h, wall) {
     return bitmap
 }
 
-; GDI+ for antialiased rounded tiles; GDI's RoundRect has jagged corners.
-DllCall("LoadLibrary", "Str", "gdiplus")
-GdiplusInput := Buffer(24, 0), NumPut("UInt", 1, GdiplusInput)   ; GdiplusVersion 1
-DllCall("gdiplus\GdiplusStartup", "Ptr*", 0, "Ptr", GdiplusInput, "Ptr", 0)
-
-RoundedPath(path, x, y, w, h, r) {
-    d := 2 * r
-    for arc in [[x, y, 180], [x + w - d, y, 270], [x + w - d, y + h - d, 0], [x, y + h - d, 90]]
-        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", arc[1], "Float", arc[2], "Float", d, "Float", d, "Float", arc[3], "Float", 90)
-    DllCall("gdiplus\GdipClosePathFigure", "Ptr", path)
-}
-
 ; A copy of a w x h tile bitmap with rounded corners (cut to the card colour)
 ; and either the selection ring or, unselected, a dimmed face and faint outline.
 DecorateTile(base, w, h, selected, r, ring) {
