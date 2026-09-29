@@ -9,6 +9,10 @@
 
 #Include %A_LineFile%\..\Session-Menu.ahk
 
+; Exact titles: Claude Code names its terminal after the task, so a title that
+; merely starts with "Quake" must not match the quake window.
+SetTitleMatchMode 3
+
 ; Opens whatever browser is registered for https links.
 OpenDefaultBrowser() {
     progId := RegRead("HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice", "ProgId")
@@ -20,13 +24,16 @@ OpenDefaultBrowser() {
 ; toggles. It opens on the hidden "Quake" profile, whose fixed tab title is how
 ; Komorebi's ignore rule leaves the drop-down to Terminal instead of tiling it.
 ; Terminal's own slide stops at the work area, under the YASB bar, so
-; terminal\settings.json turns it off (dropdownDuration 0) and QuakeSlide drops
-; the window from the monitor's top edge instead, covering the bar.
+; terminal\settings.json turns it off (dropdownDuration 0) and QuakeSlide fades
+; the window in from the monitor's top edge instead, covering the bar.
+QuakeRect := ""  ; rect saved by the last fade out; see QuakeSlide
 ScratchTerminal() {
+    global QuakeRect
     quake := "Quake ahk_class CASCADIA_HOSTING_WINDOW_CLASS"
     DetectHiddenWindows true
     if !WinExist(quake) {
         Run "wt.exe -w _quake -p Quake"
+        QuakeRect := ""
         if WinWait(quake, , 5)
             QuakeSlide(WinExist(quake), true)
         return
@@ -59,27 +66,38 @@ QuakeForeground(hook, event, hwnd, *) {
 DllCall("SetWinEventHook", "UInt", 3, "UInt", 3, "Ptr", 0
     , "Ptr", CallbackCreate(QuakeForeground, "F", 7), "UInt", 0, "UInt", 0, "UInt", 0, "Ptr")
 
-; Slides the quake window between just above its monitor and the monitor's top
-; edge, stretched down to where Terminal put its bottom edge.
+; Fades the quake window in at the monitor's top edge, or out where it stands (a
+; fade is compositor work, so Terminal never re-lays-out). Going out saves its rect,
+; since Terminal resets to half on show; a fresh window gets half the work area.
 QuakeSlide(hwnd, down) {
+    global QuakeRect
     SetWinDelay -1
     WinGetPos &x, &y, &w, &h, hwnd
-    top := 0
+    top := 0, half := h
     Loop MonitorGetCount() {
         MonitorGet A_Index, &l, &t, &r
-        if x + w // 2 >= l && x + w // 2 < r
+        if x + w // 2 >= l && x + w // 2 < r {
             top := t
+            MonitorGetWorkArea A_Index, , &wt, , &wb
+            half := (wt - t) + (wb - wt) // 2
+            break
+        }
     }
-    ; Still parked above the monitor from the last slide up: already stretched.
-    if y >= top
-        h += y - top
-    steps := 6
-    Loop steps + 1 {
-        p := (A_Index - 1) / steps
-        p := down ? 1 - (1 - p) ** 3 : p ** 3
-        WinMove x, down ? top - h + Round(h * p) : top - Round(h * p), w, h, hwnd
-        Sleep 12
-    }
+    if down {
+        if QuakeRect
+            x := QuakeRect[1], w := QuakeRect[2], h := QuakeRect[3]
+        else
+            h := half
+        WinSetTransparent 0, hwnd
+        WinMove x, top, w, h, hwnd
+    } else if x > -30000
+        QuakeRect := [x, w, h]  ; hidden, Terminal parks it at x=-32000
+    dur := 150, t0 := A_TickCount
+    Loop {
+        DllCall("dwmapi\DwmFlush")
+        p := Min((A_TickCount - t0) / dur, 1)
+        WinSetTransparent Round(255 * (down ? p : 1 - p)), hwnd
+    } Until p = 1
 }
 
 ; niri cooldown-ms=150: one wheel flick switches one workspace, not five.
