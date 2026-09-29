@@ -146,7 +146,7 @@ MonitorOf(x, y) {
 #!l::LockScreen()
 
 ; === Application Launchers ===
-#Space::Send "^!+{Space}"       ; YASB Quick Launch (Win+Alt+Space: Command Palette)
+#Space::Send "^!{Space}"        ; YASB Quick Launch (no Shift: Win+Ctrl+Alt+Shift is the Office/Copilot hotkey)
 #t::Run "wt.exe"
 #Enter::Run "wt.exe"
 #`::ScratchTerminal()

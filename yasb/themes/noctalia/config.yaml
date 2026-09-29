@@ -124,7 +124,7 @@ widgets:
       # Win+Space in shells\Niri-Common.ahk sends this chord: RegisterHotKey
       # can't take Win+Space, which Windows reserves for input switching.
       keybindings:
-      - keys: "ctrl+alt+shift+space"
+      - keys: "ctrl+alt+space"
         action: "toggle_quick_launch"
       popup:
         width: 720
