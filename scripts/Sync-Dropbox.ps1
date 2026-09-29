@@ -2,19 +2,24 @@
 Two-way Dropbox sync with rclone bisync, for a machine that can't run the
 Dropbox app (Basic allows 3 devices; rclone uses the API and doesn't count).
 
-  Hot   Org and Git, every 5 minutes: notes and the bare repos you push to.
-  Rest  the rest of ~\Dropbox, every 6 hours.
+  Hot   Org and Git: notes and the bare repos you push to.
+  Rest  the rest of ~\Dropbox.
+
+-Action Watch syncs a tier when fswatch sees a local change there, once it has
+been quiet for a while (10 seconds for Hot, 10 minutes for Rest), and on an
+interval for changes made elsewhere (5 minutes for Hot, 6 hours for Rest). A
+sync's own downloads count as local changes, so one that pulled something is
+followed by one more that finds nothing to do.
 
 Why tiers: rclone lists Dropbox one folder at a time (no ListR) and Dropbox
 throttles bursts with 5-minute penalties, so the whole tree (~15-20k folders)
 takes an hour or more to scan. Staying under the throttle means ~12 requests/s
 in total: 8 for Hot (~1,000 folders, about a minute a run) and 4 for Rest, so
 both can run side by side. node_modules is left out everywhere (generated, and
-most of the files); .git is synced, but not git's *.lock files, which would
-make git elsewhere think a command is still running. Keep the bare repos in Git
-packed (git gc, receive.unpackLimit 1) so they stay a few files each. The
-dropbox: remote needs its own app key (client_id): rclone's shared one is
-throttled far harder.
+most of the files); .git is synced in full, *.lock files included. Keep the
+bare repos in Git packed (git gc, receive.unpackLimit 1) so they stay a few
+files each. The dropbox: remote needs its own app key (client_id): rclone's
+shared one is throttled far harder.
 
 Conflicts: when both sides changed a file, the newer keeps its name and the
 other becomes NAME.conflictN (appended, so org-roam and the agenda never read
@@ -55,9 +60,10 @@ if (-not $rclone) { throw 'rclone was not found. Install it with: scoop install 
 
 $hot = 'Org', 'Git'
 $tiers = @{
-    # Pairs of local path and remote, requests per second, minutes between runs.
-    Hot  = @{ Pairs = $hot | ForEach-Object { , @((Join-Path $Root $_), "dropbox:$_") }; Tps = 8; Minutes = 5; Exclude = @() }
-    Rest = @{ Pairs = , @($Root, 'dropbox:'); Tps = 4; Minutes = 360; Exclude = $hot | ForEach-Object { "/$_/**" } }
+    # Pairs of local path and remote, requests per second, minutes between runs,
+    # seconds a local change must be quiet before it starts one.
+    Hot  = @{ Pairs = $hot | ForEach-Object { , @((Join-Path $Root $_), "dropbox:$_") }; Tps = 8; Minutes = 5; Quiet = 10; Exclude = @() }
+    Rest = @{ Pairs = , @($Root, 'dropbox:'); Tps = 4; Minutes = 360; Quiet = 600; Exclude = $hot | ForEach-Object { "/$_/**" } }
 }
 $config = $tiers[$Tier]
 
@@ -81,7 +87,6 @@ function Invoke-Bisync([string]$Local, [string]$Remote) {
         '--max-delete', $MaxDelete           # abort if a run would delete more of either side
         '--tpslimit', $config.Tps
         '--exclude', 'node_modules/**'
-        '--exclude', '.git/*.lock', '--exclude', '.git/**/*.lock'   # git's own locks stay per machine
         # Symlinks elsewhere (into Org/skills); Dropbox's API shows them as
         # empty files, which clash with the folders they resolve to here.
         '--exclude', '.claude/skills/**'
@@ -128,6 +133,22 @@ function Update-Conflicts {
     }
 }
 
+# Local changes, one line per batch; the excludes mirror bisync's.
+function Start-Fswatch {
+    $fswatch = Join-Path $env:LOCALAPPDATA 'fswatch\bin\fswatch.exe'   # not the Scoop shim, so Kill stops fswatch itself
+    if (-not (Test-Path -LiteralPath $fswatch)) { throw 'fswatch was not found. Build it with: setup\Install-Fswatch.ps1' }
+    $info = [Diagnostics.ProcessStartInfo]::new($fswatch)
+    $info.RedirectStandardOutput = $true
+    $arguments = @(
+        '-r', '-o', '-E'
+        '-e', '[\\/](node_modules|\.claude[\\/]skills)([\\/]|$)'
+        '-e', '[\\/](\.#[^\\/]*|#[^\\/]*#|[^\\/]*~|desktop\.ini|Thumbs\.db|\.DS_Store)$'
+    )
+    if ($Tier -eq 'Rest') { foreach ($name in $hot) { $arguments += '-e', ('^{0}([\\/]|$)' -f [regex]::Escape((Join-Path $Root $name))) } }
+    foreach ($argument in $arguments + ($config.Pairs | ForEach-Object { $_[0] })) { $info.ArgumentList.Add($argument) }
+    [Diagnostics.Process]::Start($info)
+}
+
 function Invoke-Tier {
     $worst = 0
     foreach ($pair in $config.Pairs) {
@@ -141,10 +162,28 @@ function Invoke-Tier {
 switch ($Action) {
     'Sync' { exit (Invoke-Tier) }
     'Watch' {
-        while ($true) {
-            [void](Invoke-Tier)
-            Start-Sleep -Seconds ($config.Minutes * 60)
+        $watcher = $null
+        try {
+            while ($true) {
+                if (-not $watcher -or $watcher.HasExited) {
+                    $watcher = Start-Fswatch
+                    $batch = $watcher.StandardOutput.ReadLineAsync()
+                }
+                [void](Invoke-Tier)
+                # Wait for a local change, or the interval for changes made elsewhere.
+                if (-not $batch.Wait($config.Minutes * 60000)) { continue }
+                if ($null -eq $batch.Result) {
+                    # fswatch exited: sync on the interval alone until it restarts.
+                    Add-Content -LiteralPath $log "$(Get-Date -Format 'yyyy/MM/dd HH:mm:ss') ERROR : fswatch exited with $($watcher.ExitCode)"
+                    Start-Sleep -Seconds ($config.Minutes * 60)
+                    continue
+                }
+                # Then until the burst of changes settles.
+                do { $batch = $watcher.StandardOutput.ReadLineAsync() }
+                while ($batch.Wait($config.Quiet * 1000) -and $null -ne $batch.Result)
+            }
         }
+        finally { if ($watcher -and -not $watcher.HasExited) { $watcher.Kill() } }
     }
     'Resolve' {
         # Through Emacs-Daemon.ps1: it starts the Doom daemon if need be and finds its
@@ -173,9 +212,13 @@ switch ($Action) {
         foreach ($name in $tiers.Keys) {
             Remove-Item (Join-Path $startup "Dropbox $name.lnk") -ErrorAction SilentlyContinue
         }
-        Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" |
-            Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'Sync-Dropbox\.ps1.*-Action Watch' } |
-            ForEach-Object { Stop-Process -Id $_.ProcessId -Force; Write-Host "Stopped $($_.ProcessId)" }
+        # Killed, a watcher skips its finally, so stop its fswatch too.
+        $watchers = @(Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" |
+                Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'Sync-Dropbox\.ps1.*-Action Watch' } |
+                ForEach-Object ProcessId)
+        Get-CimInstance Win32_Process -Filter "Name = 'fswatch.exe'" |
+            Where-Object ParentProcessId -In $watchers | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+        foreach ($id in $watchers) { Stop-Process -Id $id -Force; Write-Host "Stopped $id" }
         Write-Host 'Uninstalled'
     }
 }
