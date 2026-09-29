@@ -46,6 +46,19 @@ ScratchTerminal() {
         QuakeSlide(hwnd, true)
 }
 
+; Terminal's autoHideWindow doesn't fire here and the topmost quake window
+; covers the bar, so hide it on focus loss (EVENT_SYSTEM_FOREGROUND, no polling).
+QuakeForeground(hook, event, hwnd, *) {
+    static quake := "Quake ahk_class CASCADIA_HOSTING_WINDOW_CLASS", wasQuake := false
+    DetectHiddenWindows true
+    q := WinExist(quake)
+    if wasQuake && hwnd != q
+        SetTimer(() => (QuakeSlide(q, false), WinHide(q)), -1)
+    wasQuake := hwnd = q
+}
+DllCall("SetWinEventHook", "UInt", 3, "UInt", 3, "Ptr", 0
+    , "Ptr", CallbackCreate(QuakeForeground, "F", 7), "UInt", 0, "UInt", 0, "UInt", 0, "Ptr")
+
 ; Slides the quake window between just above its monitor and the monitor's top
 ; edge, stretched down to where Terminal put its bottom edge.
 QuakeSlide(hwnd, down) {
