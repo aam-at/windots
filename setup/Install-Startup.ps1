@@ -184,9 +184,9 @@ try {
     # Both desktop scripts lock via Win+Alt+L / Win+X instead.
     Set-LockShortcut $false
 
-    # The helper's startupWithWindows option adds its own Run entry, which
-    # doubled it up alongside the Startup shortcut below (and ran it in
-    # Komorebi mode too). The shortcut is the only launcher.
+    # WindowsVirtualDesktopHelper is gone (2.0 fails on Windows 11 25H2):
+    # clear its Startup shortcut and the Run entry its own option added.
+    Remove-StartupShortcut 'VirtualDesktopHelper'
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
     if (Get-ItemProperty -Path $runKey -Name 'Windows Virtual Desktop Helper' -ErrorAction SilentlyContinue) {
         Write-Info 'Removing the Windows Virtual Desktop Helper Registry startup entry'
@@ -214,17 +214,12 @@ try {
         if ($masir = Resolve-Executable @((Join-Path $env:ProgramFiles 'masir\bin\masir.exe'), 'masir')) {
             [void](Ensure-StartupShortcut -Name 'Masir' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $masir) -RunningProcessName 'masir')
         }
-        Remove-StartupShortcut 'VirtualDesktopHelper'
-        if (-not $DryRun) { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     }
     else {
         Remove-StartupShortcut 'Komorebi'
         Remove-StartupShortcut 'KomorebiAHK'
         Remove-StartupShortcut 'Masir'
         if (-not $DryRun) { Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force }
-        $virtualDesktopHelperCandidates = @((Join-Path $ScoopRoot 'apps\windows-virtualdesktop-helper\current\WindowsVirtualDesktopHelper.exe'), 'WindowsVirtualDesktopHelper')
-        # Native-Desktop.ahk owns Win+1..9; the helper only shows the desktop number.
-        [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -RunningProcessName 'WindowsVirtualDesktopHelper')
         $nativeDesktop = WindotsPath 'shells\native\Native-Desktop.ahk'
         [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
     }

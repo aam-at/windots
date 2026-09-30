@@ -68,8 +68,6 @@ try {
         }
     }
 
-    # Restart the helper so Install-Startup relaunches it with the linked config.
-    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
     & (Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1') -DesktopMode Native -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Native startup shortcuts.' }
 

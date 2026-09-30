@@ -106,7 +106,6 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'clink\starship.lua')                                                        = (WindotsPath 'config\clink\starship.lua')
     (Join-Path $HOME '.config\kanata')                                                                        = (WindotsPath 'config\kanata')
     (Join-Path $HOME '.config\komorebi')                                                                      = (WindotsPath 'shells\komorebi')
-    (Join-Path $env:APPDATA 'WindowsVirtualDesktopHelper\WindowsVirtualDesktopHelper.exe.config')             = (WindotsPath 'shells\native\WindowsVirtualDesktopHelper.exe.config')
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-common.yaml')                    = (WindotsPath 'shells\windots-common.yaml')
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-native.yaml')                    = (WindotsPath 'shells\native\windots-native.yaml')
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-komorebi.yaml')                  = (WindotsPath 'shells\komorebi\windots-komorebi.yaml')

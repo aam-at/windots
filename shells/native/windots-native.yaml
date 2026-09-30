@@ -1,6 +1,8 @@
 PackageName: windots.NativeDesktop
 Name: Native Desktop (windots)
-WindowFilter: "WindowsVirtualDesktopHelper.exe"
+# FancyZones runs only in Native mode (Configure-PowerToys turns it off for
+# Komorebi), so this page shows only there.
+WindowFilter: "PowerToys.FancyZones.exe"
 BackgroundProcess: true
 Shortcuts:
   - SectionName: Overview

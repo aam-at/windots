@@ -46,22 +46,6 @@ VDA_RegisterPostMessageHook := DllCall("GetProcAddress", "Ptr", hVirtualDesktopA
 DllCall(VDA_RegisterPostMessageHook, "Ptr", A_ScriptHwnd, "Int", 0x1400 + 30, "Int")
 OnMessage 0x1400 + 30, (*) => WinExist("A") || FocusTopWindow()
 
-; WindowsVirtualDesktopHelper 2.0, the latest release, lets Windows show its
-; hidden host form (a stray "Windows Virtual Desktop Manager" title bar) after
-; unlock, display changes or an Explorer restart. Fixed upstream (82a2689) but
-; unreleased, so hide it whenever it is shown; drop this after a new release.
-; Checked by HWND: it often sits cloaked on another desktop, which WinExist
-; skips unless DetectHiddenWindows is on.
-HideHelperHost(hwnd) {
-    try if WinGetTitle(hwnd) = "Windows Virtual Desktop Manager" && WinGetProcessName(hwnd) = "WindowsVirtualDesktopHelper.exe"
-        WinHide hwnd
-}
-; EVENT_OBJECT_SHOW for whole windows (idObject 0), out of context: no polling.
-DllCall("SetWinEventHook", "UInt", 0x8002, "UInt", 0x8002, "Ptr", 0
-    , "Ptr", CallbackCreate((hook, event, hwnd, idObject, *) => idObject = 0 && HideHelperHost(hwnd), "F", 7)
-    , "UInt", 0, "UInt", 0, "UInt", 0, "Ptr")
-HideHelperHost(DllCall("FindWindow", "Ptr", 0, "Str", "Windows Virtual Desktop Manager", "Ptr"))
-
 #Include %A_ScriptDir%\..\Niri-Common.ahk
 
 #d::Send "#{Tab}"   ; niri overview: Task View

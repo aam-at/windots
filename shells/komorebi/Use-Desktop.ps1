@@ -22,7 +22,6 @@ try {
 
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
     Invoke-IfNotDryRun { Stop-AutoHotkeyScript $nativeBindings }
-    Invoke-IfNotDryRun { Get-Process -Name WindowsVirtualDesktopHelper -ErrorAction SilentlyContinue | Stop-Process -Force }
 
     $config = Join-Path $PSScriptRoot 'komorebi.json'
     $bindings = Join-Path $PSScriptRoot 'komorebi.ahk'
