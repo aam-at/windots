@@ -28,6 +28,9 @@ for _ in $(seq 60); do ps -ef | grep -q '[_]_apply_plugins' && break; sleep 1; d
 while ps -ef | grep -q '[_]_apply_plugins'; do sleep 2; done
 # gpakosz's r reload would skip the snapshot; reset.sh rebuilds it.
 tmux bind r run-shell -b "$here/reset.sh"
+# rmux's default status-format[0] draws no window tabs here (its range=
+# styles inside #[] go unexpanded), so use a plain one; the snapshot keeps it.
+tmux set -g 'status-format[0]' '#[align=left]#{T;=/#{status-left-length}:status-left}#[list=on align=left]#{W:#{T:window-status-format},#{T:window-status-current-format}}#[nolist align=right]#{T;=/#{status-right-length}:status-right}'
 mkdir -p "${cache%/*}"
 {
     tmux show -g | sed 's/^/set -g /'
