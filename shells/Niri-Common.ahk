@@ -176,10 +176,32 @@ MonitorOf(x, y) {
 #x::SessionMenuToggle()
 #!l::LockScreen()
 
+; Win+T / Win+Enter: open a terminal and focus it (a Win-key launch leaves it behind).
+NewTerminal() {
+    SetWinDelay 0   ; the default 100 ms pause after WinActivate is pure lag
+    old := WinGetList("ahk_exe WindowsTerminal.exe")
+    Run "wt.exe -w new"
+    Loop 50 {
+        Sleep 10
+        for hwnd in WinGetList("ahk_exe WindowsTerminal.exe") {
+            if !HasValue(old, hwnd) {
+                WinActivate hwnd
+                return
+            }
+        }
+    }
+    HasValue(arr, v) {
+        for x in arr
+            if x = v
+                return true
+        return false
+    }
+}
+
 ; === Application Launchers ===
 #Space::Send "^!{Space}"        ; YASB Quick Launch (no Shift: Win+Ctrl+Alt+Shift is the Office/Copilot hotkey)
-#t::Run "wt.exe"
-#Enter::Run "wt.exe"
+#t::NewTerminal()
+#Enter::NewTerminal()
 #`::ScratchTerminal()
 #b::OpenDefaultBrowser()
 #c::Run "code.exe"

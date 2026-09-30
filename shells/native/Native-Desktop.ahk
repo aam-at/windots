@@ -75,8 +75,8 @@ ToggleMaximize() {
         WinMaximize "A"
 }
 
-IsFocusable(hwnd) {
-    if WinGetMinMax(hwnd) = -1 || WinGetTitle(hwnd) = ""
+IsFocusable(hwnd, minimized := false) {
+    if (!minimized && WinGetMinMax(hwnd) = -1) || WinGetTitle(hwnd) = ""
         return false
     if WinGetClass(hwnd) ~= "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$"
         return false
@@ -127,20 +127,30 @@ FocusDirection(dir, *) {
 CycleWindow(next) {
     if !(hwnd := WinExist("A"))
         return
-    WinGetPos &x, &y, &w, &h, hwnd
-    monitor := MonitorOf(x + w / 2, y + h / 2)
+    ; The desktop or taskbar has focus: use the monitor under the mouse.
+    onShell := WinGetClass(hwnd) ~= "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$"
+    if onShell {
+        CoordMode "Mouse", "Screen"
+        MouseGetPos &x, &y
+        monitor := MonitorOf(x, y)
+    } else {
+        WinGetPos &x, &y, &w, &h, hwnd
+        monitor := MonitorOf(x + w / 2, y + h / 2)
+    }
     windows := []
     for candidate in WinGetList() {   ; z-order, topmost first
-        if candidate != hwnd && IsFocusable(candidate) {
+        if candidate != hwnd && IsFocusable(candidate, true) {
+            ; A minimized window has no usable position, so it joins the cycle on every monitor.
             WinGetPos &x, &y, &w, &h, candidate
-            if MonitorOf(x + w / 2, y + h / 2) = monitor
+            if WinGetMinMax(candidate) = -1 || MonitorOf(x + w / 2, y + h / 2) = monitor
                 windows.Push(candidate)
         }
     }
     if !windows.Length
         return
     if next {
-        WinMoveBottom hwnd
+        if !onShell
+            WinMoveBottom hwnd
         WinActivate windows[1]
     } else
         WinActivate windows[-1]
