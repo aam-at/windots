@@ -130,6 +130,13 @@ Wellbeing(command) {
     Run(Format('"{}\tools\wellbeing\wellbeing.exe" {}', dotfiles, command))
 }
 
+; Whisper dictation into the pane that was focused when recording started, as
+; ~/dotfiles/scripts/toggle-dictation.sh does; see ..\scripts\Toggle-Dictation.ps1.
+; Windows' own voice typing (Win+H) stays available.
+Dictation() {
+    Run(Format('pwsh -NoProfile -File "{}"', A_LineFile "\..\..\scripts\Toggle-Dictation.ps1"), , "Hide")
+}
+
 ; Power off the display without locking or sleeping (niri power-off-monitors).
 MonitorOff() {
     hwnd := DllCall("FindWindow", "Str", "Progman", "Ptr", 0, "Ptr")
@@ -210,7 +217,7 @@ NewTerminal() {
 #c::Run "code.exe"
 #a::Run "shell:AppsFolder\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe!Microsoft.MicrosoftOfficeHub"  ; Microsoft 365 Copilot
 #+F23::Run "shell:AppsFolder\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe!Microsoft.MicrosoftOfficeHub" ; Copilot key
-#s::Send "#h"                   ; dictation
+#s::Dictation()                 ; dictation (Mod+S on Linux)
 
 ; === Windows AI (on-device, Copilot+) ===
 ; Windows' own keys are taken here (Win+Q closes, Win+S dictates), so these
