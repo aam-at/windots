@@ -56,9 +56,10 @@ $packageFailures = [System.Collections.Generic.List[string]]::new()
 # Winget apps (install per-ID for clearer output and retries)
 $wingetApps = @(
     'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'Helvesec.RMUX',
-    'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal', 'marlocarlo.psmux',
-    'Microsoft.PowerShell', 'Microsoft.PowerToys', 'Microsoft.VisualStudio.BuildTools',
-    'Microsoft.VisualStudioCode', 'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'WinFsp.WinFsp'
+    'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal',
+    'marlocarlo.psmux', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
+    'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode',
+    'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'WinFsp.WinFsp'
 )
 
 if (Test-Command 'winget') {
@@ -91,12 +92,12 @@ $scoopAppsMain = @(
     'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl',
     'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch', 'fd',
     'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt', 'gitui',
-    'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit', 'lsd',
-    'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim', 'nodejs-lts', 'ouch',
-    'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'rclone', 'ripgrep', 'rtk',
-    'rustup', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship', 'sysinternals',
-    'tealdeer', 'tectonic', 'texlab', 'tree-sitter', 'uv', 'vale', 'vim', 'watchexec',
-    'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
+    'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit', 'less',
+    'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim', 'nodejs-lts',
+    'ouch', 'pandoc', 'pkgconf', 'prek', 'procs', 'pwsh', 'python', 'rclone', 'ripgrep',
+    'rtk', 'rustup', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite', 'starship',
+    'sysinternals', 'tealdeer', 'tectonic', 'texlab', 'tree-sitter', 'uv', 'vale',
+    'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
