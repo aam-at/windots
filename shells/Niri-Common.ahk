@@ -49,8 +49,14 @@ ScratchTerminal() {
     }
     ; Every summon snaps it back under the bar, even when it was already up.
     Send "#``"
-    if WinWaitActive(hwnd, , 1)
-        QuakeSlide(hwnd, true)
+    ; An empty Komorebi workspace leaves no foreground window to hand focus
+    ; over, so Terminal shows the window without activating it.
+    if !WinWaitActive(hwnd, , 1) {
+        WinActivate hwnd
+        if !WinWaitActive(hwnd, , 1)
+            return
+    }
+    QuakeSlide(hwnd, true)
 }
 
 ; Terminal's autoHideWindow doesn't fire here and the topmost quake window
