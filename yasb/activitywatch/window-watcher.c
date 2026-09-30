@@ -32,14 +32,9 @@
  * Tests: window-watcher.test.c (scripts/Test-Windots.ps1 runs them).
  */
 #include "http.h"
+#include "json.h"
 #include <windows.h>
 #include <wchar.h>
-
-static int post(const char *path, const char *body) {
-    int status = http_request("POST", path, body, NULL, 0);
-    /* 304: the bucket already exists. */
-    return (status >= 200 && status < 300) || status == 304;
-}
 
 /* Unchanged state is re-sent this often; changes go out at once. Each
    request costs the Python aw-server ~10 ms, so this is what keeps it near
@@ -94,19 +89,7 @@ static void setup_bucket(Bucket *bucket, const char *id, const char *client, con
 static void json_utf8(const wchar_t *in, char *out, size_t size) {
     char utf8[4096];
     WideCharToMultiByte(CP_UTF8, 0, in, -1, utf8, sizeof utf8, NULL, NULL);
-    size_t n = 0;
-    const unsigned char *c = (const unsigned char *)utf8;
-    for (; *c && n + 7 < size; c++) {
-        if (*c == '"' || *c == '\\') out[n++] = '\\', out[n++] = (char)*c;
-        else if (*c < 0x20) n += snprintf(out + n, size - n, "\\u%04x", *c);
-        else out[n++] = (char)*c;
-    }
-    /* Truncated mid-character: drop the partial one, or the JSON is invalid. */
-    if (*c && (*c & 0xC0) == 0x80) {
-        while (n > 0 && ((unsigned char)out[n - 1] & 0xC0) == 0x80) n--;
-        if (n > 0 && (unsigned char)out[n - 1] >= 0xC0) n--;
-    }
-    out[n] = 0;
+    json_escape(utf8, out, size);
 }
 
 /* Drops leading spinner and status glyphs: symbols outside ASCII, and the
@@ -136,29 +119,14 @@ static void read_window(HWND hwnd, Window *window) {
     make_window(path, title, window);
 }
 
-/* aw-server's timestamp format, in UTC. */
-static void format_timestamp(ULONGLONG ticks, char *out, size_t size) {
-    FILETIME file = {(DWORD)ticks, (DWORD)(ticks >> 32)};
-    SYSTEMTIME t;
-    FileTimeToSystemTime(&file, &t);
-    snprintf(out, size, "%04d-%02d-%02dT%02d:%02d:%02d.%03d000+00:00",
-        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
-}
-
-static ULONGLONG now_ticks(void) {
-    FILETIME file;
-    GetSystemTimeAsFileTime(&file);
-    return (ULONGLONG)file.dwHighDateTime << 32 | file.dwLowDateTime;
-}
-
 static void heartbeat_to_server(Bucket *bucket, ULONGLONG at, double duration, const char *data) {
-    if (!bucket->ready && !(bucket->ready = post(bucket->path, bucket->json))) return;
+    if (!bucket->ready && !(bucket->ready = http_post(bucket->path, bucket->json))) return;
     char path[512], timestamp[64], body[sizeof current.app + sizeof current.title + 200];
     format_timestamp(at, timestamp, sizeof timestamp);
     snprintf(path, sizeof path, "%s/heartbeat?pulsetime=%d", bucket->path, bucket->pulsetime);
     snprintf(body, sizeof body, "{\"timestamp\": \"%s\", \"duration\": %.3f, \"data\": %s}", timestamp, duration, data);
     /* Server down: retry the bucket too once it is back. */
-    if (!post(path, body)) bucket->ready = 0;
+    if (!http_post(path, body)) bucket->ready = 0;
 }
 
 /* Where heartbeats go; the tests record them instead. */

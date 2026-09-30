@@ -23,11 +23,7 @@
  * Tests: psmux-agent.test.c (scripts/Test-Windots.ps1 runs them).
  */
 #include "http.h"
-/* Only json_escape is used; the rest of json.h would fail -Werror. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 #include "json.h"
-#pragma GCC diagnostic pop
 #include <windows.h>
 
 #define TICK_MS 5000
@@ -187,36 +183,23 @@ static Seen *seen_session(const char *name) {
     return entry;
 }
 
-static int aw_post(const char *path, const char *body) {
-    int status = http_request("POST", path, body, NULL, 0);
-    /* 304: the bucket already exists. */
-    return (status >= 200 && status < 300) || status == 304;
-}
-
 /* Where heartbeats go; the tests record them instead. */
 static int send_heartbeat(const char *body) {
     char bucket[512];
     snprintf(bucket, sizeof bucket, "{\"client\": \"aw-watcher-tmux\", \"type\": \"tmux.sessions\", \"hostname\": \"%s\"}", host);
     /* aw-server may start after psmux: retry the bucket until it's there. */
-    if (!bucket_ready && !(bucket_ready = aw_post("/api/0/buckets/aw-watcher-tmux", bucket))) return 0;
+    if (!bucket_ready && !(bucket_ready = http_post("/api/0/buckets/aw-watcher-tmux", bucket))) return 0;
     char path[128];
     snprintf(path, sizeof path, "/api/0/buckets/aw-watcher-tmux/heartbeat?pulsetime=%d", AW_PULSETIME);
-    if (!aw_post(path, body)) bucket_ready = 0;
+    if (!http_post(path, body)) bucket_ready = 0;
     return bucket_ready;
-}
-
-static void now_timestamp(char *out, size_t size) {
-    SYSTEMTIME t;
-    GetSystemTime(&t);
-    snprintf(out, size, "%04d-%02d-%02dT%02d:%02d:%02d.%03d000+00:00",
-        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
 }
 
 /* Heartbeats a session whose activity moved since the last one that went out. */
 static void track(const char *session, char *line, int (*send)(const char *)) {
     char timestamp[64], body[4096];
     long long activity;
-    now_timestamp(timestamp, sizeof timestamp);
+    format_timestamp(now_ticks(), timestamp, sizeof timestamp);
     if (!heartbeat_body(session, line, timestamp, &activity, body, sizeof body)) return;
     Seen *entry = seen_session(session);
     if (activity > entry->activity && send(body)) entry->activity = activity;
