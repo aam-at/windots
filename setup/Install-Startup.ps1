@@ -242,7 +242,11 @@ try {
     # as the workspace widget, so each mode shows only its own workspaces.
     $yasbWorkspaces = if ($DesktopMode -eq 'Komorebi') { 'komorebi_workspaces' } else { 'windows_desktops' }
     Write-Info "Setting YASB_WORKSPACES=$yasbWorkspaces"
-    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('YASB_WORKSPACES', $yasbWorkspaces, 'User') }
+    # Also set it for this process: a YASB launched from here inherits this env block, not the registry.
+    Invoke-IfNotDryRun {
+        [Environment]::SetEnvironmentVariable('YASB_WORKSPACES', $yasbWorkspaces, 'User')
+        $env:YASB_WORKSPACES = $yasbWorkspaces
+    }
     Build-NativeHelpers
     [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb') -Arguments '')
     # thide (scoop\thide.json) hides the Windows taskbar in both modes: the YASB
