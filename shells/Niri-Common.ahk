@@ -24,7 +24,7 @@ OpenDefaultBrowser() {
 ; toggles. It opens on the hidden "Quake" profile, whose fixed tab title is how
 ; Komorebi's ignore rule leaves the drop-down to Terminal instead of tiling it.
 ; Terminal's own slide stops at the work area, under the YASB bar, so
-; terminal\settings.json turns it off (dropdownDuration 0) and QuakeSlide fades
+; config\terminal\settings.json turns it off (dropdownDuration 0) and QuakeSlide fades
 ; the window in from the monitor's top edge instead, covering the bar.
 QuakeRect := ""  ; rect saved by the last fade out; see QuakeSlide
 ScratchTerminal() {

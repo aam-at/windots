@@ -1,5 +1,5 @@
 <#
-Configures PowerToys productivity settings. powertoys/settings.json lists every
+Configures PowerToys productivity settings. config/powertoys/settings.json lists every
 module, so modules this setup doesn't use stay off instead of running at their
 defaults. FancyZones is off with -DesktopMode Komorebi, which tiles windows itself.
 #>
@@ -60,5 +60,5 @@ function Merge-SettingsFile([string]$Name, [string]$TemplatePath, [string]$Setti
 }
 
 
-Merge-SettingsFile 'PowerToys' (Join-Path $repoRoot 'powertoys\settings.json') (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\settings.json')
+Merge-SettingsFile 'PowerToys' (Join-Path $repoRoot 'config\powertoys\settings.json') (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\settings.json')
 Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'

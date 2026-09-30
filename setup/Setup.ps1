@@ -9,7 +9,7 @@ column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
                                  Mode, long paths, lid/sleep power plan
   Ssh        Configure-SshAgent  enable ssh-agent (UAC), load ~/.ssh/id_ed25519
   Apps       Install-Apps        winget, Scoop, Bun packages, PowerShell modules
-  PowerToys  Configure-PowerToys merge powertoys/settings.json (no FancyZones
+  PowerToys  Configure-PowerToys merge config/powertoys/settings.json (no FancyZones
                                  with -DesktopMode Komorebi)
   Links      Install-Links       link configs from this repo and ~/dotfiles,
                                  install psmux plugins
