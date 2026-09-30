@@ -139,6 +139,22 @@ function Build-NativeHelpers {
         try { & $buildScript @helper }
         catch { Write-Warn "$($_.Exception.Message) (retry: pwsh -File $buildScript $($helper.Source))" }
     }
+
+    # clipboard.exe, the YASB clipboard dropdown, is Rust (WinRT clipboard history
+    # has no gcc headers). rust-toolchain.toml pins the GNU toolchain, so it needs
+    # gcc but not Visual Studio.
+    $project = WindotsPath 'yasb\clipboard'
+    Write-Info "Building $project"
+    if ($DryRun) { return }
+    try {
+        Get-Process clipboard -ErrorAction SilentlyContinue | Stop-Process -Force
+        # From the project dir: rustup reads rust-toolchain.toml from the cwd only.
+        Push-Location $project
+        try { cargo build --release } finally { Pop-Location }
+        if ($LASTEXITCODE) { throw 'cargo build failed' }
+        Copy-Item "$project\target\release\clipboard.exe" "$project\clipboard.exe" -Force
+    }
+    catch { Write-Warn "$($_.Exception.Message) (retry: cargo build --release in $project)" }
 }
 
 # aw-server serves dotfiles' tools\wellbeing\dashboard (screen time and

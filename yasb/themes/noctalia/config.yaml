@@ -44,6 +44,7 @@ bars:
       - "screen_time"
       right:
       - "systray"
+      - "clipboard"
       - "status"
       - "power_menu"
   dock-bar:
@@ -136,6 +137,18 @@ widgets:
         dark_mode: true
       callbacks:
         on_left: "toggle_quick_launch"
+  # Click drops down Windows clipboard history (yasb\clipboard). The number
+  # after clipboard.exe is how many characters of each text entry to preview.
+  clipboard:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      label_alt: "<span></span>"
+      class_name: "clipboard-widget"
+      callbacks:
+        on_left: 'exec %WINDOTS%\yasb\clipboard\clipboard.exe 60'
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
   windows_desktops:
     type: "yasb.windows_desktops.WorkspaceWidget"
     options:

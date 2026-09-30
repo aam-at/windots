@@ -1,6 +1,7 @@
 yasb/**/yasb.log*
 yasb/battery/battery.exe
 yasb/language/language.exe
+yasb/clipboard/clipboard.exe
 yasb/activitywatch/window-watcher.exe
 shells/komorebi/applications.json
 psmux/psmux-agent.exe
