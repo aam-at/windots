@@ -60,7 +60,7 @@ QuakeForeground(hook, event, hwnd, *) {
     DetectHiddenWindows true
     q := WinExist(quake)
     if wasQuake && hwnd != q
-        SetTimer(() => (QuakeSlide(q, false), WinHide(q)), -1)
+        SetTimer(() => (QuakeSlide(q, false), WinExist(q) && WinHide(q)), -1)
     wasQuake := hwnd = q
 }
 DllCall("SetWinEventHook", "UInt", 3, "UInt", 3, "Ptr", 0
@@ -72,6 +72,9 @@ DllCall("SetWinEventHook", "UInt", 3, "UInt", 3, "Ptr", 0
 QuakeSlide(hwnd, down) {
     global QuakeRect
     SetWinDelay -1
+    DetectHiddenWindows true  ; timer threads start with the default (false)
+    if !WinExist(hwnd)
+        return
     WinGetPos &x, &y, &w, &h, hwnd
     top := 0, half := h
     Loop MonitorGetCount() {
