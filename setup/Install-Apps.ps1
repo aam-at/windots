@@ -161,7 +161,7 @@ if (Test-Command 'scoop') {
             catch { Write-Warn 'Everything service was not installed (elevation declined); Everything will ask for admin rights to index.' }
         }
     }
-    # Clink (fish-style line editing for cmd.exe, configs in clink\) hooks into
+    # Clink (fish-style line editing for cmd.exe, configs in config\clink\) hooks into
     # every cmd window through cmd's per-user AutoRun; re-running is harmless.
     if (Test-Command 'clink') {
         Write-Info 'Enabling Clink in cmd.exe (AutoRun)'
