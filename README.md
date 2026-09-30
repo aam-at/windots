@@ -43,7 +43,8 @@ desktop options; automatic monitor detection is intentionally not used.
   `pwsh -File .\shells\native\Use-Desktop.ps1`
 
   Stops Komorebi, enables the native Windows virtual-desktop workflow with
-  PowerToys Workspaces and FancyZones, hides the bottom taskbar, and keeps the
+  PowerToys Workspaces and FancyZones, turns off taskbar auto-hide (thide hides
+  the taskbar, and windows stop above its strip, as in Komorebi), and keeps the
   YASB top bar (showing the numbered virtual desktops).
   Keybindings follow niri with Win as Mod: `Win+H/L` focus left/right,
   `Win+J/K` cycle the windows on the monitor, `Win+1`..`Win+9` jump to numbered virtual desktops (add Shift to move the

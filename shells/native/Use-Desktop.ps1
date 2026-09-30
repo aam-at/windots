@@ -22,13 +22,16 @@ function Set-FancyZonesSettings([string]$Path) {
     Invoke-IfNotDryRun { $settings | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $Path -Encoding utf8 -NoNewline }
 }
 
-function Set-TaskbarAutoHide {
+# Auto-hide gives the taskbar's strip to maximized windows. With it off, the
+# taskbar thide hides keeps that strip reserved, as in Komorebi mode, so
+# windows stop above the YASB dock.
+function Disable-TaskbarAutoHide {
     $path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3'
     $settings = (Get-ItemProperty -LiteralPath $path -Name Settings).Settings
     if ($settings.Length -le 8) { throw 'Taskbar settings are not in the expected format.' }
-    if ($settings[8] -eq 2) { return $false }
+    if ($settings[8] -ne 2) { return $false }
 
-    $settings[8] = 2
+    $settings[8] = 3
     Invoke-IfNotDryRun { Set-ItemProperty -LiteralPath $path -Name Settings -Value $settings }
     return $true
 }
@@ -56,7 +59,7 @@ try {
     & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DryRun:$DryRun
     if (-not $?) { throw 'Failed to enable PowerToys utilities.' }
     Set-FancyZonesSettings -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\FancyZones\settings.json')
-    $taskbarChanged = Set-TaskbarAutoHide
+    $taskbarChanged = Disable-TaskbarAutoHide
     $wallpapersCleared = Clear-DesktopWallpapers
     if ($taskbarChanged -or $wallpapersCleared) {
         # The YASB dock loses its window tracking when Explorer restarts;
