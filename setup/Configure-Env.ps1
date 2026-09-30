@@ -29,7 +29,7 @@ function Set-HomeEnvironment {
     }
 }
 
-# ~/.local/bin leads the user PATH so its wrappers (cmd\herdr.cmd) win over
+# ~/.local/bin leads the user PATH so its wrappers (cmd\*.cmd) win over
 # Scoop's shims of the same name.
 function Add-UserBinToPath {
     $binDirectory = Join-Path $HOME '.local\bin'

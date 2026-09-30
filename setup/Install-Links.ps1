@@ -100,7 +100,6 @@ function Ensure-ProfileStub([string]$Path) {
 $linkMap = @{
     (Join-Path $HOME '.local\bin\cc-personal.cmd')                                                            = (WindotsPath 'cmd\cc-personal.cmd')
     (Join-Path $HOME '.local\bin\cc-work.cmd')                                                                = (WindotsPath 'cmd\cc-work.cmd')
-    (Join-Path $HOME '.local\bin\herdr.cmd')                                                                  = (WindotsPath 'cmd\herdr.cmd')
     (Join-Path $HOME '.local\bin\y.cmd')                                                                      = (WindotsPath 'cmd\y.cmd')
     (Join-Path $env:LOCALAPPDATA 'clink\default_settings')                                                    = (WindotsPath 'clink\default_settings')
     (Join-Path $env:LOCALAPPDATA 'clink\_inputrc')                                                            = (WindotsPath 'clink\_inputrc')
@@ -130,7 +129,7 @@ $linkMap = @{
     (Join-Path $env:APPDATA 'gitu')                                                                           = (DotfilesPath 'config\gitu')
     (Join-Path $env:APPDATA 'gitui')                                                                          = (DotfilesPath 'config\gitui')
     (Join-Path $env:APPDATA 'helix')                                                                          = (DotfilesPath 'config\helix')
-    (Join-Path $env:APPDATA 'herdr\config.toml')                                                              = (DotfilesPath 'config\herdr\config.toml')
+    (Join-Path $env:APPDATA 'herdr\config.toml')                                                              = (WindotsPath 'herdr\config.toml')
     (Join-Path $env:APPDATA 'yazi\config')                                                                    = (DotfilesPath 'config\yazi')
     (Join-Path $env:APPDATA 'Zed')                                                                            = (DotfilesPath 'config\zed')
     (Join-Path $HOME '.config\emacs\doom')                                                                    = (DotfilesPath 'emacs\doom')
