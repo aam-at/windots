@@ -21,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
 function Install-WingetPackage {
-    param([Parameter(Mandatory)][string]$Id)
+    param([Parameter(Mandatory)][string]$Id, [string[]]$Override)
 
     winget list -e --id $Id --accept-source-agreements *>$null
     if ($LASTEXITCODE -eq 0) {
@@ -33,7 +33,7 @@ function Install-WingetPackage {
 
     Write-Info "winget install -e --id $Id"
     return Invoke-NativeCommand -Description "winget package $Id" -Action {
-        winget install -e --id $Id --silent --accept-source-agreements --accept-package-agreements
+        winget install -e --id $Id --silent --accept-source-agreements --accept-package-agreements @Override
     }
 }
 
@@ -61,11 +61,15 @@ $wingetApps = @(
     'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode',
     'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'WinFsp.WinFsp'
 )
+# Installer arguments for packages that need more than the default install.
+$wingetOverrides = @{
+    'Microsoft.VisualStudio.BuildTools' = @('--override', '--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended')
+}
 
 if (Test-Command 'winget') {
     Write-Info 'Installing applications via winget...'
     foreach ($id in $wingetApps) {
-        if (-not (Install-WingetPackage -Id $id)) {
+        if (-not (Install-WingetPackage -Id $id -Override $wingetOverrides[$id])) {
             $packageFailures.Add("winget:$id")
         }
     }
