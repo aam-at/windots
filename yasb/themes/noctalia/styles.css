@@ -1144,6 +1144,10 @@
     font-weight: 600;
     padding: 0;
 }
+.yasb-bar .caffeinate-widget .label {
+    font-family: "tabler-icons-filled", "tabler-icons";
+    padding: 0;
+}
 .yasb-bar .language-widget .label {
     font-weight: 600;
     padding: 0;

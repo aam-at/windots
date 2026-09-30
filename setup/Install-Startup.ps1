@@ -140,6 +140,7 @@ function Build-NativeHelpers {
     $helpers = @(
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
         @{ Source = WindotsPath 'yasb\language\language.c' }
+        @{ Source = WindotsPath 'yasb\caffeinate\caffeinate.c'; Windows = $true }
         @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'yasb\dictation\dictate.c'; Libs = 'winmm'; Windows = $true }

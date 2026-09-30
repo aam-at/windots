@@ -231,12 +231,31 @@ widgets:
         on_left: "toggle_label"
         on_middle: "do_nothing"
         on_right: "do_nothing"
+  # Keep-awake toggle, like Noctalia's caffeine: a filled mug while the PC is kept
+  # awake, an outline mug-off otherwise (Tabler Icons fonts, from Install-Fonts.ps1).
+  # Click toggles; caffeinate.exe keeps the awake state
+  # in a background process and reports it with --status.
+  caffeinate:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data[icon]}"
+      label_alt: "{data[icon]}"
+      class_name: "caffeinate-widget"
+      exec_options:
+        run_cmd: '$env:WINDOTS\yasb\caffeinate\caffeinate.exe --status'
+        run_interval: 500
+        return_format: "json"
+        use_shell: false
+      callbacks:
+        on_left: 'exec $env:WINDOTS\yasb\caffeinate\caffeinate.exe --toggle'
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
   # Status widgets share one capsule, like Noctalia's grouped right section.
   status:
     type: "yasb.grouper.GrouperWidget"
     options:
       class_name: "status"
-      widgets: ["language", "wifi", "traffic", "volume", "dictation", "clipboard", "notifications", "battery"]
+      widgets: ["language", "caffeinate", "wifi", "traffic", "volume", "dictation", "clipboard", "notifications", "battery"]
   wifi:
     type: "yasb.wifi.WifiWidget"
     options:

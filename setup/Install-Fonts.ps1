@@ -28,6 +28,12 @@ $fontsMap = @{
     'powerline-fonts' = 'https://github.com/powerline/fonts.git'
 }
 
+# Tabler Icons has no font in its git repo (1 GB of SVGs); the npm package ships
+# one, plus a filled set. YASB's caffeinate widget uses the filled mug and the outline mug-off.
+$tablerFonts = 'tabler-icons', 'tabler-icons-filled' | ForEach-Object {
+    "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.48.0/dist/fonts/$_.ttf"
+}
+
 $namespace = 'WindotsFontInstaller'
 if ($null -eq ("$namespace.NativeMethods" -as [type])) {
     Add-Type -TypeDefinition @"
@@ -124,6 +130,33 @@ foreach ($kvp in $fontsMap.GetEnumerator()) {
     if ($DryRun) { Write-Info "Would install fonts from $dest"; continue }
     Install-FontFolder $dest $isCurrentUser
 }
+
+$tablerDest = Join-Path $fontsRoot 'tabler-fonts'
+foreach ($url in $tablerFonts) {
+    $file = Join-Path $tablerDest ([IO.Path]::GetFileName($url))
+    if (Test-Path -LiteralPath $file) { continue }
+    Write-Info "Downloading $url..."
+    if ($DryRun) { continue }
+    New-Item -ItemType Directory -Path $tablerDest -Force | Out-Null
+    Invoke-WebRequest -Uri $url -OutFile $file
+    # The font names its family "tabler-icons", the outline set's name; give it
+    # its own so the two never shadow each other.
+    if ($file -like '*-filled.ttf') {
+        @'
+import sys
+from fontTools.ttLib import TTFont
+font = TTFont(sys.argv[1])
+for record in font['name'].names:
+    if record.nameID in (1, 4, 16):
+        record.string = 'tabler-icons-filled'
+    elif record.nameID == 6:
+        record.string = 'tabler-icons-filled-Regular'
+font.save(sys.argv[1])
+'@ | uv run --quiet --with fonttools python - $file
+        if ($LASTEXITCODE) { throw 'Renaming the filled Tabler font failed.' }
+    }
+}
+if (-not $DryRun) { Install-FontFolder $tablerDest $isCurrentUser }
 
 # Broadcast WM_FONTCHANGE; a plain SendMessage waits forever on any window that
 # isn't pumping messages, so skip hung ones (SMTO_ABORTIFHUNG) after 1s each.
