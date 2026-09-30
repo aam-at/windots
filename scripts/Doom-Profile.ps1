@@ -25,20 +25,13 @@ $null = chcp.com 65001
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 . (Join-Path $PSScriptRoot '..\setup\Common.ps1')
-$roots = Get-EmacsRoots
-$configRoot = $roots.ConfigRoot
-$dataRoot = $roots.DataRoot
-$stateRoot = $roots.StateRoot
+$doom = Get-ProfilePaths 'doom'
 
-$framework = Join-Path $dataRoot 'doom'
-$profileDirectory = Join-Path $configRoot 'doom'
-$localDirectory = Join-Path $stateRoot 'doom'
-
-if (-not (Test-Path -LiteralPath (Join-Path $framework 'bin'))) {
-    throw "Doom is not installed at $framework"
+if (-not (Test-Path -LiteralPath (Join-Path $doom.Framework 'bin'))) {
+    throw "Doom is not installed at $($doom.Framework)"
 }
-if (-not (Test-Path -LiteralPath (Join-Path $profileDirectory 'init.el'))) {
-    throw "Doom profile is not installed at $profileDirectory"
+if (-not (Test-Path -LiteralPath (Join-Path $doom.Profile 'init.el'))) {
+    throw "Doom profile is not installed at $($doom.Profile)"
 }
 
 if ($DoomArgs -notcontains '-!' -and $DoomArgs -notcontains '--force') {
@@ -55,26 +48,16 @@ $doomCommand = @(
     # Doom's PowerShell wrapper currently references an unset exit variable
     # when Emacs returns a normal non-zero exit code. Prefer its shell launcher,
     # which preserves that exit code for Setup's error reporting.
-    (Join-Path $framework 'bin\doom'),
-    (Join-Path $framework 'bin\doom.cmd'),
-    (Join-Path $framework 'bin\doom.ps1')
+    (Join-Path $doom.Framework 'bin\doom'),
+    (Join-Path $doom.Framework 'bin\doom.cmd'),
+    (Join-Path $doom.Framework 'bin\doom.ps1')
 ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($doomCommand)) {
-    throw "Doom CLI was not found under $framework\bin"
+    throw "Doom CLI was not found under $($doom.Framework)\bin"
 }
 
-New-Item -ItemType Directory -Path $localDirectory -Force | Out-Null
-$savedEnvironment = @{
-    EMACSDIR     = [Environment]::GetEnvironmentVariable('EMACSDIR', 'Process')
-    DOOMDIR      = [Environment]::GetEnvironmentVariable('DOOMDIR', 'Process')
-    DOOMLOCALDIR = [Environment]::GetEnvironmentVariable('DOOMLOCALDIR', 'Process')
-}
-
-try {
-    $env:EMACSDIR = $framework
-    $env:DOOMDIR = $profileDirectory
-    $env:DOOMLOCALDIR = $localDirectory
-
+New-Item -ItemType Directory -Path $doom.Local -Force | Out-Null
+Invoke-WithEnvironment $doom.Environment {
     if ([System.IO.Path]::GetExtension($doomCommand) -in @('.ps1', '.cmd')) {
         & $doomCommand @DoomArgs
     }
@@ -82,17 +65,10 @@ try {
         $bash = Get-Command bash -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $bash) { $bash = Get-Command sh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
         if ($null -eq $bash) {
-            throw "Doom CLI is a shell script; install Git Bash or make doom.ps1 available at $framework\bin."
+            throw "Doom CLI is a shell script; install Git Bash or make doom.ps1 available at $($doom.Framework)\bin."
         }
         & $bash.Source $doomCommand @DoomArgs
     }
-    $exitCode = $LASTEXITCODE
-}
-finally {
-    foreach ($name in $savedEnvironment.Keys) {
-        if ($null -eq $savedEnvironment[$name]) { Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue }
-        else { Set-Item -Path "Env:$name" -Value $savedEnvironment[$name] }
-    }
 }
 
-exit $exitCode
+exit $LASTEXITCODE

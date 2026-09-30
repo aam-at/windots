@@ -57,7 +57,6 @@ function Ensure-GitCheckout {
     return $true
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
 $dotfilesEmacs = Join-Path $DotfilesRoot 'emacs'
 if (-not (Test-Path -LiteralPath $dotfilesEmacs)) {
     Write-Warn "Shared Emacs profiles not found at $dotfilesEmacs; skipping Emacs distribution setup."
@@ -65,11 +64,9 @@ if (-not (Test-Path -LiteralPath $dotfilesEmacs)) {
 }
 
 $roots = Get-EmacsRoots
-$emacsConfigRoot = $roots.ConfigRoot
-$emacsDataRoot = $roots.DataRoot
-$emacsStateRoot = $roots.StateRoot
-$doomFramework = Join-Path $emacsDataRoot 'doom'
-$spacemacsFramework = Join-Path $emacsDataRoot 'spacemacs'
+$doomFramework = (Get-ProfilePaths 'doom').Framework
+$spacemacs = Get-ProfilePaths 'spacemacs'
+$spacemacsFramework = $spacemacs.Framework
 
 [void](Ensure-GitCheckout -Name 'Doom' -Repository 'https://github.com/doomemacs/doomemacs.git' -Destination $doomFramework)
 [void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/aam-at/spacemacs.git' -Upstream 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
@@ -86,8 +83,8 @@ if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application
 # package downloads don't block the rest of setup; the marker is written only
 # when the install exits 0, so a failed one is retried on the next run.
 function Start-FrameworkInstall([string]$Name, [string]$Command) {
-    $marker = Join-Path $emacsStateRoot "$Name\.windots-installed"
-    if (Test-Path -LiteralPath (Join-Path $emacsConfigRoot "$Name\init.el")) {
+    $marker = Join-Path $roots.StateRoot "$Name\.windots-installed"
+    if (Test-Path -LiteralPath (Join-Path $roots.ConfigRoot "$Name\init.el")) {
         if (Test-Path -LiteralPath $marker) {
             Write-Info "$Name initial installation already completed."
             return
@@ -100,12 +97,12 @@ function Start-FrameworkInstall([string]$Name, [string]$Command) {
         Start-Process -FilePath $shell.Source -ArgumentList @('-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $script)
     }
     else {
-        Write-Warn "$Name profile is not linked at $emacsConfigRoot\$Name; skipping $Name installation."
+        Write-Warn "$Name profile is not linked at $($roots.ConfigRoot)\$Name; skipping $Name installation."
     }
 }
 
-$doomProfileScript = Join-Path $repoRoot 'scripts\Doom-Profile.ps1'
+$doomProfileScript = WindotsPath 'scripts\Doom-Profile.ps1'
 Start-FrameworkInstall 'doom' "& '$doomProfileScript' install --force"
 # Loading Spacemacs in batch mode installs its layers' packages, then exits.
-Start-FrameworkInstall 'spacemacs' ("`$env:SPACEMACSDIR = '$(Join-Path $emacsConfigRoot 'spacemacs')'; " +
+Start-FrameworkInstall 'spacemacs' ("`$env:SPACEMACSDIR = '$($spacemacs.Environment.SPACEMACSDIR)'; " +
     "emacs --batch --init-directory='$spacemacsFramework' -l '$(Join-Path $spacemacsFramework 'init.el')'")

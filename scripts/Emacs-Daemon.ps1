@@ -24,9 +24,6 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\setup\Common.ps1')
 $roots = Get-EmacsRoots
-$configRoot = $roots.ConfigRoot
-$dataRoot = $roots.DataRoot
-$stateRoot = $roots.StateRoot
 
 function Get-RequiredCommand {
     param([Parameter(Mandatory)][string]$Name)
@@ -43,31 +40,7 @@ function Get-ServerArg {
 
     # Windows emacsclient has no --socket-name (servers use TCP + an auth file).
     # Both frameworks keep that file in <init-directory>\server\<daemon name>.
-    return "--server-file=$(Join-Path $dataRoot "$Name\server\$Name")"
-}
-
-function Get-ProfilePaths {
-    param([Parameter(Mandatory)][string]$Name)
-
-    switch ($Name) {
-        'doom' {
-            $paths = [pscustomobject]@{
-                Framework = Join-Path $dataRoot 'doom'
-                Profile   = Join-Path $configRoot 'doom'
-                Local     = Join-Path $stateRoot 'doom'
-            }
-            $paths | Add-Member Environment @{ EMACSDIR = $paths.Framework; DOOMDIR = $paths.Profile; DOOMLOCALDIR = $paths.Local }
-            return $paths
-        }
-        default {
-            return [pscustomobject]@{
-                Framework   = Join-Path $dataRoot 'spacemacs'
-                Profile     = Join-Path $configRoot $Name
-                Local       = $null
-                Environment = @{ SPACEMACSDIR = (Join-Path $configRoot $Name) }
-            }
-        }
-    }
+    return "--server-file=$(Join-Path $roots.DataRoot "$Name\server\$Name")"
 }
 
 function Assert-ProfileInstalled {
@@ -116,21 +89,8 @@ function Start-Daemon {
         New-Item -ItemType Directory -Path $ProfilePaths.Local -Force | Out-Null
     }
 
-    $savedEnvironment = @{}
-    try {
-        foreach ($name in $ProfilePaths.Environment.Keys) {
-            $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-            Set-Item -Path "Env:$name" -Value $ProfilePaths.Environment[$name]
-        }
-
+    Invoke-WithEnvironment $ProfilePaths.Environment {
         Start-Process -FilePath $EmacsPath -ArgumentList @("--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)") | Out-Null
-    }
-    finally {
-        foreach ($name in $ProfilePaths.Environment.Keys) {
-            $previousValue = $savedEnvironment[$name]
-            if ($null -eq $previousValue) { Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue }
-            else { Set-Item -Path "Env:$name" -Value $previousValue }
-        }
     }
 
     Wait-ForDaemon -ClientPath $ClientPath
@@ -153,8 +113,8 @@ function Stop-Daemon {
 }
 
 function Set-DefaultProfileStartup {
-    $profileFile = Join-Path $stateRoot 'default-profile'
-    New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
+    $profileFile = Join-Path $roots.StateRoot 'default-profile'
+    New-Item -ItemType Directory -Path $roots.StateRoot -Force | Out-Null
     Set-Content -LiteralPath $profileFile -Value $EmacsProfile -Encoding utf8 -NoNewline
 
     $shellPath = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue

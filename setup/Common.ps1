@@ -87,6 +87,50 @@ function Invoke-Elevated([string[]]$ArgumentList, [string]$FilePath = (Get-Proce
     catch { $null }
 }
 
+# Per-profile Emacs paths and the environment variables its framework reads.
+function Get-ProfilePaths {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $roots = Get-EmacsRoots
+    switch ($Name) {
+        'doom' {
+            $paths = [pscustomobject]@{
+                Framework = Join-Path $roots.DataRoot 'doom'
+                Profile   = Join-Path $roots.ConfigRoot 'doom'
+                Local     = Join-Path $roots.StateRoot 'doom'
+            }
+            $paths | Add-Member Environment @{ EMACSDIR = $paths.Framework; DOOMDIR = $paths.Profile; DOOMLOCALDIR = $paths.Local }
+            return $paths
+        }
+        default {
+            return [pscustomobject]@{
+                Framework   = Join-Path $roots.DataRoot 'spacemacs'
+                Profile     = Join-Path $roots.ConfigRoot $Name
+                Local       = $null
+                Environment = @{ SPACEMACSDIR = (Join-Path $roots.ConfigRoot $Name) }
+            }
+        }
+    }
+}
+
+# Runs $Body with $Vars set in the process environment, then restores them.
+function Invoke-WithEnvironment([hashtable]$Vars, [scriptblock]$Body) {
+    $saved = @{}
+    try {
+        foreach ($name in $Vars.Keys) {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+            Set-Item -Path "Env:$name" -Value $Vars[$name]
+        }
+        & $Body
+    }
+    finally {
+        foreach ($name in $saved.Keys) {
+            if ($null -eq $saved[$name]) { Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue }
+            else { Set-Item -Path "Env:$name" -Value $saved[$name] }
+        }
+    }
+}
+
 function Test-IsAdmin {
     try {
         $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
