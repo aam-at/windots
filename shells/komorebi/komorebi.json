@@ -3,11 +3,11 @@
   "app_specific_configuration_path": "$Env:USERPROFILE/.config/komorebi/applications.json",
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
-  "default_workspace_padding": 6,
-  "default_container_padding": 6,
+  "default_workspace_padding": 3,
+  "default_container_padding": 3,
   "border": true,
   "border_width": 2,
-  "border_style": "Rounded",
+  "border_style": "System",
   "border_offset": -1,
   "mouse_follows_focus": false,
   "border_colours": {
@@ -17,60 +17,104 @@
     "floating": "#d3869b",
     "unfocused": "#3c3836"
   },
-  "layout_defaults": {
-    "Scrolling": {
-      "layout_options": {
-        "scrolling": {
-          "columns": 2,
-          "center_focused_column": true
-        }
-      }
-    }
-  },
   "monitors": [
     {
       "work_area_offset": {
         "left": 0,
         "top": -4,
         "right": 0,
-        "bottom": -4
+        "bottom": 0
       },
       "workspaces": [
         {
           "name": "1",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "2",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "3",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "4",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "5",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "6",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "7",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "8",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         },
         {
           "name": "9",
-          "layout": "Scrolling"
+          "layout": "Scrolling",
+          "layout_options": {
+            "scrolling": {
+              "columns": 2,
+              "center_focused_column": true
+            }
+          }
         }
       ]
     }
