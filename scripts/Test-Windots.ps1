@@ -18,14 +18,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = Split-Path -Parent $PSScriptRoot
-if (-not $Path) { $Path = git -C $repoRoot ls-files '*.ps1' '*.ahk' '*.c' | ForEach-Object { Join-Path $repoRoot $_ } }
-
-$scoopRoot = if ($env:SCOOP) { $env:SCOOP } else { Join-Path $HOME 'scoop' }
-$autoHotkey = Join-Path $scoopRoot 'apps\autohotkey\current\v2\AutoHotkey64.exe'
+. (Join-Path $PSScriptRoot '..\setup\Common.ps1')
+if (-not $Path) { $Path = git -C $WindotsRoot ls-files '*.ps1' '*.ahk' '*.c' | ForEach-Object { WindotsPath $_ } }
+$autoHotkey = Join-Path $ScoopRoot 'apps\autohotkey\current\v2\AutoHotkey64.exe'
 $failures = 0
 $checkedC = @()
-$cLibrary = Join-Path $(if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }) 'tools\lib'
+$cLibrary = Join-Path $DotfilesRoot 'tools\lib'
 $warnAll = New-TemporaryFile
 Set-Content -LiteralPath $warnAll -Value '#Warn All, StdOut'
 

@@ -42,18 +42,6 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-# Runs a script elevated (UAC prompt) with -Name value / -Switch arguments;
-# returns whether it exited 0. False when elevation is declined.
-function Invoke-ElevatedScript([string]$ScriptPath, [hashtable]$Arguments = @{}) {
-    $argumentList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath)
-    foreach ($entry in $Arguments.GetEnumerator()) {
-        if ($entry.Value -is [bool] -or $entry.Value -is [switch]) { if ($entry.Value) { $argumentList += "-$($entry.Key)" } }
-        else { $argumentList += "-$($entry.Key)", "$($entry.Value)" }
-    }
-    try { (Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList $argumentList -Verb RunAs -Wait -PassThru).ExitCode -eq 0 }
-    catch { $false }
-}
-
 # Runs a sibling setup script with -DryRun; -Verbose reaches it through
 # $VerbosePreference.
 function Invoke-Step([string]$Name, [hashtable]$Arguments = @{}) {
@@ -66,8 +54,10 @@ function Configure-Registry {
     Invoke-Step 'Configure-Registry'
     if (-not (Test-IsAdmin)) {
         Write-Info 'Requesting administrator approval to enable Sudo, Developer Mode, long paths, and the agent power plan...'
-        $registryArgs = @{ DryRun = [bool]$DryRun; Verbose = $VerbosePreference -eq 'Continue' }
-        if (-not (Invoke-ElevatedScript (Join-Path $PSScriptRoot 'Configure-Registry.ps1') $registryArgs)) {
+        $registryArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'Configure-Registry.ps1'))
+        if ($DryRun) { $registryArgs += '-DryRun' }
+        if ($VerbosePreference -eq 'Continue') { $registryArgs += '-Verbose' }
+        if ((Invoke-Elevated $registryArgs) -ne 0) {
             Write-Warn 'Admin-only registry and power-plan settings were skipped (elevation declined or failed). Symlink creation may require Developer Mode to be enabled manually.'
         }
     }
@@ -94,7 +84,7 @@ try {
     Write-Info 'Script completed successfully.'
 }
 catch {
-    Write-Err $_
+    Write-Host "[ERROR] $_" -ForegroundColor Red
     exit 1
 }
 finally {

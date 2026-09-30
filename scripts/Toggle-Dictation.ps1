@@ -42,7 +42,8 @@ $state = Join-Path $env:LOCALAPPDATA 'windots\dictation'
 $null = New-Item -ItemType Directory -Force $state
 $targetFile = "$state\target.json"; $raw = "$state\recording.raw"
 $log = "$state\whisper.log"; $failed = "$state\last-failed-transcript.txt"
-$whisperOv = Join-Path ($env:DOTFILES ?? (Join-Path $HOME 'dotfiles')) 'scripts\whisper_ov.py'
+. "$PSScriptRoot\..\setup\Common.ps1"
+$whisperOv = Join-Path $DotfilesRoot 'scripts\whisper_ov.py'
 . "$PSScriptRoot\Stop-WhisperServer.ps1"
 
 # A balloon needs its tray icon alive for a moment, so it lives in its own

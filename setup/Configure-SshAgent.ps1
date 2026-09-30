@@ -46,9 +46,9 @@ if ($agent.StartType -ne 'Automatic' -or $agent.Status -ne 'Running') {
     }
     else {
         Write-Info 'Requesting administrator approval to enable the ssh-agent service...'
-        $shell = (Get-Process -Id $PID).Path
-        try { Start-Process -FilePath $shell -ArgumentList @('-NoProfile', '-Command', $enableAgent) -Verb RunAs -Wait }
-        catch { throw 'Enabling the ssh-agent service needs administrator approval.' }
+        if ($null -eq (Invoke-Elevated '-NoProfile', '-Command', $enableAgent)) {
+            throw 'Enabling the ssh-agent service needs administrator approval.'
+        }
     }
     if ((Get-Service -Name ssh-agent).Status -ne 'Running') {
         throw 'Windows OpenSSH ssh-agent failed to start.'

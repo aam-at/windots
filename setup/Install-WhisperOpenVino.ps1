@@ -25,7 +25,8 @@ param([ValidateSet('NPU', 'GPU', 'CPU')][string[]]$Device = @('NPU', 'GPU'))
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$tool = Join-Path ($env:DOTFILES ?? (Join-Path $HOME 'dotfiles')) 'scripts\whisper_ov.py'
+. (Join-Path $PSScriptRoot 'Common.ps1')
+$tool = Join-Path $DotfilesRoot 'scripts\whisper_ov.py'
 . (Join-Path $PSScriptRoot '..\scripts\Stop-WhisperServer.ps1')
 
 uv run --quiet $tool --download

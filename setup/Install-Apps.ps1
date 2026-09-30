@@ -78,11 +78,9 @@ if (Test-Command 'winget') {
     if ($tailscaled -and ($tailscaled.Status -ne 'Running' -or $tailscaled.StartType -ne 'Automatic')) {
         Write-Info 'Requesting administrator approval to enable and start the Tailscale service...'
         Invoke-IfNotDryRun {
-            try {
-                Start-Process -FilePath (Get-Process -Id $PID).Path -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command',
-                'Set-Service -Name Tailscale -StartupType Automatic -Status Running'
+            if ($null -eq (Invoke-Elevated '-NoProfile', '-Command', 'Set-Service -Name Tailscale -StartupType Automatic -Status Running')) {
+                Write-Warn 'Tailscale service was not started (elevation declined); run: Start-Service Tailscale'
             }
-            catch { Write-Warn 'Tailscale service was not started (elevation declined); run: Start-Service Tailscale' }
         }
     }
 }
@@ -122,7 +120,6 @@ $bunApps = @(
 
 if (Test-Command 'scoop') {
     Write-Info 'Ensuring scoop buckets and apps are installed...'
-    $scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
     $existingBuckets = @(scoop bucket list).Name
     foreach ($b in $scoopBuckets) {
         if ($b -notin $existingBuckets) {
@@ -161,8 +158,9 @@ if (Test-Command 'scoop') {
     if ((Test-Path -LiteralPath $everything) -and -not (Get-Service -Name Everything -ErrorAction SilentlyContinue)) {
         Write-Info 'Requesting administrator approval to install the Everything service...'
         Invoke-IfNotDryRun {
-            try { Start-Process -FilePath $everything -ArgumentList '-install-service' -Verb RunAs -Wait }
-            catch { Write-Warn 'Everything service was not installed (elevation declined); Everything will ask for admin rights to index.' }
+            if ($null -eq (Invoke-Elevated '-install-service' $everything)) {
+                Write-Warn 'Everything service was not installed (elevation declined); Everything will ask for admin rights to index.'
+            }
         }
     }
     # Clink (fish-style line editing for cmd.exe, configs in config\clink\) hooks into

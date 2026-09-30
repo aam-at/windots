@@ -22,8 +22,6 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-$ScoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
-
 function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$WorkingDirectory) {
     $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
     $shortcut.TargetPath = $Target
@@ -50,11 +48,6 @@ function Resolve-KanataGui {
     Get-ChildItem -LiteralPath $kanataAppRoot -Filter 'kanata_windows_gui_winIOv2_*.exe' -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notlike '*cmd_allowed*' } |
         Select-Object -First 1 -ExpandProperty FullName
-}
-
-function Resolve-VirtualDesktopHelper {
-    $helper = Join-Path $ScoopRoot 'apps\windows-virtualdesktop-helper\current\WindowsVirtualDesktopHelper.exe'
-    if (Test-Path -LiteralPath $helper -PathType Leaf) { return $helper }
 }
 
 function Ensure-StartupShortcut {
@@ -86,12 +79,9 @@ function Ensure-StartupShortcut {
     }
     else {
         Write-Info "Starting $Name..."
-        if ([string]::IsNullOrWhiteSpace($Arguments)) {
-            Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) | Out-Null
-        }
-        else {
-            Start-Process -FilePath $target -ArgumentList $Arguments -WorkingDirectory (Split-Path -Parent $target) | Out-Null
-        }
+        $start = @{ FilePath = $target; WorkingDirectory = Split-Path -Parent $target }
+        if ($Arguments) { $start.ArgumentList = $Arguments }
+        Start-Process @start | Out-Null
     }
     return $true
 }
@@ -232,9 +222,9 @@ try {
         Remove-StartupShortcut 'KomorebiAHK'
         Remove-StartupShortcut 'Masir'
         if (-not $DryRun) { Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force }
-        $virtualDesktopHelperCandidates = @(Resolve-VirtualDesktopHelper) + @('WindowsVirtualDesktopHelper') | Where-Object { $_ }
+        $virtualDesktopHelperCandidates = @((Join-Path $ScoopRoot 'apps\windows-virtualdesktop-helper\current\WindowsVirtualDesktopHelper.exe'), 'WindowsVirtualDesktopHelper')
         # Native-Desktop.ahk owns Win+1..9; the helper only shows the desktop number.
-        [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -Arguments '' -RunningProcessName 'WindowsVirtualDesktopHelper')
+        [void](Ensure-StartupShortcut -Name 'VirtualDesktopHelper' -Candidates $virtualDesktopHelperCandidates -RunningProcessName 'WindowsVirtualDesktopHelper')
         $nativeDesktop = WindotsPath 'shells\native\Native-Desktop.ahk'
         [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
     }
@@ -248,7 +238,7 @@ try {
         $env:YASB_WORKSPACES = $yasbWorkspaces
     }
     Build-NativeHelpers
-    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb') -Arguments '')
+    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb'))
     # thide (scoop\thide.json) hides the Windows taskbar in both modes: the YASB
     # dock slides in from the bottom edge, where the taskbar would pop up too.
     # Target the real exe, not the Scoop shim, which would stay running beside it.
@@ -263,9 +253,9 @@ try {
     # A running aw-server reads its config only on start.
     if ((Set-WellbeingDashboard) -and -not $DryRun) { Get-Process -Name aw-server -ErrorAction SilentlyContinue | Stop-Process -Force }
     [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $awServer) -RunningProcessName 'aw-server')
-    [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -Arguments '' -RunningProcessName 'window-watcher')
-    [void](Ensure-StartupShortcut -Name 'PsmuxAgent' -Candidates @((WindotsPath 'psmux\psmux-agent.exe')) -Arguments '' -RunningProcessName 'psmux-agent')
-    [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -Arguments '' -RunningProcessName 'wellbeing')
+    [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -RunningProcessName 'window-watcher')
+    [void](Ensure-StartupShortcut -Name 'PsmuxAgent' -Candidates @((WindotsPath 'psmux\psmux-agent.exe')) -RunningProcessName 'psmux-agent')
+    [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -RunningProcessName 'wellbeing')
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }

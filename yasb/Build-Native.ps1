@@ -25,8 +25,8 @@ $ErrorActionPreference = 'Stop'
 $Libs = @($Libs -split ',' | ForEach-Object Trim | Where-Object { $_ })
 $Source = (Resolve-Path -LiteralPath $Source).Path
 $exe = [IO.Path]::ChangeExtension($Source, '.exe')
-$dotfiles = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
-$library = Join-Path $dotfiles 'tools\lib'
+. (Join-Path $PSScriptRoot '..\setup\Common.ps1')
+$library = Join-Path $DotfilesRoot 'tools\lib'
 
 # Any C file beside the source or in the library, included or not: a
 # needless rebuild is cheap.

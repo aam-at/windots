@@ -18,8 +18,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$scoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
-$bash = Join-Path $scoopRoot 'apps\msys2\current\usr\bin\bash.exe'
+. (Join-Path $PSScriptRoot 'Common.ps1')
+$bash = Join-Path $ScoopRoot 'apps\msys2\current\usr\bin\bash.exe'
 if (-not (Test-Path -LiteralPath $bash)) { throw 'msys2 not found; run: scoop install msys2' }
 
 $prefix = Join-Path $env:LOCALAPPDATA 'fswatch'

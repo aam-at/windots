@@ -8,6 +8,7 @@ is used; [CmdletBinding()] gives it -Verbose for Write-Verbose detail.
 # The shared dotfiles checkout; Configure-Env.ps1 persists DOTFILES, and a
 # fresh machine (before that step) falls back to Bootstrap.ps1's clone path.
 $DotfilesRoot = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
+$ScoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
 # This checkout; $PSScriptRoot is setup\ even when dot-sourced.
 $WindotsRoot = Split-Path -Parent $PSScriptRoot
 function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
@@ -16,7 +17,6 @@ $script:Warnings = [System.Collections.Generic.List[string]]::new()
 
 function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
 function Write-Warn($msg) { $script:Warnings.Add($msg); Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
-function Write-Err($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 function Test-Command([string]$Name) { $null -ne (Get-Command $Name -ErrorAction SilentlyContinue) }
 
@@ -78,6 +78,13 @@ function Get-EmacsRoots {
         DataRoot   = if ([string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) { Join-Path $HOME '.local\share\emacs' } else { Join-Path $env:XDG_DATA_HOME 'emacs' }
         StateRoot  = if ([string]::IsNullOrWhiteSpace($env:XDG_STATE_HOME)) { Join-Path $HOME '.local\state\emacs' } else { Join-Path $env:XDG_STATE_HOME 'emacs' }
     }
+}
+
+# Runs a program elevated (UAC prompt), by default pwsh; returns its exit code,
+# or $null when elevation is declined.
+function Invoke-Elevated([string[]]$ArgumentList, [string]$FilePath = (Get-Process -Id $PID).Path) {
+    try { (Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -Verb RunAs -Wait -PassThru).ExitCode }
+    catch { $null }
 }
 
 function Test-IsAdmin {
