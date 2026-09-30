@@ -134,7 +134,27 @@ Wellbeing(command) {
 ; ~/dotfiles/scripts/toggle-dictation.sh does; see ..\scripts\Toggle-Dictation.ps1.
 ; Windows' own voice typing (Win+H) stays available.
 Dictation() {
-    Run(Format('pwsh -NoProfile -File "{}"', A_LineFile "\..\..\scripts\Toggle-Dictation.ps1"), , "Hide")
+    ; dictate.exe records (chime when the mic is live; a beep at the stop press), and
+    ; needs to know which window has focus now, since focus may move before it looks.
+    try pid := WinGetPID("A")
+    catch
+        pid := 0
+    ; A recorder that is already running (it stays up after a dictation, see
+    ; DICTATION_HOT_SECONDS in setup\Configure-Env.ps1) is signalled
+    ; directly, with no process launch: starting an exe costs ~0.5 s here, because the
+    ; security software scans binaries it does not know, at every start.
+    toggle := DllCall("OpenEventW", "UInt", 0x0002, "Int", 0, "Str", "Local\windots-dictate-toggle", "Ptr")  ; EVENT_MODIFY_STATE
+    if toggle {
+        pidFile := FileOpen(EnvGet("LOCALAPPDATA") "\windots\dictation\foreground.pid", "w")
+        pidFile.Write(pid)
+        pidFile.Close()
+        DllCall("SetEvent", "Ptr", toggle)
+        DllCall("CloseHandle", "Ptr", toggle)
+    } else
+        Run(Format('"{}" --pid {}', A_LineFile "\..\..\yasb\dictation\dictate.exe", pid), , "Hide")
+    ; Key repeat would re-fire the hotkey and toggle again; waiting for release
+    ; keeps this thread busy, so the repeats are dropped (niri's repeat=false).
+    KeyWait "s"
 }
 
 ; Power off the display without locking or sleeping (niri power-off-monitors).

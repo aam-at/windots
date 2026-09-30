@@ -35,6 +35,7 @@ ffmpeg -y -loglevel error -i $Audio -f s16le -ar 16000 -ac 1 $raw
 if ($LASTEXITCODE) { throw "ffmpeg could not read $Audio" }
 
 $tool = Join-Path ($env:DOTFILES ?? (Join-Path $HOME 'dotfiles')) 'scripts\whisper_ov.py'
+. "$PSScriptRoot\Stop-WhisperServer.ps1"
 
 # One request: wall seconds, the device that served it, its generate time, the text.
 function Invoke-Request {
@@ -51,8 +52,7 @@ function Invoke-Request {
 $saved = $env:DICTATION_DEVICE
 try {
     $rows = foreach ($device in 'NPU', 'GPU', 'CPU') {
-        python $tool --stop
-        Start-Sleep -Seconds 2
+        Stop-WhisperServer $tool
         $env:DICTATION_DEVICE = $device
         $first = Invoke-Request
         $warm = 1..$Runs | ForEach-Object { Invoke-Request }
@@ -66,7 +66,7 @@ try {
     }
 }
 finally {
-    python $tool --stop
+    Stop-WhisperServer $tool
     if ($null -ne $saved) { $env:DICTATION_DEVICE = $saved } else { Remove-Item Env:DICTATION_DEVICE -ErrorAction SilentlyContinue }
 }
 $rows | Format-Table -AutoSize -Wrap

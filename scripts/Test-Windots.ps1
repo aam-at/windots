@@ -52,7 +52,7 @@ foreach ($file in $Path) {
             # .test.c can land in different ones.
             $exe = Join-Path ([IO.Path]::GetTempPath()) "windots-test-$([IO.Path]::GetFileNameWithoutExtension($source))-$PID.exe"
             $build = if (Test-Path -LiteralPath $test) { $test } else { $source }
-            $output = gcc -Wall -Werror -I $cLibrary -o $exe $build -lws2_32 -lpowrprof 2>&1
+            $output = gcc -Wall -Werror -I $cLibrary -o $exe $build -lws2_32 -lpowrprof -lwinmm 2>&1
             if ($LASTEXITCODE -ne 0) { $output | Write-Host -ForegroundColor Red; $failures++; continue }
             if ($build -eq $test) {
                 $output = & $exe 2>&1

@@ -120,17 +120,29 @@ function Set-LockShortcut([bool]$Enabled) {
 # Native helpers: battery.exe behind the YASB battery widget (hidden until it
 # builds), language.exe behind the language widget, window-watcher.exe, which replaces aw-watcher-window and
 # aw-watcher-afk (no ActivityWatch data until it builds), psmux-agent.exe
-# (psmux's status stats, auto-save and aw-watcher-tmux), and dotfiles'
+# (psmux's status stats, auto-save and aw-watcher-tmux), dictate.exe (the Win+S
+# dictation recorder, also behind the YASB dictation widget), and dotfiles'
 # tools\wellbeing\wellbeing.exe
 # (screen time, limits, focus mode, bedtime). The build skips an exe newer
 # than its source.
 function Build-NativeHelpers {
+    # The YASB dictation widget reads dictation\status.json, which dictate.exe keeps up to
+    # date, and shows its raw template when the file is missing: start it as idle.
+    $status = Join-Path $env:LOCALAPPDATA 'windots\dictation\status.json'
+    if (-not (Test-Path -LiteralPath $status)) {
+        Write-Info "Creating $status"
+        Invoke-IfNotDryRun {
+            $null = New-Item -ItemType Directory -Force (Split-Path $status)
+            Set-Content -LiteralPath $status -Value '{"icon": "\ue720", "text": "Dictation"}' -NoNewline
+        }
+    }
     $buildScript = WindotsPath 'yasb\Build-Native.ps1'
     $helpers = @(
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
         @{ Source = WindotsPath 'yasb\language\language.c' }
         @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
+        @{ Source = WindotsPath 'yasb\dictation\dictate.c'; Libs = 'winmm'; Windows = $true }
         @{ Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'; Libs = 'ws2_32', 'dwmapi'; Windows = $true }
     )
     foreach ($helper in $helpers) {

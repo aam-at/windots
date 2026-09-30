@@ -53,6 +53,16 @@ function Set-RepoLocations {
     }
 }
 
+# How long yasb\dictation\dictate.exe keeps the microphone open after a dictation, so the
+# next press starts at once instead of waiting ~0.6 s for the audio driver. The exe
+# has no default of its own (unset closes the mic when the transcription is done).
+# An existing value is kept.
+function Set-DictationWindow {
+    if ([Environment]::GetEnvironmentVariable('DICTATION_HOT_SECONDS', 'User')) { return }
+    Write-Info 'Setting user environment variable DICTATION_HOT_SECONDS=900'
+    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('DICTATION_HOT_SECONDS', '900', 'User') }
+}
+
 # YASB reads its config from the folder in YASB_CONFIG_HOME. Default to the
 # noctalia theme; scripts\Set-YasbTheme.ps1 switches it later.
 function Set-YasbTheme {
@@ -85,4 +95,5 @@ Set-HomeEnvironment
 Set-RepoLocations
 Add-UserBinToPath
 Set-YasbTheme
+Set-DictationWindow
 Set-RegionalSettings

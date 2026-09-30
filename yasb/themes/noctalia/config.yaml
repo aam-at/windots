@@ -44,7 +44,6 @@ bars:
       - "screen_time"
       right:
       - "systray"
-      - "clipboard"
       - "status"
       - "power_menu"
   dock-bar:
@@ -190,6 +189,29 @@ widgets:
         next_track: ""
         play: ""
         pause: ""
+  # Dictation state as an icon (click for its name; right-click to pick the microphone):
+  # a microphone when idle, a yellow dot until the mic is live, a red one while
+  # recording, an hourglass while transcribing. The recorder, yasb\dictation\dictate.exe,
+  # keeps the line in status.json and never deletes it (setup creates it): the widget
+  # prints its raw template when it gets nothing. It reads the file through cmd instead
+  # of running dictate.exe, since starting a binary the security software does not know
+  # costs ~0.5 s each time. The icon isn't in a <span>: custom widgets don't fill
+  # placeholders there.
+  dictation:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data[icon]}"
+      label_alt: "{data[icon]} {data[text]}"
+      class_name: "dictation-widget"
+      exec_options:
+        run_cmd: 'cmd.exe /d /c type $env:LOCALAPPDATA\windots\dictation\status.json'
+        run_interval: 500
+        return_format: "json"
+        use_shell: false
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: 'exec $env:WINDOTS\yasb\dictation\dictate.exe --pick-mic'
   # Windows has no system-wide input-language event, so this polls; the
   # built-in LanguageWidget only takes whole seconds. language.exe is native
   # and started without cmd.exe (use_shell: false; YASB itself expands
@@ -214,7 +236,7 @@ widgets:
     type: "yasb.grouper.GrouperWidget"
     options:
       class_name: "status"
-      widgets: ["language", "wifi", "traffic", "volume", "notifications", "battery"]
+      widgets: ["language", "wifi", "traffic", "volume", "dictation", "clipboard", "notifications", "battery"]
   wifi:
     type: "yasb.wifi.WifiWidget"
     options:

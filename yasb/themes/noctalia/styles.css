@@ -1140,12 +1140,16 @@
 .yasb-bar .media-widget .label {
     padding: 0 2px 0 6px;
 }
+.yasb-bar .dictation-widget .label {
+    font-weight: 600;
+    padding: 0;
+}
 .yasb-bar .language-widget .label {
     font-weight: 600;
     padding: 0;
 }
 
-/* Status group (language, Wi-Fi, traffic, volume, notifications, battery):
+/* Status group (language, Wi-Fi, traffic, volume, dictation, clipboard, notifications, battery):
    one capsule; inner widgets drop their own and get a small hover pill. */
 .yasb-bar .status {
     background-color: var(--gb-surface);

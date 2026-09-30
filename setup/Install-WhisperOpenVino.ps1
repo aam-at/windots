@@ -26,6 +26,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $tool = Join-Path ($env:DOTFILES ?? (Join-Path $HOME 'dotfiles')) 'scripts\whisper_ov.py'
+. (Join-Path $PSScriptRoot '..\scripts\Stop-WhisperServer.ps1')
 
 uv run --quiet $tool --download
 if ($LASTEXITCODE) { throw 'model download failed' }
@@ -37,14 +38,14 @@ $silence = Join-Path ([IO.Path]::GetTempPath()) 'whisper-ov-warmup.raw'
 try {
     foreach ($d in $Device) {
         Write-Host "Warming the $d cache (the first NPU compile takes minutes)..."
-        python $tool --stop
+        Stop-WhisperServer $tool
         $env:DICTATION_DEVICE = $d
         python $tool $silence
         if ($LASTEXITCODE) { throw "warm-up on $d failed (see $env:LOCALAPPDATA\windots\dictation\whisper-server.log)" }
     }
 }
 finally {
-    python $tool --stop
+    Stop-WhisperServer $tool
     Remove-Item Env:DICTATION_DEVICE -ErrorAction SilentlyContinue
     Remove-Item $silence -ErrorAction SilentlyContinue
 }
