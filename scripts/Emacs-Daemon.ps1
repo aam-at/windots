@@ -32,7 +32,7 @@ function Get-RequiredCommand {
     if ($null -eq $command) {
         throw "Required command not found on PATH: $Name"
     }
-    return $command.Source
+    return @($command)[0].Source
 }
 
 function Get-ServerArg {
@@ -80,20 +80,36 @@ function Start-Daemon {
         [Parameter(Mandatory)][psobject]$ProfilePaths
     )
 
-    if (Test-DaemonRunning -ClientPath $ClientPath) {
-        Write-Host "Emacs profile '$EmacsProfile' is already running."
-        return
+    # A daemon takes ~50s to answer, so a second caller (login shortcut plus a
+    # Start menu link) would see it as stopped and start another. Serialize the
+    # check-and-start per profile; the caller that waits finds it running.
+    $startLock = [System.Threading.Mutex]::new($false, "Local\windots-emacs-daemon-$EmacsProfile")
+    try {
+        if (-not $startLock.WaitOne([TimeSpan]::FromSeconds(240))) {
+            throw "Timed out waiting for another start of Emacs profile '$EmacsProfile'."
+        }
     }
+    catch [System.Threading.AbandonedMutexException] { }
+    try {
+        if (Test-DaemonRunning -ClientPath $ClientPath) {
+            Write-Host "Emacs profile '$EmacsProfile' is already running."
+            return
+        }
 
-    if ($null -ne $ProfilePaths.Local -and -not (Test-Path -LiteralPath $ProfilePaths.Local)) {
-        New-Item -ItemType Directory -Path $ProfilePaths.Local -Force | Out-Null
+        if ($null -ne $ProfilePaths.Local -and -not (Test-Path -LiteralPath $ProfilePaths.Local)) {
+            New-Item -ItemType Directory -Path $ProfilePaths.Local -Force | Out-Null
+        }
+
+        Invoke-WithEnvironment $ProfilePaths.Environment {
+            Start-Process -FilePath $EmacsPath -ArgumentList @("--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)") | Out-Null
+        }
+
+        Wait-ForDaemon -ClientPath $ClientPath
     }
-
-    Invoke-WithEnvironment $ProfilePaths.Environment {
-        Start-Process -FilePath $EmacsPath -ArgumentList @("--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)") | Out-Null
+    finally {
+        $startLock.ReleaseMutex()
+        $startLock.Dispose()
     }
-
-    Wait-ForDaemon -ClientPath $ClientPath
 }
 
 function Stop-Daemon {

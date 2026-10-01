@@ -1,6 +1,6 @@
 <#
-Creates the Startup-folder shortcuts for the chosen desktop mode (plus YASB, thide
-and Kanata, used by both),
+Creates the Startup-folder shortcuts for the chosen desktop mode (plus YASB, thide,
+Kanata and the Doom daemon, used by both, and Start menu links for Emacs),
 removes the other mode's shortcuts, and starts anything not yet running.
 Both modes turn off the Win+L lock shortcut so the AutoHotkey bindings can use
 Win+L as niri's focus-right.
@@ -22,11 +22,12 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$WorkingDirectory) {
+function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$WorkingDirectory, [string]$IconLocation) {
     $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
     $shortcut.TargetPath = $Target
     $shortcut.Arguments = $Arguments
     $shortcut.WorkingDirectory = $WorkingDirectory
+    if ($IconLocation) { $shortcut.IconLocation = $IconLocation }
     $shortcut.Save()
 }
 
@@ -37,7 +38,7 @@ function Resolve-Executable([string[]]$Candidates) {
             continue
         }
         $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue
-        if ($command) { return $command.Source }
+        if ($command) { return @($command)[0].Source }
     }
 }
 
@@ -252,6 +253,20 @@ try {
     [void](Ensure-StartupShortcut -Name 'PsmuxAgent' -Candidates @((WindotsPath 'psmux\psmux-agent.exe')) -RunningProcessName 'psmux-agent')
     [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -RunningProcessName 'wellbeing')
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
+    # Doom's daemon starts at login; the other Emacs links are in the Start menu.
+    # conhost --headless runs pwsh with no console window, which -WindowStyle Hidden only hides after it flashes.
+    $pwsh = Resolve-Executable @('pwsh', 'powershell')
+    $conhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
+    $emacsIcon = Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\emacs.exe'
+    function Get-EmacsArguments($Action, $EmacsProfile) {
+        '--headless "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" {2} {3}' -f $pwsh, (WindotsPath 'scripts\Emacs-Daemon.ps1'), $Action, $EmacsProfile
+    }
+    [void](Ensure-StartupShortcut -Name 'DoomDaemon' -Candidates @($conhost) -RunningProcessName 'emacs' -Arguments (Get-EmacsArguments 'start' 'doom'))
+    foreach ($link in @('Doom', 'open', 'doom'), @('DoomDaemon', 'start', 'doom'), @('Spacemacs', 'open', 'spacemacs'), @('SpacemacsDaemon', 'start', 'spacemacs')) {
+        $linkPath = Join-Path ([Environment]::GetFolderPath('Programs')) "$($link[0]).lnk"
+        Write-Info "Creating Start menu link: $linkPath"
+        Invoke-IfNotDryRun { New-Shortcut -Path $linkPath -Target $conhost -Arguments (Get-EmacsArguments $link[1] $link[2]) -WorkingDirectory $HOME -IconLocation $emacsIcon }
+    }
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
     $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
     [void](Ensure-StartupShortcut -Name 'Kanata' -Candidates $kanataCandidates -Arguments ('-c "{0}"' -f $kanataConfig))
