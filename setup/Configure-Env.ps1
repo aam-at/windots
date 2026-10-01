@@ -75,6 +75,14 @@ function Set-AspellFilterPath {
     Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('ASPELL_CONF', $conf, 'User') }
 }
 
+# Layer the Windows lazygit override over the shared config. An existing value is kept.
+function Set-LazygitConfig {
+    if ([Environment]::GetEnvironmentVariable('LG_CONFIG_FILE', 'User')) { return }
+    $conf = "$env:LOCALAPPDATA\lazygit\config.yml,$(WindotsPath 'config\lazygit\windows.yml')"
+    Write-Info "Setting user environment variable LG_CONFIG_FILE=$conf"
+    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('LG_CONFIG_FILE', $conf, 'User') }
+}
+
 # YASB reads its config from the folder in YASB_CONFIG_HOME. Default to the
 # noctalia theme; scripts\Set-YasbTheme.ps1 switches it later.
 function Set-YasbTheme {
@@ -109,4 +117,5 @@ Add-UserBinToPath
 Set-YasbTheme
 Set-DictationWindow
 Set-AspellFilterPath
+Set-LazygitConfig
 Set-RegionalSettings

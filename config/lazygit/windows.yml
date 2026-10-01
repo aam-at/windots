@@ -1,0 +1,6 @@
+# Layered over the shared config by LG_CONFIG_FILE (setup\Configure-Env.ps1).
+# lazygit runs these through `cmd /s /c`, which expands no $HOME, runs no .sh scripts and
+# treats single quotes literally, so the shared pbcopy.sh/pbpaste.sh commands fail here.
+os:
+  copyToClipboardCmd: printf %s "{{text}}" | clip
+  readFromClipboardCmd: powershell -NoProfile -Command Get-Clipboard
