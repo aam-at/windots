@@ -59,7 +59,7 @@ $wingetApps = @(
     'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal',
     'marlocarlo.psmux', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
     'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode',
-    'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'WinFsp.WinFsp'
+    'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'VideoLAN.VLC', 'WinFsp.WinFsp'
 )
 # Installer arguments for packages that need more than the default install.
 $wingetOverrides = @{
@@ -106,8 +106,7 @@ $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
     'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
     'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
-    'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm', 'winrar',
-    'yasb', 'zed'
+    'television', 'thorium-reader', 'totalcommander', 'wezterm', 'winrar', 'yasb', 'zed'
 )
 $uvTools = @('tmuxp')
 $bunApps = @(
