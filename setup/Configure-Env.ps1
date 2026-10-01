@@ -63,6 +63,18 @@ function Set-DictationWindow {
     Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('DICTATION_HOT_SECONDS', '900', 'User') }
 }
 
+# aspell 0.60.8.2 splits its default filter-path at the drive colon ("C:\..." becomes
+# "C" and "\Users..."), so every mode (nroff, tex, url) is unknown and Emacs' ispell
+# fails with "Unable to enter Nroff mode". A drive-less path avoids the split.
+# An existing value is kept.
+function Set-AspellFilterPath {
+    if ([Environment]::GetEnvironmentVariable('ASPELL_CONF', 'User')) { return }
+    $root = ($ScoopRoot -replace '^[A-Za-z]:') -replace '\\', '/'
+    $conf = "filter-path $root/apps/aspell/current/lib/aspell-0.60"
+    Write-Info "Setting user environment variable ASPELL_CONF=$conf"
+    Invoke-IfNotDryRun { [Environment]::SetEnvironmentVariable('ASPELL_CONF', $conf, 'User') }
+}
+
 # YASB reads its config from the folder in YASB_CONFIG_HOME. Default to the
 # noctalia theme; scripts\Set-YasbTheme.ps1 switches it later.
 function Set-YasbTheme {
@@ -96,4 +108,5 @@ Set-RepoLocations
 Add-UserBinToPath
 Set-YasbTheme
 Set-DictationWindow
+Set-AspellFilterPath
 Set-RegionalSettings
