@@ -99,10 +99,13 @@ QuakeSlide(hwnd, down) {
             h := half
         WinSetTransparent 0, hwnd
         WinMove x, top, w, h, hwnd
-    } else if x > -30000
-        QuakeRect := [x, w, h]  ; hidden, Terminal parks it at x=-32000
+        WinShow hwnd  ; a Terminal toggle can leave it hidden but "active"
+    } else if x > -10000
+        QuakeRect := [x, w, h]  ; hidden, Terminal parks it at x=-16000 or -32000
     dur := 150, t0 := A_TickCount
     Loop {
+        if !WinExist(hwnd)
+            return
         DllCall("dwmapi\DwmFlush")
         p := Min((A_TickCount - t0) / dur, 1)
         WinSetTransparent Round(255 * (down ? p : 1 - p)), hwnd
