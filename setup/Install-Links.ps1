@@ -104,6 +104,7 @@ $linkMap = @{
     (Join-Path $env:LOCALAPPDATA 'clink\default_settings')                                                    = (WindotsPath 'config\clink\default_settings')
     (Join-Path $env:LOCALAPPDATA 'clink\_inputrc')                                                            = (WindotsPath 'config\clink\_inputrc')
     (Join-Path $env:LOCALAPPDATA 'clink\starship.lua')                                                        = (WindotsPath 'config\clink\starship.lua')
+    (Join-Path $HOME '.config\atuin')                                                                         = (WindotsPath 'config\atuin')
     (Join-Path $HOME '.config\kanata')                                                                        = (WindotsPath 'config\kanata')
     (Join-Path $HOME '.config\komorebi')                                                                      = (WindotsPath 'shells\komorebi')
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\KeyboardShortcuts\windots-common.yaml')                    = (WindotsPath 'shells\windots-common.yaml')

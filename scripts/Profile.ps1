@@ -9,6 +9,8 @@
 # Persisted by setup\Configure-Env.ps1; defaults for a machine not set up yet.
 if (-not $env:DOTFILES) { $env:DOTFILES = "$HOME\dotfiles" }
 if (-not $env:WINDOTS) { $env:WINDOTS = "$HOME\windots" }
+# atuin's history host name (filter_mode = "host" in config/atuin).
+$env:ATUIN_HOST_NAME = 'windows-desktop'
 $ENV:_ZO_DATA_DIR = "$HOME\OneDrive\Documents\PowerShell"
 # In an rmux pane, `tmux` (for tmuxp and the like) is windots\rmux\tmux.cmd,
 # not psmux's tmux.exe; rmux gives panes its own PATH, not its global one.
@@ -277,6 +279,14 @@ if (Get-Module PSReadLine) {
         $dir = fzf --no-multi --walker=dir, follow --walker-skip=.git, node_modules, target --preview 'eza --tree --level 2 --icons=always {}' --bind 'ctrl-t:execute-silent(wt -w 0 nt -d {})'
         if ($dir) { Set-Location -LiteralPath $dir }
         [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+    }
+    # atuin on Alt+X as in fish/bash; Ctrl+R stays fzf and Up the prefix search.
+    if ($init = Import-ToolInit atuin init, powershell, --disable-ctrl-r, --disable-up-arrow) {
+        . $init
+        # Invoke-AtuinSearch is private to the Atuin module.
+        Set-PSReadLineKeyHandler -Chord Alt+x -BriefDescription AtuinSearch -ScriptBlock {
+            & (Get-Module Atuin) { Invoke-AtuinSearch -ExtraArgs '--shell-up-key-binding' }
+        }
     }
 }
 

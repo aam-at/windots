@@ -90,23 +90,24 @@ else {
 
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
-    '7zip', 'ag', 'antigravity-cli', 'aspell', 'bat', 'bitwarden-cli', 'bottom',
-    'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake', 'curl',
-    'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch', 'fd',
-    'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt', 'gitui',
-    'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit', 'less',
-    'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim', 'nodejs-lts',
-    'ouch', 'pandoc', 'pkgconf', 'poppler', 'prek', 'procs', 'pwsh', 'python', 'rclone',
-    'ripgrep', 'rtk', 'rustup', 'sd', 'sed', 'shellcheck', 'shfmt', 'sqlite',
-    'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab', 'tree-sitter', 'uv',
-    'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp', 'zellij', 'zoxide'
+    '7zip', 'ag', 'antigravity-cli', 'aspell', 'atuin', 'bat', 'bitwarden-cli',
+    'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake',
+    'curl', 'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch',
+    'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt',
+    'gitui', 'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit',
+    'less', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim',
+    'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'poppler', 'prek', 'procs', 'pwsh',
+    'python', 'rclone', 'ripgrep', 'rtk', 'rustup', 'sd', 'sed', 'shellcheck', 'shfmt',
+    'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
+    'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp',
+    'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
     'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
     'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
-    'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm',
-    'winrar', 'yasb', 'zed'
+    'television', 'thorium-reader', 'totalcommander', 'vlc', 'wezterm', 'winrar',
+    'yasb', 'zed'
 )
 $uvTools = @('tmuxp')
 $bunApps = @(
