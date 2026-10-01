@@ -107,7 +107,7 @@ different key later, run `pwsh -File .\setup\Configure-SshAgent.ps1 -KeyPath
   stops the other managed profiles, and makes Doom start at sign-in.
 - `scripts\Doom-Profile.ps1` runs Doom commands with the isolated Doom paths;
   for example: `pwsh -File .\scripts\Doom-Profile.ps1 sync`.
-- Setup installs Emacs, Doom, and Spacemacs from Scoop and their upstream
+- Setup installs Emacs (MSYS2, native compilation), Doom, and Spacemacs from their upstream
   repositories, then links the shared profiles from `~/dotfiles/emacs`.
   Spacemacs completes package installation the first time a profile opens;
   use `-Skip Emacs` to skip this setup phase.

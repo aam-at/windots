@@ -104,7 +104,7 @@ $scoopAppsMain = @(
 )
 $scoopAppsExtras = @(
     'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
-    'emacs', 'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
+    'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
     'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
     'television', 'thorium-reader', 'totalcommander', 'wezterm', 'winrar', 'yasb', 'zed'
 )
