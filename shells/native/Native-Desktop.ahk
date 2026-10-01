@@ -60,12 +60,17 @@ ToggleMaximize() {
 }
 
 IsFocusable(hwnd, minimized := false) {
-    if (!minimized && WinGetMinMax(hwnd) = -1) || WinGetTitle(hwnd) = ""
-        return false
-    if WinGetClass(hwnd) ~= "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$"
-        return false
-    ; WS_VISIBLE and not WS_EX_TOOLWINDOW
-    if !(WinGetStyle(hwnd) & 0x10000000) || (WinGetExStyle(hwnd) & 0x80)
+    ; A window can close between WinGetList and these queries (e.g. the quake
+    ; terminal hiding), which makes them throw "Target window not found".
+    try {
+        if (!minimized && WinGetMinMax(hwnd) = -1) || WinGetTitle(hwnd) = ""
+            return false
+        if WinGetClass(hwnd) ~= "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$"
+            return false
+        ; WS_VISIBLE and not WS_EX_TOOLWINDOW
+        if !(WinGetStyle(hwnd) & 0x10000000) || (WinGetExStyle(hwnd) & 0x80)
+            return false
+    } catch
         return false
     ; Windows on other virtual desktops and suspended UWP frames are cloaked.
     cloaked := 0
@@ -125,9 +130,11 @@ CycleWindow(next) {
     for candidate in WinGetList() {   ; z-order, topmost first
         if candidate != hwnd && IsFocusable(candidate, true) {
             ; A minimized window has no usable position, so it joins the cycle on every monitor.
-            WinGetPos &x, &y, &w, &h, candidate
-            if WinGetMinMax(candidate) = -1 || MonitorOf(x + w / 2, y + h / 2) = monitor
-                windows.Push(candidate)
+            try {
+                WinGetPos &x, &y, &w, &h, candidate
+                if WinGetMinMax(candidate) = -1 || MonitorOf(x + w / 2, y + h / 2) = monitor
+                    windows.Push(candidate)
+            }
         }
     }
     if !windows.Length
