@@ -21,6 +21,8 @@ $ErrorActionPreference = 'Stop'
 # doesn't reliably reach the real Win32 console code page on every host
 # (it only governs what .NET itself writes, not a native child process's
 # direct console writes), so set it via chcp too.
+$savedCodePage = [regex]::Match((chcp.com), '\d+').Value
+$savedEncoding = [Console]::OutputEncoding
 $null = chcp.com 65001
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
@@ -57,18 +59,29 @@ if ([string]::IsNullOrWhiteSpace($doomCommand)) {
 }
 
 New-Item -ItemType Directory -Path $doom.Local -Force | Out-Null
-Invoke-WithEnvironment $doom.Environment {
-    if ([System.IO.Path]::GetExtension($doomCommand) -in @('.ps1', '.cmd')) {
-        & $doomCommand @DoomArgs
-    }
-    else {
-        $bash = Get-Command bash -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -eq $bash) { $bash = Get-Command sh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
-        if ($null -eq $bash) {
-            throw "Doom CLI is a shell script; install Git Bash or make doom.ps1 available at $($doom.Framework)\bin."
+try {
+    Invoke-WithEnvironment $doom.Environment {
+        if ([System.IO.Path]::GetExtension($doomCommand) -in @('.ps1', '.cmd')) {
+            & $doomCommand @DoomArgs
         }
-        & $bash.Source $doomCommand @DoomArgs
+        else {
+            # PATH's bash is often WSL's System32\bash.exe, which can't see Windows
+            # paths; use the Git for Windows one (<git root>\bin, three levels above
+            # git's exec path).
+            $bash = Join-Path (git --exec-path) '..\..\..\bin\bash.exe'
+            if (-not (Test-Path -LiteralPath $bash)) {
+                throw "Doom CLI is a shell script; install Git for Windows or make doom.ps1 available at $($doom.Framework)\bin."
+            }
+            # bash eats backslashes in the path, so hand it forward slashes.
+            & $bash ($doomCommand -replace '\\', '/') @DoomArgs
+        }
     }
+    $exitCode = $LASTEXITCODE
+}
+finally {
+    # Leave the caller's console as it was.
+    $null = chcp.com $savedCodePage
+    [Console]::OutputEncoding = $savedEncoding
 }
 
-exit $LASTEXITCODE
+exit $exitCode
