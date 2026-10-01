@@ -23,7 +23,9 @@ function Ensure-GitCheckout {
         [Parameter(Mandatory)]
         [string]$Destination,
 
-        [string]$Upstream
+        [string]$Upstream,
+
+        [int]$Depth = 1
     )
 
     if (Test-Path -LiteralPath $Destination) {
@@ -47,7 +49,7 @@ function Ensure-GitCheckout {
     }
 
     Write-Info "Cloning $Name framework..."
-    if (-not (Invoke-NativeCommand -Description "$Name framework" -Action { git clone --depth=1 $Repository $Destination | Out-Null })) {
+    if (-not (Invoke-NativeCommand -Description "$Name framework" -Action { git clone "--depth=$Depth" $Repository $Destination | Out-Null })) {
         throw "Unable to clone the $Name framework."
     }
     if ($Upstream) {
@@ -69,7 +71,7 @@ $spacemacs = Get-ProfilePaths 'spacemacs'
 $spacemacsFramework = $spacemacs.Framework
 
 [void](Ensure-GitCheckout -Name 'Doom' -Repository 'https://github.com/doomemacs/doomemacs.git' -Destination $doomFramework)
-[void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'https://github.com/aam-at/spacemacs.git' -Upstream 'https://github.com/syl20bnr/spacemacs.git' -Destination $spacemacsFramework)
+[void](Ensure-GitCheckout -Name 'Spacemacs' -Repository 'git@github.com:aam-at/spacemacs.git' -Upstream 'https://github.com/syl20bnr/spacemacs.git' -Depth 16 -Destination $spacemacsFramework)
 
 if ($DryRun) {
     Write-Info 'Doom and Spacemacs installs would open in separate terminal windows.'
