@@ -94,11 +94,11 @@ $scoopAppsMain = @(
     'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake',
     'curl', 'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch',
     'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt',
-    'gitui', 'glow', 'gnupg', 'go', 'gping', 'helix', 'imagemagick', 'jq', 'lazygit',
-    'less', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi', 'neovim',
-    'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'poppler', 'prek', 'procs', 'pwsh',
-    'python', 'rclone', 'ripgrep', 'rtk', 'rustup', 'sd', 'sed', 'shellcheck', 'shfmt',
-    'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
+    'gitui', 'glow', 'gnupg', 'go', 'gping', 'helix', 'hledger', 'imagemagick', 'jq',
+    'lazygit', 'less', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi',
+    'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'poppler', 'prek', 'procs',
+    'pwsh', 'python', 'rclone', 'ripgrep', 'rtk', 'rustup', 'sd', 'sed', 'shellcheck',
+    'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
     'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp',
     'zellij', 'zoxide'
 )
@@ -182,10 +182,22 @@ if (Test-Command 'scoop') {
     }
 
     # fswatch has no Windows release or Scoop package; built from source in MSYS2.
+    # Not the MSYS2 package: it lags upstream (1.21.0 vs 1.22.0), needs MSYS2 DLLs beside
+    # it and starts slower (~87 ms vs ~52 ms); event latency is the same. Ours is static.
     # ponytail: skipped once installed; bump -Version in Install-Fswatch.ps1 to upgrade.
     Write-Info 'Building fswatch (MSYS2)'
     if (-not (Invoke-NativeCommand -Description 'fswatch build' -Action { & (Join-Path $PSScriptRoot 'Install-Fswatch.ps1') })) {
         $packageFailures.Add('build:fswatch')
+    }
+
+    # ledger: no Scoop package; MSYS2 pacman + shim (exe stays beside its DLLs).
+    Write-Info 'Installing ledger (MSYS2)'
+    $env:MSYSTEM = 'UCRT64'
+    if (-not (Invoke-NativeCommand -Description 'ledger install' -Action {
+                & (Join-Path $ScoopRoot 'apps\msys2\current\usr\bin\bash.exe') -lc 'pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ledger'
+                scoop shim add ledger (Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\ledger.exe')
+            })) {
+        $packageFailures.Add('msys2:ledger')
     }
 
     # Scoop's rustup ships no toolchain; install stable so cargo/rustc work.
