@@ -87,6 +87,19 @@ function Invoke-Elevated([string[]]$ArgumentList, [string]$FilePath = (Get-Proce
     catch { $null }
 }
 
+# Reruns a script elevated with the parameters it was given ($PSBoundParameters),
+# in a window left open to read the output. Warns when elevation is declined.
+function Invoke-ScriptElevated([string]$ScriptPath, [System.Collections.IDictionary]$Parameters) {
+    $quote = { "'" + ($args[0] -replace "'", "''") + "'" }
+    $params = foreach ($name in $Parameters.Keys) {
+        $value = $Parameters[$name]
+        if ($value -is [switch]) { "-${name}:`$$([bool]$value)" }
+        else { "-$name " + (@($value | ForEach-Object { & $quote $_ }) -join ',') }
+    }
+    $command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("& $(& $quote $ScriptPath) $params"))
+    if ($null -eq (Invoke-Elevated '-NoProfile', '-NoExit', '-EncodedCommand', $command)) { Write-Warning 'Elevation declined.' }
+}
+
 # Per-profile Emacs paths and the environment variables its framework reads.
 function Get-ProfilePaths {
     param([Parameter(Mandatory)][string]$Name)
