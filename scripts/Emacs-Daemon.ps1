@@ -3,6 +3,10 @@ Manage named Emacs daemons for the profiles in the shared dotfiles repository.
 
 Usage:
   .\Emacs-Daemon.ps1 {switch|start|stop|restart|open|status} PROFILE [EMACSCLIENT-ARG ...]
+
+Logs, in %LOCALAPPDATA%\windots: emacs-daemon.log has every start, stop and
+failure (otherwise invisible under conhost --headless); emacs-<profile>.log has
+the daemon's own output from its last start.
 #>
 
 [CmdletBinding()]
@@ -24,6 +28,13 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '..\setup\Common.ps1')
 $roots = Get-EmacsRoots
+
+$logDir = Join-Path $env:LOCALAPPDATA 'windots'
+New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+function Write-Log([string]$Message) {
+    Add-Content -LiteralPath (Join-Path $logDir 'emacs-daemon.log') -Value "$(Get-Date -Format s) $EmacsProfile ${Action}: $Message"
+}
+trap { Write-Log "failed: $_"; break }
 
 function Get-RequiredCommand {
     param([Parameter(Mandatory)][string]$Name)
@@ -100,11 +111,20 @@ function Start-Daemon {
             New-Item -ItemType Directory -Path $ProfilePaths.Local -Force | Out-Null
         }
 
+        Write-Log 'starting'
+        $started = Get-Date
         Invoke-WithEnvironment $ProfilePaths.Environment {
-            Start-Process -FilePath $EmacsPath -ArgumentList @("--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)") | Out-Null
+            $daemon = @{
+                FilePath              = $EmacsPath
+                ArgumentList          = "--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)"
+                RedirectStandardError = Join-Path $logDir "emacs-$EmacsProfile.log"
+                WindowStyle           = 'Hidden'
+            }
+            Start-Process @daemon | Out-Null
         }
 
         Wait-ForDaemon -ClientPath $ClientPath
+        Write-Log "running after $([int]((Get-Date) - $started).TotalSeconds)s"
     }
     finally {
         $startLock.ReleaseMutex()
@@ -122,7 +142,7 @@ function Stop-Daemon {
 
     & $ClientPath (Get-ServerArg $EmacsProfile) --eval '(kill-emacs)' 2>$null | Out-Null
     for ($attempt = 0; $attempt -lt 100; $attempt++) {
-        if (-not (Test-DaemonRunning -ClientPath $ClientPath)) { return }
+        if (-not (Test-DaemonRunning -ClientPath $ClientPath)) { Write-Log 'stopped'; return }
         Start-Sleep -Milliseconds 100
     }
     throw "Timed out stopping Emacs profile '$EmacsProfile'."
@@ -140,8 +160,10 @@ function Set-DefaultProfileStartup {
 
 $profilePaths = Get-ProfilePaths -Name $EmacsProfile
 Assert-ProfileInstalled -ProfilePaths $profilePaths
-# runemacs, not the console emacs.exe, so the daemon has no console window.
-$emacsPath = Get-RequiredCommand -Name 'runemacs'
+# The real emacs.exe: runemacs drops the daemon's stderr, and the scoop shim
+# would stay running as its parent. WindowStyle Hidden keeps its console unseen.
+$emacsPath = Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\emacs.exe'
+if (-not (Test-Path -LiteralPath $emacsPath)) { throw "Emacs not found: $emacsPath" }
 $clientPath = Get-RequiredCommand -Name 'emacsclient'
 
 # emacsclient runs $ALTERNATE_EDITOR (e.g. nvim) when no server answers, which

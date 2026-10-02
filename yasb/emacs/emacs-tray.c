@@ -3,7 +3,7 @@
  * its popup, next to the other tray apps. Each icon is the profile's official
  * logo: gray when the daemon is not running, rotating while Emacs-Daemon.ps1
  * starts it, full color when it is up. Left-click opens a frame; right-click
- * offers Open, Stop and Restart (Open and Restart start a stopped daemon).
+ * offers Open, Start, Stop and Restart (Open and Restart start a stopped daemon).
  *
  * Up: the server file (<data>\emacs\<profile>\server\<profile>, "addr:port PID")
  * names a live process. Starting: Emacs-Daemon.ps1 holds the named mutex for
@@ -32,6 +32,7 @@ static const char *status_words[] = { "not running", "starting", "running" };
 static HICON icons[2][ICON_SPIN + FRAMES];
 static int shown[2] = { -1, -1 };
 static char dir[MAX_PATH];
+static UINT taskbar_created;
 
 static int pid_alive(DWORD pid) {
     HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, pid);
@@ -83,23 +84,25 @@ static void run_action(const char *action, const char *profile) {
 }
 
 static void menu(HWND window, int which) {
-    const char *actions[] = { NULL, "open", "stop", "restart" };
+    const char *actions[] = { NULL, "open", "start", "stop", "restart" };
     int current = state(profiles[which]);
     HMENU popup = CreatePopupMenu();
     UINT disabled = current == STARTING ? MF_GRAYED : 0;
     AppendMenuA(popup, MF_STRING | disabled, 1, "Open");
-    AppendMenuA(popup, MF_STRING | (current == RUNNING ? 0 : MF_GRAYED), 2, "Stop");
-    AppendMenuA(popup, MF_STRING | disabled, 3, "Restart");
+    AppendMenuA(popup, MF_STRING | (current == STOPPED ? 0 : MF_GRAYED), 2, "Start");
+    AppendMenuA(popup, MF_STRING | (current == RUNNING ? 0 : MF_GRAYED), 3, "Stop");
+    AppendMenuA(popup, MF_STRING | disabled, 4, "Restart");
     POINT cursor;
     GetCursorPos(&cursor);
     SetForegroundWindow(window);
     int choice = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTALIGN, cursor.x, cursor.y, 0, window, NULL);
     PostMessageA(window, WM_NULL, 0, 0);
     DestroyMenu(popup);
-    if (choice >= 1 && choice <= 3) run_action(actions[choice], profiles[which]);
+    if (choice >= 1 && choice <= 4) run_action(actions[choice], profiles[which]);
 }
 
-/* Adds the icon, or changes it when the state or spin frame differs from what is shown. */
+/* Adds the icon, or changes it when the state or spin frame differs from what is shown.
+   A failed add (no tray host yet, early at sign-in) is retried on the next tick. */
 static void refresh(HWND window, int which) {
     int current = state(profiles[which]);
     int index = icon_index(current, GetTickCount());
@@ -111,13 +114,15 @@ static void refresh(HWND window, int which) {
     data.uCallbackMessage = TRAY_MESSAGE;
     data.hIcon = icons[which][index];
     snprintf(data.szTip, sizeof data.szTip, "%s: %s", titles[which], status_words[current]);
-    Shell_NotifyIconA(shown[which] < 0 ? NIM_ADD : NIM_MODIFY, &data);
-    shown[which] = index;
+    if (Shell_NotifyIconA(shown[which] < 0 ? NIM_ADD : NIM_MODIFY, &data)) shown[which] = index;
 }
 
 static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
     if (message == WM_TIMER) {
         for (int i = 0; i < 2; i++) refresh(window, i);
+    } else if (message == taskbar_created) {
+        /* Explorer or YASB's systray (re)started and lost every icon: add them again. */
+        shown[0] = shown[1] = -1;
     } else if (message == TRAY_MESSAGE && wparam < 2) {
         if (lparam == WM_LBUTTONUP) run_action("open", profiles[wparam]);
         else if (lparam == WM_RBUTTONUP) menu(window, (int)wparam);
@@ -152,6 +157,7 @@ int main(void) {
             icons[i][ICON_SPIN + frame] = load_icon(profiles[i], name);
         }
     }
+    taskbar_created = RegisterWindowMessageA("TaskbarCreated");
     WNDCLASSA window_class = { 0 };
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = GetModuleHandleA(NULL);
