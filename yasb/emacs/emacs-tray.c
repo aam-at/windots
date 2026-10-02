@@ -79,11 +79,7 @@ static void daemon_command(const char *dir, const char *action, const char *prof
 static void run_action(const char *action, const char *profile) {
     char command[MAX_PATH + 192];
     daemon_command(dir, action, profile, command, sizeof command);
-    STARTUPINFOA startup = { sizeof startup };
-    PROCESS_INFORMATION process;
-    if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process)) return;
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
+    WinExec(command, SW_HIDE);
 }
 
 static void menu(HWND window, int which) {

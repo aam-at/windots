@@ -154,14 +154,8 @@ CenterWindow() {
     if WinGetMinMax(hwnd) != 0
         WinRestore hwnd
     WinGetPos &x, &y, &w, &h, hwnd
-    cx := x + w / 2, cy := y + h / 2
-    loop MonitorGetCount() {
-        MonitorGetWorkArea A_Index, &left, &top, &right, &bottom
-        if cx >= left && cx < right && cy >= top && cy < bottom {
-            WinMove left + (right - left - w) // 2, top + (bottom - top - h) // 2, , , hwnd
-            return
-        }
-    }
+    MonitorGetWorkArea MonitorOf(x + w / 2, y + h / 2), &left, &top, &right, &bottom
+    WinMove left + (right - left - w) // 2, top + (bottom - top - h) // 2, , , hwnd
 }
 
 ; niri focus-monitor-left/right (Komorebi cycle-monitor): activate the topmost

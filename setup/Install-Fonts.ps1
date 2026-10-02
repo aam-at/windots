@@ -34,22 +34,15 @@ $tablerFonts = 'tabler-icons', 'tabler-icons-filled' | ForEach-Object {
     "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.48.0/dist/fonts/$_.ttf"
 }
 
-$namespace = 'WindotsFontInstaller'
-if ($null -eq ("$namespace.NativeMethods" -as [type])) {
-    Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-namespace $namespace {
-    public static class NativeMethods {
-        [DllImport("gdi32.dll", EntryPoint="AddFontResourceW", CharSet=CharSet.Unicode, SetLastError=true)]
-        public static extern int AddFontResource(string lpFileName);
-        [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
-        public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
-    }
+if ($null -eq ('Windots.Font' -as [type])) {
+    Add-Type -Namespace Windots -Name Font -MemberDefinition @'
+[DllImport("gdi32.dll", EntryPoint="AddFontResourceW", CharSet=CharSet.Unicode, SetLastError=true)]
+public static extern int AddFontResource(string lpFileName);
+[DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
+public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+'@
 }
-"@
-}
-$Native = ("$namespace.NativeMethods" -as [type])
+$Native = 'Windots.Font' -as [type]
 
 function Install-Font {
     param(

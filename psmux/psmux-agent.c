@@ -209,12 +209,8 @@ static void track(const char *session, char *line, int (*send)(const char *)) {
 
 static void run_resurrect(const char *script) {
     char command[MAX_PATH * 2];
-    snprintf(command, sizeof command, "pwsh -NoProfile -File \"%s\\plugins\\psmux-resurrect\\scripts\\%s\"", psmux_dir, script);
-    STARTUPINFOA startup = {sizeof startup};
-    PROCESS_INFORMATION process;
-    if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process)) return;
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
+    snprintf(command, sizeof command, "conhost.exe --headless pwsh -NoProfile -File \"%s\\plugins\\psmux-resurrect\\scripts\\%s\"", psmux_dir, script);
+    WinExec(command, SW_HIDE);
 }
 
 int main(void) {

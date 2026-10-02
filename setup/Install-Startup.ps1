@@ -256,7 +256,7 @@ try {
     [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
     # Doom's daemon starts at login; the other Emacs links are in the Start menu.
     # conhost --headless runs pwsh with no console window, which -WindowStyle Hidden only hides after it flashes.
-    $pwsh = Resolve-Executable @('pwsh', 'powershell')
+    $pwsh = (Get-Process -Id $PID).Path
     $conhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
     $emacsIcon = Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\emacs.exe'
     function Get-EmacsArguments($Action, $EmacsProfile) {

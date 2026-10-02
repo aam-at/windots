@@ -78,9 +78,6 @@ if ($DryRun) {
     return
 }
 
-$shell = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($null -eq $shell) { $shell = Get-Command powershell -CommandType Application -ErrorAction Stop | Select-Object -First 1 }
-
 # Runs a framework's first install in its own terminal window so the slow
 # package downloads don't block the rest of setup; the marker is written only
 # when the install exits 0, so a failed one is retried on the next run.
@@ -96,7 +93,7 @@ function Start-FrameworkInstall([string]$Name, [string]$Command) {
         "if (`$LASTEXITCODE -eq 0) { New-Item -ItemType Directory -Force '$(Split-Path -Parent $marker)' | Out-Null; " +
         "Set-Content -LiteralPath '$marker' -Value 'Installed by windots Setup.ps1' -NoNewline; '$Name installed.' } " +
         "else { Write-Host '$Name installation failed; rerun Install-Emacs.ps1.' -ForegroundColor Red }"
-        Start-Process -FilePath $shell.Source -ArgumentList @('-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $script)
+        Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList @('-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $script)
     }
     else {
         Write-Warn "$Name profile is not linked at $($roots.ConfigRoot)\$Name; skipping $Name installation."

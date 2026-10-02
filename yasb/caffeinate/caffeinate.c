@@ -38,14 +38,10 @@ static int hold(void) {
 static int toggle(void) {
     HANDLE running = open_running(EVENT_MODIFY_STATE);
     if (running) return SetEvent(running) ? 0 : 1;
-    char path[MAX_PATH];
+    char path[MAX_PATH], command[MAX_PATH + 2];
     GetModuleFileNameA(NULL, path, sizeof path);
-    STARTUPINFOA startup = { sizeof startup };
-    PROCESS_INFORMATION process;
-    if (!CreateProcessA(path, NULL, NULL, NULL, FALSE, DETACHED_PROCESS | CREATE_NO_WINDOW, NULL, NULL, &startup, &process)) return 1;
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
-    return 0;
+    snprintf(command, sizeof command, "\"%s\"", path);
+    return WinExec(command, SW_HIDE) > 31 ? 0 : 1;
 }
 
 int main(int argc, char **argv) {

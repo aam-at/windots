@@ -202,14 +202,6 @@ ChatScratchpad(exe, class, app, *) {
     WinMove left + (right - left - w) / 2, top + (bottom - top - h) / 2, w, h, main
     WinActivate main
 }
-MonitorOf(x, y) {
-    loop MonitorGetCount() {
-        MonitorGet A_Index, &l, &t, &r, &b
-        if x >= l && x < r && y >= t && y < b
-            return A_Index
-    }
-    return MonitorGetPrimary()
-}
 
 ; === System ===
 #x::SessionMenuToggle()

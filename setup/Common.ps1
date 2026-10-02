@@ -50,28 +50,6 @@ function Invoke-NativeCommand {
     return $true
 }
 
-function Merge-ObjectProperties {
-    param(
-        [Parameter(Mandatory)]
-        [psobject]$Destination,
-
-        [Parameter(Mandatory)]
-        [psobject]$Source
-    )
-
-    foreach ($sourceProperty in $Source.PSObject.Properties) {
-        $destinationProperty = $Destination.PSObject.Properties[$sourceProperty.Name]
-        if (($null -ne $destinationProperty) -and
-            ($destinationProperty.Value -is [pscustomobject]) -and
-            ($sourceProperty.Value -is [pscustomobject])) {
-            Merge-ObjectProperties -Destination $destinationProperty.Value -Source $sourceProperty.Value
-        }
-        else {
-            $Destination | Add-Member -NotePropertyName $sourceProperty.Name -NotePropertyValue $sourceProperty.Value -Force
-        }
-    }
-}
-
 function Get-EmacsRoots {
     [pscustomobject]@{
         ConfigRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) { Join-Path $HOME '.config\emacs' } else { Join-Path $env:XDG_CONFIG_HOME 'emacs' }

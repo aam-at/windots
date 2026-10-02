@@ -23,6 +23,13 @@ if (-not (Test-Path -LiteralPath $powerToysExe)) {
 }
 
 # Merges a repo template into the live settings file, keeping every other key.
+function Merge-Object($Destination, $Source) {
+    foreach ($p in $Source.PSObject.Properties) {
+        $d = $Destination.PSObject.Properties[$p.Name]
+        if ($d -and $d.Value -is [pscustomobject] -and $p.Value -is [pscustomobject]) { Merge-Object $d.Value $p.Value }
+        else { $Destination | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force }
+    }
+}
 $templatePath = WindotsPath 'config\powertoys\settings.json'
 $settingsPath = Join-Path $env:LOCALAPPDATA 'Microsoft\PowerToys\settings.json'
 if (-not (Test-Path -LiteralPath $templatePath)) {
@@ -33,7 +40,7 @@ if (-not (Test-Path -LiteralPath $templatePath)) {
 try {
     $template = Get-Content -Raw -LiteralPath $templatePath | ConvertFrom-Json
     $settings = if (Test-Path -LiteralPath $settingsPath) { Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json } else { [pscustomobject]@{} }
-    Merge-ObjectProperties -Destination $settings -Source $template
+    Merge-Object $settings $template
     if ($DesktopMode -eq 'Komorebi') { $settings.enabled.FancyZones = $false }
     # Deep enough for Command Palette's nested dock/provider settings;
     # ConvertTo-Json silently flattens anything deeper.

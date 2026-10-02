@@ -20,6 +20,16 @@ LockScreen(*) {
     }
 }
 
+; Index of the monitor containing a screen point, else the primary one.
+MonitorOf(x, y) {
+    loop MonitorGetCount() {
+        MonitorGet A_Index, &l, &t, &r, &b
+        if x >= l && x < r && y >= t && y < b
+            return A_Index
+    }
+    return MonitorGetPrimary()
+}
+
 ; YASB 2.0.7 never reconnects to the virtual desktop COM service (desktop pills
 ; stop following) or the dock's window tracking when Explorer restarts, so
 ; relaunch it whenever Explorer broadcasts TaskbarCreated. YASB's own systray
@@ -178,13 +188,7 @@ SessionMenuToggle() {
     ; Dim the whole monitor under the mouse (physical pixels, hence -DPIScale).
     CoordMode "Mouse", "Screen"
     MouseGetPos &mx, &my
-    monitor := MonitorGetPrimary()
-    loop MonitorGetCount() {
-        MonitorGet A_Index, &l, &t, &r, &b
-        if mx >= l && mx < r && my >= t && my < b
-            monitor := A_Index
-    }
-    MonitorGet monitor, &left, &top, &right, &bottom
+    MonitorGet MonitorOf(mx, my), &left, &top, &right, &bottom
     overlay := Gui("-Caption +ToolWindow +AlwaysOnTop -DPIScale")
     overlay.BackColor := "000000"
     WinSetTransparent 0, overlay

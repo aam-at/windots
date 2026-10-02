@@ -133,11 +133,8 @@ function Set-DefaultProfileStartup {
     New-Item -ItemType Directory -Path $roots.StateRoot -Force | Out-Null
     Set-Content -LiteralPath $profileFile -Value $EmacsProfile -Encoding utf8 -NoNewline
 
-    $shellPath = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -eq $shellPath) { $shellPath = Get-Command powershell -CommandType Application -ErrorAction Stop }
-
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    $commandLine = '"{0}" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}" start {2}' -f $shellPath.Source, $PSCommandPath, $EmacsProfile
+    $commandLine = '"{0}" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}" start {2}' -f (Get-Process -Id $PID).Path, $PSCommandPath, $EmacsProfile
     New-ItemProperty -Path $runKey -Name 'EmacsDaemon' -Value $commandLine -PropertyType String -Force | Out-Null
 }
 

@@ -95,16 +95,10 @@
 .quick-launch-popup .container {
     background-color: var(--light-menu-bg);
 }
-.dark .quick-launch-popup .container {
-    background-color: var(--dark-menu-bg);
-}
 /* Search bar container */
 .quick-launch-popup .search {
     padding: 12px 16px;
     background-color: transparent;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-.dark .quick-launch-popup .search {
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 /* Search loader line color */
@@ -118,17 +112,11 @@
     padding-right: 8px;
     min-width: 18px;
 }
-.dark .quick-launch-popup .search .search-icon {
-    color: var(--light-color);
-}
 .quick-launch-popup .search .search-submit-icon {
     font-family: "Segoe Fluent Icons";
     font-size: 18px;
     color: var(--dark-color);
     min-width: 18px;
-}
-.dark .quick-launch-popup .search .search-submit-icon {
-    color: var(--light-color);
 }
 .quick-launch-popup .search .search-input {
     background: transparent;
@@ -138,9 +126,6 @@
     font-family: "Segoe UI";
     font-weight: 400;
     padding: 4px 0;
-}
-.dark .quick-launch-popup .search .search-input {
-    color: var(--light-color);
 }
 /* Search prefix styling (e.g., ">" for commands) */
 .quick-launch-popup .search .prefix {
@@ -168,17 +153,11 @@
     font-weight: 600;
     color: var(--dark-color)
 }
-.dark .quick-launch-popup .results-list-view {
-    color: var(--light-color);
-}
 .quick-launch-popup .results-list-view .description {
     color: var(--dark-dim-color);
     font-size: 11px;
     font-family: "Segoe UI";
     font-weight: 600;
-}
-.dark .quick-launch-popup .results-list-view .description {
-    color: var(--light-dim-color);
 }
 .quick-launch-popup .results-list-view .separator {
     color: var(--dark-dim-color);
@@ -300,146 +279,6 @@
     background: rgb(19, 90, 204);
 }
 
-.cpu-popup,
-.memory-popup {
-    background-color: var(--light-menu-bg);
-    min-width: 400px;
-    max-width: 400px;
-}
-.dark .cpu-popup,
-.dark .memory-popup {
-    background-color: var(--dark-menu-bg);
-    min-width: 400px;
-    max-width: 400px;
-}
-
-.cpu-popup .header,
-.memory-popup .header {
-    background: transparent;
-    padding: 12px 16px;
-}
-.cpu-popup .header .text,
-.memory-popup .header .text {
-    font-size: 16px;
-    font-family: "Segoe UI";
-
-}
-.cpu-popup .header .pin-btn,
-.memory-popup .header .pin-btn {
-    font-size: 14px;
-    background: transparent;
-    font-family: "Segoe Fluent Icons";
-    border: none;
-    padding: 6px;
-    color: var(--dark-dim-color)
-}
-.dark .cpu-popup .header .pin-btn,
-.dark .memory-popup .header .pin-btn {
-    color: var(--light-dim-color);
-}
-.cpu-popup .header .pin-btn:hover,
-.memory-popup .header .pin-btn:hover {
-    color: var(--dark-dim-color)
-}
-.dark .cpu-popup .header .pin-btn:hover,
-.dark .memory-popup .header .pin-btn:hover {
-    color: var(--light-dim-color);
-}
-.cpu-popup .header .pin-btn.pinned,
-.memory-popup .header .pin-btn.pinned {
-    color: var(--dark-color)
-}
-.dark .cpu-popup .header .pin-btn.pinned,
-.dark .memory-popup .header .pin-btn.pinned {
-    color: var(--light-color);
-}
-/* Graph area */
-.cpu-popup .graph-container,
-.memory-popup .graph-container {
-    background: transparent;
-    min-height: 64px;
-}
-.cpu-popup .cpu-graph,
-.memory-popup .memory-graph {
-    color: #0f6bff;
-    /* <-- set the graph line/fill color */
-}
-.cpu-popup .cpu-graph-grid,
-.memory-popup .memory-graph-grid {
-    color: rgba(0, 0, 0, 0.05);
-    /* set the grid line color */
-}
-.dark .cpu-popup .cpu-graph-grid,
-.dark .memory-popup .memory-graph-grid {
-    color: rgba(255, 255, 255, 0.05);
-    /* set the grid line color */
-}
-.cpu-popup .graph-title,
-.memory-popup .graph-title {
-    font-size: 12px;
-    color: var(--dark-dim-color);
-    font-family: 'Segoe UI';
-    padding: 0px 0px 4px 14px;
-}
-.dark .cpu-popup .graph-title,
-.dark .memory-popup .graph-title {
-    color: var(--light-dim-color);
-}
-/* Stats grid */
-.cpu-popup .stats,
-.memory-popup .stats {
-    background: transparent;
-    padding: 16px;
-}
-.cpu-popup .stats .stat-item,
-.memory-popup .stats .stat-item {
-    background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 8px;
-}
-.cpu-popup .stats .stat-item,
-.memory-popup .stats .stat-item {
-    background-color: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 8px;
-}
-.dark .cpu-popup .stats .stat-item,
-.dark .memory-popup .stats .stat-item {
-    background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 8px;
-}
-.cpu-popup .stats .stat-label,
-.memory-popup .stats .stat-label {
-    font-size: 13px;
-    color: var(--dark-dim-color);
-    font-family: 'Segoe UI';
-    font-weight: 400;
-    padding: 6px 4px 2px 4px;
-}
-.dark .cpu-popup .stats .stat-label,
-.dark .memory-popup .stats .stat-label {
-    color: var(--light-dim-color);
-}
-.cpu-popup .stats .stat-value,
-.memory-popup .stats .stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--dark-color);
-    font-family: 'Segoe UI';
-    padding: 0 4px 12px 4px;
-}
-.dark .cpu-popup .stats .stat-value,
-.dark .memory-popup .stats .stat-value {
-    color: var(--light-color);
-}
-
 .power-menu-widget .label {
     font-size: 16px;
     padding: 0;
@@ -447,10 +286,6 @@
 .power-menu-compact {
     min-width: 260px;
     background-color: var(--light-menu-bg)
-}
-.dark .power-menu-compact {
-    min-width: 260px;
-    background-color: var(--dark-menu-bg);
 }
 .power-menu-compact .profile-info {
     padding: 12px 0 24px 0;
@@ -462,9 +297,6 @@
     color: var(--dark-dim-color);
     font-family: 'Segoe UI';
     margin-top: 4px;
-}
-.dark .power-menu-compact .profile-info .profile-username {
-    color: var(--light-dim-color);
 }
 .power-menu-compact .profile-info .profile-account-type {
     font-size: 12px;
@@ -482,9 +314,6 @@
     margin-top: 2px;
     font-family: 'Segoe UI';
 }
-.dark .power-menu-compact .profile-info .profile-email {
-    color: var(--light-dim-color);
-}
 .power-menu-compact .manage-accounts {
     font-size: 12px;
     background-color: rgba(255, 255, 255, 0.08);
@@ -499,11 +328,6 @@
     background-color: rgba(255, 255, 255, 0.15);
 }
 .power-menu-compact .buttons {
-    background-color: rgba(255, 255, 255, 0.35);
-    margin: 0 12px 12px 12px;
-    border-radius: 8px;
-}
-.dark .power-menu-compact .buttons {
     background-color: rgba(255, 255, 255, 0.03);
     margin: 0 12px 12px 12px;
     border-radius: 8px;
@@ -515,9 +339,6 @@
     border-radius: 0;
 }
 .power-menu-compact .button.hover {
-    background-color: rgba(255, 255, 255, 0.4);
-}
-.dark .power-menu-compact .button.hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 .power-menu-compact .button.lock.hover {
@@ -535,36 +356,22 @@
     padding-right: 10px;
     min-width: 20px;
 }
-.dark .power-menu-compact .button .icon {
-    color: var(--light-color);
-}
 .power-menu-compact .button .label {
     font-size: 13px;
     font-weight: 500;
     font-family: "Segoe UI";
     color: var(--dark-dim-color)
 }
-.dark .power-menu-compact .button .label {
-    color: var(--light-dim-color);
-}
 
 .power-menu-compact .icon.hover,
 .power-menu-compact .label.hover {
     color: var(--dark-color)
 }
-.dark .power-menu-compact .icon.hover,
-.dark .power-menu-compact .label.hover {
-    color: var(--light-color);
-}
-.dark .open-meteo-widget .icon {
+.open-meteo-widget .icon {
     color: #F6E3B4
 }
 .open-meteo-card {
     background-color: var(--light-menu-bg);
-    min-width: 500px;
-}
-.dark .open-meteo-card {
-    background-color: var(--dark-menu-bg);
     min-width: 500px;
 }
 .open-meteo-card-today .label {
@@ -573,17 +380,11 @@
     font-weight: 400;
     color: var(--dark-dim-color)
 }
-.dark .open-meteo-card-today .label {
-    color: var(--light-dim-color);
-}
 .open-meteo-card-today .label.location {
     font-size: 32px;
     font-weight: 700;
     font-family: "Segoe UI";
     color: var(--dark-color)
-}
-.dark .open-meteo-card-today .label.location {
-    color: var(--light-color);
 }
 .open-meteo-card-today .label.sunrisesunset {
     font-size: 18px;
@@ -610,17 +411,11 @@
     font-size: 12px;
     font-weight: 600;
 }
-.dark .open-meteo-card-day .day-name {
-    color: var(--light-dim-color);
-}
 .open-meteo-card-day .day-temp-max {
     font-family: "Segoe UI";
     font-weight: 700;
     font-size: 16px;
     color: var(--dark-color);
-}
-.dark .open-meteo-card-day .day-temp-max {
-    color: var(--light-color);
 }
 
 .open-meteo-card-day .day-temp-min {
@@ -629,23 +424,12 @@
     font-weight: 400;
     font-size: 13px;
 }
-.dark .open-meteo-card-day .day-temp-min {
-    color: var(--light-color);
-}
 
 .open-meteo-card-day.active {
-    background-color: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-.dark .open-meteo-card-day.active {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .open-meteo-card-day:hover {
-    background-color: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-.dark .open-meteo-card-day:hover {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -765,25 +549,15 @@
     min-width: 460px;
     background-color: var(--light-menu-bg);
 }
-.dark .clock-popup.alarm,
-.dark .clock-popup.timer,
-.dark .clock-popup.calendar {
-    background-color: var(--dark-menu-bg);
-}
 .clock-popup.calendar .calendar-table,
 .clock-popup.calendar .calendar-table::item {
     background-color: rgba(17, 17, 27, 0);
-    color: rgba(133, 144, 160, 0.85);
+    color: rgba(162, 177, 196, 0.85);
     font-family: 'Segoe UI';
     margin: 0;
     padding: 0;
     border: none;
     outline: none;
-}
-.dark .clock-popup.calendar .calendar-table,
-.dark .clock-popup.calendar .calendar-table::item {
-    background-color: rgba(17, 17, 27, 0);
-    color: rgba(162, 177, 196, 0.85);
 }
 .clock-popup.calendar .calendar-table::item:selected {
     color: #282936;
@@ -968,29 +742,6 @@
     background-color: rgba(255, 255, 255, 0.3);
 }
 
-.home-menu {
-    background-color: var(--light-menu-bg);
-}
-.dark .home-menu {
-    background-color: var(--dark-menu-bg);
-}
-.home-menu .menu-item {
-    color: var(--dark-color);
-    padding: 6px 48px 7px 16px;
-}
-.dark .home-menu .menu-item {
-    color: var(--light-color);
-}
-
-.home-menu .menu-item:hover {
-    background-color: rgba(128, 130, 158, 0.15);
-    color: #fff;
-}
-.home-menu .separator {
-    max-height: 1px;
-    background-color: rgba(128, 130, 158, 0.3);
-}
-
 .systray .button {
     border-radius: 4px;
     padding: 2px;
@@ -1029,9 +780,6 @@
     background-color: var(--light-menu-bg);
     padding: 4px;
 }
-.dark .systray-popup {
-    background-color: var(--dark-menu-bg);
-}
 .systray-popup .button {
     padding: 10px;
     margin: 0;
@@ -1039,9 +787,6 @@
     border-radius: 6px;
 }
 .systray-popup .button:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-.dark .systray-popup .button:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
