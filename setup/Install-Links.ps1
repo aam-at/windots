@@ -138,6 +138,7 @@ $linkMap = @{
     (Join-Path $HOME '.config\emacs\local')                                                                   = (DotfilesPath 'emacs\local')
     (Join-Path $HOME '.config\emacs\spacemacs\config')                                                        = (DotfilesPath 'emacs\config')
     (Join-Path $HOME '.config\emacs\spacemacs\funcs')                                                         = (DotfilesPath 'emacs\funcs')
+    (Join-Path $HOME '.config\emacs\spacemacs\local')                                                         = (DotfilesPath 'emacs\local')
     (Join-Path $HOME '.config\emacs\spacemacs\layers')                                                        = (DotfilesPath 'emacs\spacemacs')
     (Join-Path $HOME '.config\emacs\spacemacs\init.el')                                                       = (DotfilesPath 'emacs\spacemacs\init.el')
 }
