@@ -1,9 +1,10 @@
 yasb/**/yasb.log*
+yasb/activitywatch/window-watcher.exe
 yasb/battery/battery.exe
-yasb/language/language.exe
 yasb/caffeinate/caffeinate.exe
 yasb/clipboard/clipboard.exe
-yasb/activitywatch/window-watcher.exe
+yasb/emacs/emacs-tray.exe
+yasb/language/language.exe
 shells/komorebi/applications.json
 psmux/psmux-agent.exe
 yasb/dictation/dictate.exe

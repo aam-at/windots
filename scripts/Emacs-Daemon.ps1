@@ -143,7 +143,8 @@ function Set-DefaultProfileStartup {
 
 $profilePaths = Get-ProfilePaths -Name $EmacsProfile
 Assert-ProfileInstalled -ProfilePaths $profilePaths
-$emacsPath = Get-RequiredCommand -Name 'emacs'
+# runemacs, not the console emacs.exe, so the daemon has no console window.
+$emacsPath = Get-RequiredCommand -Name 'runemacs'
 $clientPath = Get-RequiredCommand -Name 'emacsclient'
 
 # emacsclient runs $ALTERNATE_EDITOR (e.g. nvim) when no server answers, which

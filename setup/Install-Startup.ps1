@@ -132,6 +132,7 @@ function Build-NativeHelpers {
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
         @{ Source = WindotsPath 'yasb\language\language.c' }
         @{ Source = WindotsPath 'yasb\caffeinate\caffeinate.c'; Windows = $true }
+        @{ Source = WindotsPath 'yasb\emacs\emacs-tray.c'; Windows = $true }
         @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
         @{ Source = WindotsPath 'yasb\dictation\dictate.c'; Libs = 'winmm'; Windows = $true }
@@ -261,6 +262,7 @@ try {
     function Get-EmacsArguments($Action, $EmacsProfile) {
         '--headless "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" {2} {3}' -f $pwsh, (WindotsPath 'scripts\Emacs-Daemon.ps1'), $Action, $EmacsProfile
     }
+    [void](Ensure-StartupShortcut -Name 'EmacsTray' -Candidates @((WindotsPath 'yasb\emacs\emacs-tray.exe')) -RunningProcessName 'emacs-tray')
     [void](Ensure-StartupShortcut -Name 'DoomDaemon' -Candidates @($conhost) -RunningProcessName 'emacs' -Arguments (Get-EmacsArguments 'start' 'doom'))
     foreach ($link in @('Doom', 'open', 'doom'), @('DoomDaemon', 'start', 'doom'), @('Spacemacs', 'open', 'spacemacs'), @('SpacemacsDaemon', 'start', 'spacemacs')) {
         $linkPath = Join-Path ([Environment]::GetFolderPath('Programs')) "$($link[0]).lnk"
