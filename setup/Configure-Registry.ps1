@@ -84,6 +84,8 @@ if (-not (Test-IsAdmin)) {
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo' 'Enabled' 3
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' 'AllowDevelopmentWithoutDevLicense' 1
 Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' 'LongPathsEnabled' 1
+# Hardware clock holds UTC, so a Linux dual boot doesn't shift the time. Takes effect after reboot.
+Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation' 'RealTimeIsUniversal' 1
 
 # HKCU Policies keys are admin-writable only. Let this user flip
 # DisableLockWorkstation unelevated: Install-Startup.ps1 sets it per desktop
