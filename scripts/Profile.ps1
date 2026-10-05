@@ -204,9 +204,28 @@ if ($init = Import-ToolInit starship init, powershell, --print-full-init) {
     function global:prompt {
         $prompt = & $starshipPrompt
         $esc, $bel = [char]27, [char]7
-        $cwd = if ($PWD.Provider.Name -eq 'FileSystem') { "$esc]9;9;`"$($PWD.ProviderPath)`"$bel" }
+        $cwd = if ($PWD.Provider.Name -eq 'FileSystem') {
+            # herdr reads the shell's OS-level cwd on Windows, which Set-Location
+            # never updates; without this every restored pane lands in its start dir.
+            [Environment]::CurrentDirectory = $PWD.ProviderPath
+            "$esc]9;9;`"$($PWD.ProviderPath)`"$bel"
+        }
         "$esc]133;A$bel$cwd$prompt"
     }
+}
+
+# herdr restores panes by typing a bare `claude --resume <id>`: no CLAUDE_CONFIG_DIR
+# (the cc-* launchers set it) and maybe the wrong cwd. Recover both from the
+# transcript, found by searching every ~\.claude-* config dir.
+function claude {
+    $t = if ($args[0] -in '--resume', '-r' -and $args[1] -match '^[0-9a-f-]{36}$' -and -not $env:CLAUDE_CONFIG_DIR) {
+        Get-ChildItem "$HOME\.claude-*\projects\*\$($args[1]).jsonl" | Select-Object -First 1
+    }
+    if (-not $t) { return claude.exe @args }
+    $cwd = Get-Content $t -TotalCount 20 | ConvertFrom-Json | Where-Object cwd | Select-Object -First 1 -ExpandProperty cwd
+    if ($cwd) { Set-Location -LiteralPath $cwd -ErrorAction Ignore }
+    $env:CLAUDE_CONFIG_DIR = $t.Directory.Parent.Parent.FullName
+    claude.exe @args
 }
 if ($init = Import-ToolInit zoxide init, powershell) { . $init }
 if ($init = Import-ToolInit herdr completions, powershell) { . $init }
