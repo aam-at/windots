@@ -8,8 +8,10 @@ started again after. Setup (Install-Startup.ps1) runs this for each helper.
 
 Usage:
   pwsh -File .\yasb\Build-Native.ps1 .\yasb\battery\battery.c -Libs powrprof
-  pwsh -File .\yasb\Build-Native.ps1 .\yasb\activitywatch\window-watcher.c -Libs ws2_32 -Windows
-  pwsh -File .\yasb\Build-Native.ps1 $env:DOTFILES\tools\wellbeing\wellbeing.c -Libs ws2_32,dwmapi -Windows -Force
+  pwsh -File .\yasb\Build-Native.ps1 .\yasb\activitywatch\window-watcher.c `
+    -Libs ws2_32 -Windows
+  pwsh -File .\yasb\Build-Native.ps1 $env:DOTFILES\tools\wellbeing\wellbeing.c `
+    -Libs ws2_32,dwmapi -Windows -Force
 #>
 
 param(
@@ -30,9 +32,17 @@ $library = Join-Path $DotfilesRoot 'tools\lib'
 
 # Any C file beside the source or in the library, included or not: a
 # needless rebuild is cheap.
-$inputs = Get-ChildItem -Path "$(Split-Path -Parent $Source)\*", "$library\*" -Include *.c, *.h -File -ErrorAction SilentlyContinue
+$searchPaths = "$(Split-Path -Parent $Source)\*", "$library\*"
+$find = @{
+    Path = $searchPaths
+    Include = '*.c', '*.h'
+    File = $true
+    ErrorAction = 'SilentlyContinue'
+}
+$inputs = Get-ChildItem @find
 $newest = ($inputs | Measure-Object -Property LastWriteTime -Maximum).Maximum
-if (-not $Force -and (Test-Path -LiteralPath $exe) -and (Get-Item -LiteralPath $exe).LastWriteTime -ge $newest) {
+if (-not $Force -and (Test-Path -LiteralPath $exe) -and
+    (Get-Item -LiteralPath $exe).LastWriteTime -ge $newest) {
     Write-Host "Up to date: $exe"
     return
 }
@@ -50,7 +60,10 @@ $running | Stop-Process -Force
 $running | Wait-Process -ErrorAction SilentlyContinue
 
 # Libraries go after the source, or the linker drops them unresolved.
-$arguments = @('-O2', '-s', '-Wall') + @(if ($Windows) { '-mwindows' }) + @('-I', $library, '-o', $exe, $Source) + @($Libs | ForEach-Object { "-l$_" })
+$arguments = @('-O2', '-s', '-Wall') +
+@(if ($Windows) { '-mwindows' }) +
+@('-I', $library, '-o', $exe, $Source) +
+@($Libs | ForEach-Object { "-l$_" })
 # YASB starts battery.exe every second and holds it for a moment; retry past that.
 foreach ($attempt in 1..5) {
     $output = gcc @arguments 2>&1
@@ -63,5 +76,7 @@ foreach ($attempt in 1..5) {
 }
 $output | Out-Host
 # A failed link leaves the previous exe; keep it running rather than nothing.
-if ($running -and $Windows -and (Test-Path -LiteralPath $exe)) { Start-Process -FilePath $exe }
+if ($running -and $Windows -and (Test-Path -LiteralPath $exe)) {
+    Start-Process -FilePath $exe
+}
 throw "Building $exe failed."

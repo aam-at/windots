@@ -2,7 +2,8 @@
 Manage named Emacs daemons for the profiles in the shared dotfiles repository.
 
 Usage:
-  .\Emacs-Daemon.ps1 {switch|start|stop|restart|open|status} PROFILE [EMACSCLIENT-ARG ...]
+  .\Emacs-Daemon.ps1 {switch|start|stop|restart|open|status} PROFILE
+      [EMACSCLIENT-ARG ...]
 
 Logs, in %LOCALAPPDATA%\windots: emacs-daemon.log has every start, stop and
 failure (otherwise invisible under conhost --headless); emacs-<profile>.log has
@@ -32,7 +33,8 @@ $roots = Get-EmacsRoots
 $logDir = Join-Path $env:LOCALAPPDATA 'windots'
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 function Write-Log([string]$Message) {
-    Add-Content -LiteralPath (Join-Path $logDir 'emacs-daemon.log') -Value "$(Get-Date -Format s) $EmacsProfile ${Action}: $Message"
+    $entry = "$(Get-Date -Format s) $EmacsProfile ${Action}: $Message"
+    Add-Content -LiteralPath (Join-Path $logDir 'emacs-daemon.log') -Value $entry
 }
 trap { Write-Log "failed: $_"; break }
 
@@ -58,7 +60,10 @@ function Assert-ProfileInstalled {
     param([Parameter(Mandatory)][psobject]$ProfilePaths)
 
     # Doom's framework ships only early-init.el; Spacemacs ships init.el.
-    if (-not (@('init.el', 'early-init.el') | Where-Object { Test-Path -LiteralPath (Join-Path $ProfilePaths.Framework $_) })) {
+    $initFiles = @('init.el', 'early-init.el') | Where-Object {
+        Test-Path -LiteralPath (Join-Path $ProfilePaths.Framework $_)
+    }
+    if (-not $initFiles) {
         throw "Emacs framework is not installed at $($ProfilePaths.Framework)"
     }
     if (-not (Test-Path -LiteralPath (Join-Path $ProfilePaths.Profile 'init.el'))) {
@@ -94,10 +99,12 @@ function Start-Daemon {
     # A daemon takes ~50s to answer, so a second caller (login shortcut plus a
     # Start menu link) would see it as stopped and start another. Serialize the
     # check-and-start per profile; the caller that waits finds it running.
-    $startLock = [System.Threading.Mutex]::new($false, "Local\windots-emacs-daemon-$EmacsProfile")
+    $mutexName = "Local\windots-emacs-daemon-$EmacsProfile"
+    $startLock = [System.Threading.Mutex]::new($false, $mutexName)
     try {
         if (-not $startLock.WaitOne([TimeSpan]::FromSeconds(240))) {
-            throw "Timed out waiting for another start of Emacs profile '$EmacsProfile'."
+            throw ('Timed out waiting for another start of Emacs profile ' +
+                "'$EmacsProfile'.")
         }
     }
     catch [System.Threading.AbandonedMutexException] { }
@@ -107,7 +114,8 @@ function Start-Daemon {
             return
         }
 
-        if ($null -ne $ProfilePaths.Local -and -not (Test-Path -LiteralPath $ProfilePaths.Local)) {
+        if ($null -ne $ProfilePaths.Local -and
+            -not (Test-Path -LiteralPath $ProfilePaths.Local)) {
             New-Item -ItemType Directory -Path $ProfilePaths.Local -Force | Out-Null
         }
 
@@ -115,10 +123,13 @@ function Start-Daemon {
         $started = Get-Date
         Invoke-WithEnvironment $ProfilePaths.Environment {
             $daemon = @{
-                FilePath              = $EmacsPath
-                ArgumentList          = "--daemon=$EmacsProfile", "--init-directory=$($ProfilePaths.Framework)"
+                FilePath = $EmacsPath
+                ArgumentList = @(
+                    "--daemon=$EmacsProfile"
+                    "--init-directory=$($ProfilePaths.Framework)"
+                )
                 RedirectStandardError = Join-Path $logDir "emacs-$EmacsProfile.log"
-                WindowStyle           = 'Hidden'
+                WindowStyle = 'Hidden'
             }
             Start-Process @daemon | Out-Null
         }
@@ -142,7 +153,10 @@ function Stop-Daemon {
 
     & $ClientPath (Get-ServerArg $EmacsProfile) --eval '(kill-emacs)' 2>$null | Out-Null
     for ($attempt = 0; $attempt -lt 100; $attempt++) {
-        if (-not (Test-DaemonRunning -ClientPath $ClientPath)) { Write-Log 'stopped'; return }
+        if (-not (Test-DaemonRunning -ClientPath $ClientPath)) {
+            Write-Log 'stopped'
+            return
+        }
         Start-Sleep -Milliseconds 100
     }
     throw "Timed out stopping Emacs profile '$EmacsProfile'."
@@ -154,8 +168,18 @@ function Set-DefaultProfileStartup {
     Set-Content -LiteralPath $profileFile -Value $EmacsProfile -Encoding utf8 -NoNewline
 
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    $commandLine = '"{0}" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{1}" start {2}' -f (Get-Process -Id $PID).Path, $PSCommandPath, $EmacsProfile
-    New-ItemProperty -Path $runKey -Name 'EmacsDaemon' -Value $commandLine -PropertyType String -Force | Out-Null
+    $template = '"{0}" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass ' +
+    '-File "{1}" start {2}'
+    $pwsh = (Get-Process -Id $PID).Path
+    $commandLine = $template -f $pwsh, $PSCommandPath, $EmacsProfile
+    $property = @{
+        Path = $runKey
+        Name = 'EmacsDaemon'
+        Value = $commandLine
+        PropertyType = 'String'
+        Force = $true
+    }
+    New-ItemProperty @property | Out-Null
 }
 
 $profilePaths = Get-ProfilePaths -Name $EmacsProfile
@@ -165,6 +189,11 @@ Assert-ProfileInstalled -ProfilePaths $profilePaths
 $emacsPath = Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\emacs.exe'
 if (-not (Test-Path -LiteralPath $emacsPath)) { throw "Emacs not found: $emacsPath" }
 $clientPath = Get-RequiredCommand -Name 'emacsclient'
+$startArgs = @{
+    EmacsPath = $emacsPath
+    ClientPath = $clientPath
+    ProfilePaths = $profilePaths
+}
 
 # emacsclient runs $ALTERNATE_EDITOR (e.g. nvim) when no server answers, which
 # turns every liveness probe into a hidden editor that never returns.
@@ -175,28 +204,30 @@ try {
         'switch' {
             foreach ($profileName in @('doom', 'spacemacs')) {
                 if ($profileName -eq $EmacsProfile) { continue }
-                & $clientPath (Get-ServerArg $profileName) --eval '(kill-emacs)' 2>$null | Out-Null
+                $serverArg = Get-ServerArg $profileName
+                & $clientPath $serverArg --eval '(kill-emacs)' 2>$null | Out-Null
             }
-            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            Start-Daemon @startArgs
             Set-DefaultProfileStartup
         }
         'start' {
-            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            Start-Daemon @startArgs
         }
         'stop' {
             Stop-Daemon -ClientPath $clientPath
         }
         'restart' {
             Stop-Daemon -ClientPath $clientPath
-            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            Start-Daemon @startArgs
         }
         'open' {
-            Start-Daemon -EmacsPath $emacsPath -ClientPath $clientPath -ProfilePaths $profilePaths
+            Start-Daemon @startArgs
+            $serverArg = Get-ServerArg $EmacsProfile
             if ($EmacsClientArgs.Count -gt 0) {
-                & $clientPath (Get-ServerArg $EmacsProfile) --reuse-frame @EmacsClientArgs
+                & $clientPath $serverArg --reuse-frame @EmacsClientArgs
             }
             else {
-                & $clientPath (Get-ServerArg $EmacsProfile) --create-frame
+                & $clientPath $serverArg --create-frame
             }
             exit $LASTEXITCODE
         }
@@ -212,5 +243,7 @@ try {
     }
 }
 finally {
-    if ($null -ne $savedAlternateEditor) { $env:ALTERNATE_EDITOR = $savedAlternateEditor }
+    if ($null -ne $savedAlternateEditor) {
+        $env:ALTERNATE_EDITOR = $savedAlternateEditor
+    }
 }

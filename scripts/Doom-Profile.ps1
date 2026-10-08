@@ -70,7 +70,8 @@ try {
             # git's exec path).
             $bash = Join-Path (git --exec-path) '..\..\..\bin\bash.exe'
             if (-not (Test-Path -LiteralPath $bash)) {
-                throw "Doom CLI is a shell script; install Git for Windows or make doom.ps1 available at $($doom.Framework)\bin."
+                throw ('Doom CLI is a shell script; install Git for Windows or ' +
+                    "make doom.ps1 available at $($doom.Framework)\bin.")
             }
             # bash eats backslashes in the path, so hand it forward slashes.
             & $bash ($doomCommand -replace '\\', '/') @DoomArgs

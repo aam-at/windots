@@ -42,7 +42,10 @@ try {
         Stop-WhisperServer $tool
         $env:DICTATION_DEVICE = $d
         python $tool $silence
-        if ($LASTEXITCODE) { throw "warm-up on $d failed (see $env:LOCALAPPDATA\windots\dictation\whisper-server.log)" }
+        if ($LASTEXITCODE) {
+            $log = "$env:LOCALAPPDATA\windots\dictation\whisper-server.log"
+            throw "warm-up on $d failed (see $log)"
+        }
     }
 }
 finally {

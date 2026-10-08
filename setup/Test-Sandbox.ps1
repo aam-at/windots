@@ -27,7 +27,8 @@ if ($InSandbox) {
         $env:PATH = "$HOME\scoop\shims;$env:PATH"
         scoop install git
         # Bootstrap would clone origin/master; copy the working tree instead.
-        robocopy $sandboxRepo "$HOME\windots" /E /NFL /NDL /NJH /NJS /XD .sandbox | Out-Null
+        robocopy $sandboxRepo "$HOME\windots" /E /NFL /NDL /NJH /NJS /XD .sandbox |
+            Out-Null
         # Piping redirects the pwsh child's stdout so the transcript sees it;
         # stderr stays on the console (redirected, 5.1 makes it terminating).
         & "$HOME\windots\setup\Bootstrap.ps1" | Out-Host
@@ -45,14 +46,23 @@ $logs = Join-Path $repo '.sandbox'
 Remove-Item -Recurse -Force $logs -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $logs | Out-Null
 
-$command = "powershell -NoProfile -ExecutionPolicy Bypass -File $sandboxRepo\setup\Test-Sandbox.ps1 -InSandbox"
+$command = 'powershell -NoProfile -ExecutionPolicy Bypass ' +
+"-File $sandboxRepo\setup\Test-Sandbox.ps1 -InSandbox"
 $wsb = Join-Path $logs 'windots.wsb'
 @"
 <Configuration>
   <MemoryInMB>8192</MemoryInMB>
   <MappedFolders>
-    <MappedFolder><HostFolder>$repo</HostFolder><SandboxFolder>$sandboxRepo</SandboxFolder><ReadOnly>true</ReadOnly></MappedFolder>
-    <MappedFolder><HostFolder>$logs</HostFolder><SandboxFolder>$sandboxLogs</SandboxFolder><ReadOnly>false</ReadOnly></MappedFolder>
+    <MappedFolder>
+      <HostFolder>$repo</HostFolder>
+      <SandboxFolder>$sandboxRepo</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>$logs</HostFolder>
+      <SandboxFolder>$sandboxLogs</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
   </MappedFolders>
   <LogonCommand><Command>$command</Command></LogonCommand>
 </Configuration>

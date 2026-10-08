@@ -8,7 +8,10 @@ is used; [CmdletBinding()] gives it -Verbose for Write-Verbose detail.
 # The shared dotfiles checkout; Configure-Env.ps1 persists DOTFILES, and a
 # fresh machine (before that step) falls back to Bootstrap.ps1's clone path.
 $DotfilesRoot = if ($env:DOTFILES) { $env:DOTFILES } else { Join-Path $HOME 'dotfiles' }
-$ScoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) { Join-Path $HOME 'scoop' } else { $env:SCOOP }
+$ScoopRoot = if ([string]::IsNullOrWhiteSpace($env:SCOOP)) {
+    Join-Path $HOME 'scoop'
+}
+else { $env:SCOOP }
 # This checkout; $PSScriptRoot is setup\ even when dot-sourced.
 $WindotsRoot = Split-Path -Parent $PSScriptRoot
 function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
@@ -16,9 +19,14 @@ function WindotsPath([string]$Relative) { Join-Path $WindotsRoot $Relative }
 $script:Warnings = [System.Collections.Generic.List[string]]::new()
 
 function Write-Info($msg) { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
-function Write-Warn($msg) { $script:Warnings.Add($msg); Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
+function Write-Warn($msg) {
+    $script:Warnings.Add($msg)
+    Write-Host "[WARN]  $msg" -ForegroundColor Yellow
+}
 
-function Test-Command([string]$Name) { $null -ne (Get-Command $Name -ErrorAction SilentlyContinue) }
+function Test-Command([string]$Name) {
+    $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+}
 
 function Invoke-IfNotDryRun {
     param([scriptblock]$Action)
@@ -52,30 +60,50 @@ function Invoke-NativeCommand {
 
 function Get-EmacsRoots {
     [pscustomobject]@{
-        ConfigRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) { Join-Path $HOME '.config\emacs' } else { Join-Path $env:XDG_CONFIG_HOME 'emacs' }
-        DataRoot   = if ([string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) { Join-Path $HOME '.local\share\emacs' } else { Join-Path $env:XDG_DATA_HOME 'emacs' }
-        StateRoot  = if ([string]::IsNullOrWhiteSpace($env:XDG_STATE_HOME)) { Join-Path $HOME '.local\state\emacs' } else { Join-Path $env:XDG_STATE_HOME 'emacs' }
+        ConfigRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) {
+            Join-Path $HOME '.config\emacs'
+        }
+        else { Join-Path $env:XDG_CONFIG_HOME 'emacs' }
+        DataRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) {
+            Join-Path $HOME '.local\share\emacs'
+        }
+        else { Join-Path $env:XDG_DATA_HOME 'emacs' }
+        StateRoot = if ([string]::IsNullOrWhiteSpace($env:XDG_STATE_HOME)) {
+            Join-Path $HOME '.local\state\emacs'
+        }
+        else { Join-Path $env:XDG_STATE_HOME 'emacs' }
     }
 }
 
 # Runs a program elevated (UAC prompt), by default pwsh; returns its exit code,
 # or $null when elevation is declined.
-function Invoke-Elevated([string[]]$ArgumentList, [string]$FilePath = (Get-Process -Id $PID).Path) {
-    try { (Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -Verb RunAs -Wait -PassThru).ExitCode }
+function Invoke-Elevated(
+    [string[]]$ArgumentList,
+    [string]$FilePath = (Get-Process -Id $PID).Path
+) {
+    try {
+        $start = @{ FilePath = $FilePath; ArgumentList = $ArgumentList; Verb = 'RunAs' }
+        (Start-Process @start -Wait -PassThru).ExitCode
+    }
     catch { $null }
 }
 
 # Reruns a script elevated with the parameters it was given ($PSBoundParameters),
 # in a window left open to read the output. Warns when elevation is declined.
-function Invoke-ScriptElevated([string]$ScriptPath, [System.Collections.IDictionary]$Parameters) {
+function Invoke-ScriptElevated(
+    [string]$ScriptPath,
+    [System.Collections.IDictionary]$Parameters
+) {
     $quote = { "'" + ($args[0] -replace "'", "''") + "'" }
     $params = foreach ($name in $Parameters.Keys) {
         $value = $Parameters[$name]
         if ($value -is [switch]) { "-${name}:`$$([bool]$value)" }
         else { "-$name " + (@($value | ForEach-Object { & $quote $_ }) -join ',') }
     }
-    $command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("& $(& $quote $ScriptPath) $params"))
-    if ($null -eq (Invoke-Elevated '-NoProfile', '-NoExit', '-EncodedCommand', $command)) { Write-Warning 'Elevation declined.' }
+    $invocation = "& $(& $quote $ScriptPath) $params"
+    $command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($invocation))
+    $exitCode = Invoke-Elevated '-NoProfile', '-NoExit', '-EncodedCommand', $command
+    if ($null -eq $exitCode) { Write-Warning 'Elevation declined.' }
 }
 
 # Per-profile Emacs paths and the environment variables its framework reads.
@@ -87,17 +115,21 @@ function Get-ProfilePaths {
         'doom' {
             $paths = [pscustomobject]@{
                 Framework = Join-Path $roots.DataRoot 'doom'
-                Profile   = Join-Path $roots.ConfigRoot 'doom'
-                Local     = Join-Path $roots.StateRoot 'doom'
+                Profile = Join-Path $roots.ConfigRoot 'doom'
+                Local = Join-Path $roots.StateRoot 'doom'
             }
-            $paths | Add-Member Environment @{ EMACSDIR = $paths.Framework; DOOMDIR = $paths.Profile; DOOMLOCALDIR = $paths.Local }
+            $paths | Add-Member Environment @{
+                EMACSDIR = $paths.Framework
+                DOOMDIR = $paths.Profile
+                DOOMLOCALDIR = $paths.Local
+            }
             return $paths
         }
         default {
             return [pscustomobject]@{
-                Framework   = Join-Path $roots.DataRoot 'spacemacs'
-                Profile     = Join-Path $roots.ConfigRoot $Name
-                Local       = $null
+                Framework = Join-Path $roots.DataRoot 'spacemacs'
+                Profile = Join-Path $roots.ConfigRoot $Name
+                Local = $null
                 Environment = @{ SPACEMACSDIR = (Join-Path $roots.ConfigRoot $Name) }
             }
         }
@@ -116,7 +148,9 @@ function Invoke-WithEnvironment([hashtable]$Vars, [scriptblock]$Body) {
     }
     finally {
         foreach ($name in $saved.Keys) {
-            if ($null -eq $saved[$name]) { Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue }
+            if ($null -eq $saved[$name]) {
+                Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue
+            }
             else { Set-Item -Path "Env:$name" -Value $saved[$name] }
         }
     }
@@ -124,14 +158,17 @@ function Invoke-WithEnvironment([hashtable]$Vars, [scriptblock]$Body) {
 
 function Test-IsAdmin {
     try {
-        $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]$identity
+        return $principal.IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
     }
     catch { return $false }
 }
 
 function Stop-AutoHotkeyScript([string]$ScriptPath) {
-    # Normalize so callers can pass '..' paths; AHK's command line holds the resolved one.
+    # Normalize so callers can pass '..' paths; AHK's command line holds the resolved
+    # one.
     $ScriptPath = [System.IO.Path]::GetFullPath($ScriptPath)
     Get-CimInstance Win32_Process -Filter "Name = 'AutoHotkeyUX.exe'" |
         Where-Object { $_.CommandLine -like "*$ScriptPath*" } |

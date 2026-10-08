@@ -34,7 +34,9 @@
 #define MAX_SESSIONS 64
 
 /* One line of `display -p`; tabs because paths and titles hold anything else. */
-#define SESSION_FORMAT "#{session_activity}\t#{window_name}\t#{pane_title}\t#{pane_current_command}\t#{pane_current_path}"
+#define SESSION_FORMAT                                                                 \
+    "#{session_activity}\t#{window_name}\t#{pane_title}\t#{pane_current_command}\t#{"  \
+    "pane_current_path}"
 
 typedef struct {
     char name[128];
@@ -49,11 +51,14 @@ static char psmux_dir[MAX_PATH];
 
 /* ---- Status ---- */
 
-static ULONGLONG filetime(FILETIME t) { return (ULONGLONG)t.dwHighDateTime << 32 | t.dwLowDateTime; }
+static ULONGLONG filetime(FILETIME t) {
+    return (ULONGLONG)t.dwHighDateTime << 32 | t.dwLowDateTime;
+}
 
 /* Busy share of the time between two GetSystemTimes samples; kernel time
    includes idle time. */
-static int cpu_percent(ULONGLONG idle, ULONGLONG total, ULONGLONG previous_idle, ULONGLONG previous_total) {
+static int cpu_percent(ULONGLONG idle, ULONGLONG total, ULONGLONG previous_idle,
+                       ULONGLONG previous_total) {
     ULONGLONG elapsed = total - previous_total;
     if (!elapsed || idle - previous_idle > elapsed) return 0;
     return (int)((elapsed - (idle - previous_idle)) * 100 / elapsed);
@@ -66,7 +71,7 @@ static const char *level_colour(int percent, int medium, int high) {
 
 static void format_status(int cpu, int memory, char *out, size_t size) {
     snprintf(out, size, "#[fg=%s]CPU %d%%#[default] #[fg=%s]MEM %d%%#[default]",
-        level_colour(cpu, 30, 80), cpu, level_colour(memory, 50, 80), memory);
+             level_colour(cpu, 30, 80), cpu, level_colour(memory, 50, 80), memory);
 }
 
 static void read_status(char *out, size_t size) {
@@ -84,7 +89,8 @@ static void read_status(char *out, size_t size) {
 
 /* ---- psmux servers ---- */
 
-static int read_small_file(const char *session, const char *extension, char *out, size_t size) {
+static int read_small_file(const char *session, const char *extension, char *out,
+                           size_t size) {
     char path[MAX_PATH];
     snprintf(path, sizeof path, "%s\\%s.%s", psmux_dir, session, extension);
     FILE *file = fopen(path, "rb");
@@ -98,9 +104,12 @@ static int read_small_file(const char *session, const char *extension, char *out
 
 /* Runs newline-separated commands on a session's server; their output goes
    to out. 0 if the server isn't there (a stale .port file). */
-static int psmux_run(const char *session, const char *commands, char *out, size_t size) {
+static int psmux_run(const char *session, const char *commands, char *out,
+                     size_t size) {
     char port[16], key[64];
-    if (!read_small_file(session, "port", port, sizeof port) || !read_small_file(session, "key", key, sizeof key)) return 0;
+    if (!read_small_file(session, "port", port, sizeof port) ||
+        !read_small_file(session, "key", key, sizeof key))
+        return 0;
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) return 0;
     DWORD timeout = 2000;
@@ -115,8 +124,11 @@ static int psmux_run(const char *session, const char *commands, char *out, size_
     size_t total = 0;
     int n;
     /* The server answers "OK", runs the commands, and closes. */
-    if (connect(s, (struct sockaddr *)&address, sizeof address) == 0 && send(s, request, length, 0) == length)
-        while (total + 1 < size && (n = recv(s, out + total, (int)(size - 1 - total), 0)) > 0) total += (size_t)n;
+    if (connect(s, (struct sockaddr *)&address, sizeof address) == 0 &&
+        send(s, request, length, 0) == length)
+        while (total + 1 < size &&
+               (n = recv(s, out + total, (int)(size - 1 - total), 0)) > 0)
+            total += (size_t)n;
     closesocket(s);
     out[total] = 0;
     if (strncmp(out, "OK\n", 3) != 0) return 0;
@@ -135,8 +147,10 @@ static int list_sessions(char names[][128], int max) {
     int count = 0;
     do {
         char *dot = strrchr(found.cFileName, '.');
-        if (!dot || strstr(found.cFileName, "__") || dot - found.cFileName >= 128) continue;
-        snprintf(names[count], 128, "%.*s", (int)(dot - found.cFileName), found.cFileName);
+        if (!dot || strstr(found.cFileName, "__") || dot - found.cFileName >= 128)
+            continue;
+        snprintf(names[count], 128, "%.*s", (int)(dot - found.cFileName),
+                 found.cFileName);
         count++;
     } while (count < max && FindNextFileA(find, &found));
     FindClose(find);
@@ -156,10 +170,12 @@ static int split_tabs(char *line, char **fields, int max) {
 
 /* The heartbeat body for a session from its SESSION_FORMAT line (edited in
    place), and its activity time. 0 if the line isn't one. */
-static int heartbeat_body(const char *session, char *line, const char *timestamp, long long *activity, char *body, size_t size) {
+static int heartbeat_body(const char *session, char *line, const char *timestamp,
+                          long long *activity, char *body, size_t size) {
     line[strcspn(line, "\r\n")] = 0;
     char *fields[5];
-    if (split_tabs(line, fields, 5) != 5 || sscanf(fields[0], "%lld", activity) != 1) return 0;
+    if (split_tabs(line, fields, 5) != 5 || sscanf(fields[0], "%lld", activity) != 1)
+        return 0;
     char name[256], window[512], title[512], command[512], path[1024];
     json_escape(session, name, sizeof name);
     json_escape(fields[1], window, sizeof window);
@@ -167,16 +183,20 @@ static int heartbeat_body(const char *session, char *line, const char *timestamp
     json_escape(fields[3], command, sizeof command);
     json_escape(fields[4], path, sizeof path);
     snprintf(body, size,
-        "{\"timestamp\": \"%s\", \"duration\": 0, \"data\": {\"title\": \"%s\", \"session_name\": \"%s\", \"window_name\": \"%s\", "
-        "\"pane_title\": \"%s\", \"pane_current_command\": \"%s\", \"pane_current_path\": \"%s\"}}",
-        timestamp, name, name, window, title, command, path);
+             "{\"timestamp\": \"%s\", \"duration\": 0, \"data\": {\"title\": \"%s\", "
+             "\"session_name\": \"%s\", \"window_name\": \"%s\", "
+             "\"pane_title\": \"%s\", \"pane_current_command\": \"%s\", "
+             "\"pane_current_path\": \"%s\"}}",
+             timestamp, name, name, window, title, command, path);
     return 1;
 }
 
 static Seen *seen_session(const char *name) {
     for (int i = 0; i < seen_count; i++)
         if (strcmp(seen[i].name, name) == 0) return &seen[i];
-    if (seen_count == MAX_SESSIONS) seen_count = 0; /* ponytail: forgets all past 64 sessions; a rare repeat heartbeat */
+    if (seen_count == MAX_SESSIONS)
+        seen_count =
+            0; /* ponytail: forgets all past 64 sessions; a rare repeat heartbeat */
     Seen *entry = &seen[seen_count++];
     snprintf(entry->name, sizeof entry->name, "%s", name);
     entry->activity = 0;
@@ -186,11 +206,17 @@ static Seen *seen_session(const char *name) {
 /* Where heartbeats go; the tests record them instead. */
 static int send_heartbeat(const char *body) {
     char bucket[512];
-    snprintf(bucket, sizeof bucket, "{\"client\": \"aw-watcher-tmux\", \"type\": \"tmux.sessions\", \"hostname\": \"%s\"}", host);
+    snprintf(bucket, sizeof bucket,
+             "{\"client\": \"aw-watcher-tmux\", \"type\": \"tmux.sessions\", "
+             "\"hostname\": \"%s\"}",
+             host);
     /* aw-server may start after psmux: retry the bucket until it's there. */
-    if (!bucket_ready && !(bucket_ready = http_post("/api/0/buckets/aw-watcher-tmux", bucket))) return 0;
+    if (!bucket_ready &&
+        !(bucket_ready = http_post("/api/0/buckets/aw-watcher-tmux", bucket)))
+        return 0;
     char path[128];
-    snprintf(path, sizeof path, "/api/0/buckets/aw-watcher-tmux/heartbeat?pulsetime=%d", AW_PULSETIME);
+    snprintf(path, sizeof path, "/api/0/buckets/aw-watcher-tmux/heartbeat?pulsetime=%d",
+             AW_PULSETIME);
     if (!http_post(path, body)) bucket_ready = 0;
     return bucket_ready;
 }
@@ -209,7 +235,10 @@ static void track(const char *session, char *line, int (*send)(const char *)) {
 
 static void run_resurrect(const char *script) {
     char command[MAX_PATH * 2];
-    snprintf(command, sizeof command, "conhost.exe --headless pwsh -NoProfile -File \"%s\\plugins\\psmux-resurrect\\scripts\\%s\"", psmux_dir, script);
+    snprintf(command, sizeof command,
+             "conhost.exe --headless pwsh -NoProfile -File "
+             "\"%s\\plugins\\psmux-resurrect\\scripts\\%s\"",
+             psmux_dir, script);
     WinExec(command, SW_HIDE);
 }
 
@@ -236,12 +265,16 @@ int main(void) {
     for (int previous_live = -1;;) {
         Sleep(TICK_MS);
         read_status(status, sizeof status);
-        snprintf(commands, sizeof commands, "set -g @sysstat \"%s\"\ndisplay -p \"" SESSION_FORMAT "\"\n", status);
+        snprintf(commands, sizeof commands,
+                 "set -g @sysstat \"%s\"\ndisplay -p \"" SESSION_FORMAT "\"\n", status);
         int live = 0, count = list_sessions(names, MAX_SESSIONS);
         for (int i = 0; i < count; i++)
-            if (psmux_run(names[i], commands, reply, sizeof reply)) live++, track(names[i], reply, send_heartbeat);
+            if (psmux_run(names[i], commands, reply, sizeof reply))
+                live++, track(names[i], reply, send_heartbeat);
         /* psmux just started: continuum's restore. */
-        if (previous_live == 0 && live && GetFileAttributesA(last) != INVALID_FILE_ATTRIBUTES) run_resurrect("restore.ps1");
+        if (previous_live == 0 && live &&
+            GetFileAttributesA(last) != INVALID_FILE_ATTRIBUTES)
+            run_resurrect("restore.ps1");
         previous_live = live;
         if (live && GetTickCount64() >= next_save) {
             run_resurrect("save.ps1");

@@ -8,7 +8,8 @@
  *   dictate [--pid N]   start the recorder, which stays resident. N is the process of
  *                       the window that had focus at the key press, for picking the
  *                       destination pane.
- *   dictate --pick-mic  a menu to choose the microphone (the YASB widget's right-click).
+ *   dictate --pick-mic  a menu to choose the microphone (the YASB widget's
+ * right-click).
  *
  * Later presses never launch this exe: shells\Niri-Common.ahk signals the resident
  * recorder's event (Local\windots-dictate-toggle) after writing foreground.pid, which
@@ -26,9 +27,9 @@
  * the idle microphone icon. It is never deleted, because the widget shows its raw
  * template when the file is missing.
  * Errors show as a balloon (Toggle-Dictation.ps1 -Action Notify).
- * The microphone is the Windows default until one is chosen in the menu, which saves its
- * name to mic.txt. A choice made while the recorder holds the mic open applies the next
- * time the recorder starts.
+ * The microphone is the Windows default until one is chosen in the menu, which saves
+ * its name to mic.txt. A choice made while the recorder holds the mic open applies the
+ * next time the recorder starts.
  *
  * Build: pwsh -File ..\Build-Native.ps1 dictate.c -Libs winmm -Windows (setup runs
  * it too). A GUI-subsystem exe, so launching it never opens a console window.
@@ -43,26 +44,38 @@
 #define RATE 16000
 #define BUFFERS 8
 #define BUFFER_MS 20
-#define GRACE_MS 300      /* keep recording after the stop press: the last words are still in flight */
-#define MAX_MS 600000     /* a recording nobody stopped */
+#define GRACE_MS                                                                       \
+    300 /* keep recording after the stop press: the last words are still in flight */
+#define MAX_MS 600000 /* a recording nobody stopped */
 #define TOGGLE_EVENT "Local\\windots-dictate-toggle"
 
 enum { HOT, RECORDING, STOPPING };
 
-/* <exe dir>\..\..\scripts\Toggle-Dictation.ps1 for an exe path (yasb\dictation\dictate.exe). */
+/* <exe dir>\..\..\scripts\Toggle-Dictation.ps1 for an exe path
+ * (yasb\dictation\dictate.exe). */
 static void script_path_for(const char *exe, char *out, size_t size) {
     const char *slash = strrchr(exe, '\\');
-    snprintf(out, size, "%.*s\\..\\..\\scripts\\Toggle-Dictation.ps1", (int)(slash ? slash - exe : 0), exe);
+    snprintf(out, size, "%.*s\\..\\..\\scripts\\Toggle-Dictation.ps1",
+             (int)(slash ? slash - exe : 0), exe);
 }
 
-/* The widget's JSON line for a recorder state ("starting", "recording" or "processing"),
- * ASCII so the file needs no encoding. Anything else, including "hot" (the mic held open
- * between dictations) and "", is the idle microphone icon, so the widget is always there. */
+/* The widget's JSON line for a recorder state ("starting", "recording" or
+ * "processing"), ASCII so the file needs no encoding. Anything else, including "hot"
+ * (the mic held open between dictations) and "", is the idle microphone icon, so the
+ * widget is always there. */
 static void status_json(const char *state, char *out, size_t size) {
     const char *icon = "\\ue720", *text = "Dictation";
-    if (!strcmp(state, "starting")) { icon = "\\ud83d\\udfe1"; text = "Starting"; }  /* the mic is not live yet: wait */
-    else if (!strcmp(state, "recording")) { icon = "\\ud83d\\udd34"; text = "Recording"; }
-    else if (!strcmp(state, "processing")) { icon = "\\u23f3"; text = "Transcribing"; }
+    if (!strcmp(state, "starting")) {
+        icon = "\\ud83d\\udfe1";
+        text = "Starting";
+    } /* the mic is not live yet: wait */
+    else if (!strcmp(state, "recording")) {
+        icon = "\\ud83d\\udd34";
+        text = "Recording";
+    } else if (!strcmp(state, "processing")) {
+        icon = "\\u23f3";
+        text = "Transcribing";
+    }
     snprintf(out, size, "{\"icon\": \"%s\", \"text\": \"%s\"}", icon, text);
 }
 
@@ -72,10 +85,13 @@ static HANDLE run_script(const char *arguments) {
     char exe[MAX_PATH], script[MAX_PATH + 64], command[2 * MAX_PATH + 512];
     GetModuleFileNameA(NULL, exe, sizeof exe);
     script_path_for(exe, script, sizeof script);
-    snprintf(command, sizeof command, "pwsh -NoProfile -File \"%s\" %s", script, arguments);
-    STARTUPINFOA si = { .cb = sizeof si };
+    snprintf(command, sizeof command, "pwsh -NoProfile -File \"%s\" %s", script,
+             arguments);
+    STARTUPINFOA si = {.cb = sizeof si};
     PROCESS_INFORMATION pi;
-    if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
+    if (!CreateProcessA(NULL, command, NULL, NULL, FALSE,
+                        CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si,
+                        &pi))
         return NULL;
     CloseHandle(pi.hThread);
     return pi.hProcess;
@@ -98,12 +114,16 @@ static void state_path(const char *name, char *out, size_t size) {
     snprintf(out, size, "%s\\%s", dir, name);
 }
 
-/* Replaces a one-line state file (NULL deletes it). The new content is written aside and
- * swapped in, so the widget never reads the file empty between the truncate and the write. */
+/* Replaces a one-line state file (NULL deletes it). The new content is written aside
+ * and swapped in, so the widget never reads the file empty between the truncate and the
+ * write. */
 static void write_state(const char *name, const char *value) {
     char path[MAX_PATH], temp[MAX_PATH + 8];
     state_path(name, path, sizeof path);
-    if (!value) { DeleteFileA(path); return; }
+    if (!value) {
+        DeleteFileA(path);
+        return;
+    }
     snprintf(temp, sizeof temp, "%s.tmp", path);
     FILE *f = fopen(temp, "w");
     if (!f) return;
@@ -130,14 +150,17 @@ static void set_status(const char *state) {
     write_state("status.json", line);
 }
 
-/* The device the menu chose, else the Windows default (also if it has been unplugged). */
+/* The device the menu chose, else the Windows default (also if it has been unplugged).
+ */
 static UINT pick_device(void) {
     char saved[128] = "";
     if (!read_state("mic.txt", saved, sizeof saved)) return WAVE_MAPPER;
     UINT count = waveInGetNumDevs();
     for (UINT i = 0; i < count; i++) {
         WAVEINCAPSA caps;
-        if (waveInGetDevCapsA(i, &caps, sizeof caps) == MMSYSERR_NOERROR && strcmp(caps.szPname, saved) == 0) return i;
+        if (waveInGetDevCapsA(i, &caps, sizeof caps) == MMSYSERR_NOERROR &&
+            strcmp(caps.szPname, saved) == 0)
+            return i;
     }
     return WAVE_MAPPER;
 }
@@ -145,19 +168,20 @@ static UINT pick_device(void) {
 typedef struct {
     WAVEHDR headers[BUFFERS];
     int next;
-    FILE *file;           /* NULL while the mic is only being held open: audio is dropped */
-    int flowing;          /* audio has arrived since the mic opened */
-    int chime_pending;    /* chime at the next audio, for a press before it flowed */
+    FILE *file;  /* NULL while the mic is only being held open: audio is dropped */
+    int flowing; /* audio has arrived since the mic opened */
+    int chime_pending; /* chime at the next audio, for a press before it flowed */
 } Recorder;
 
-/* Takes every finished buffer in order (writing it when recording) and hands it back to the mic. */
+/* Takes every finished buffer in order (writing it when recording) and hands it back to
+ * the mic. */
 static void drain(Recorder *r, HWAVEIN mic) {
     while (r->headers[r->next].dwFlags & WHDR_DONE) {
         WAVEHDR *h = &r->headers[r->next];
         if (h->dwBytesRecorded) {
             r->flowing = 1;
             if (r->file) fwrite(h->lpData, 1, h->dwBytesRecorded, r->file);
-            if (r->chime_pending) {  /* audio is flowing: this is when to talk */
+            if (r->chime_pending) { /* audio is flowing: this is when to talk */
                 MessageBeep(MB_ICONASTERISK);
                 r->chime_pending = 0;
             }
@@ -188,19 +212,27 @@ static int pick_mic(void) {
     for (UINT i = 0; i < count; i++) {
         WAVEINCAPSA caps;
         if (waveInGetDevCapsA(i, &caps, sizeof caps) == MMSYSERR_NOERROR)
-            AppendMenuA(menu, MF_STRING | (strcmp(caps.szPname, saved) == 0 ? MF_CHECKED : 0), 100 + i, caps.szPname);
+            AppendMenuA(menu,
+                        MF_STRING | (strcmp(caps.szPname, saved) == 0 ? MF_CHECKED : 0),
+                        100 + i, caps.szPname);
     }
-    /* A menu needs a window that is in the foreground, or it will not close on a click elsewhere. */
-    HWND owner = CreateWindowExA(WS_EX_TOOLWINDOW, "STATIC", "", WS_POPUP, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
+    /* A menu needs a window that is in the foreground, or it will not close on a click
+     * elsewhere. */
+    HWND owner = CreateWindowExA(WS_EX_TOOLWINDOW, "STATIC", "", WS_POPUP, 0, 0, 0, 0,
+                                 NULL, NULL, NULL, NULL);
     POINT at;
     GetCursorPos(&at);
     SetForegroundWindow(owner);
-    int chosen = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, at.x, at.y, 0, owner, NULL);
+    int chosen =
+        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, at.x, at.y, 0, owner, NULL);
     PostMessage(owner, WM_NULL, 0, 0);
-    if (chosen == 1) write_state("mic.txt", NULL);
+    if (chosen == 1)
+        write_state("mic.txt", NULL);
     else if (chosen >= 100) {
         WAVEINCAPSA caps;
-        if (waveInGetDevCapsA((UINT)(chosen - 100), &caps, sizeof caps) == MMSYSERR_NOERROR) write_state("mic.txt", caps.szPname);
+        if (waveInGetDevCapsA((UINT)(chosen - 100), &caps, sizeof caps) ==
+            MMSYSERR_NOERROR)
+            write_state("mic.txt", caps.szPname);
     }
     return 0;
 }
@@ -209,7 +241,8 @@ int main(int argc, char **argv) {
     if (argc > 1 && !strcmp(argv[1], "--pick-mic")) return pick_mic();
     char foreground[32] = "0";
     for (int i = 1; i + 1 < argc; i++)
-        if (!strcmp(argv[i], "--pid")) snprintf(foreground, sizeof foreground, "%d", atoi(argv[i + 1]));
+        if (!strcmp(argv[i], "--pid"))
+            snprintf(foreground, sizeof foreground, "%d", atoi(argv[i + 1]));
     write_state("foreground.pid", foreground);
 
     /* A resident recorder owns the toggle event: this press is its to handle. */
@@ -220,20 +253,22 @@ int main(int argc, char **argv) {
     }
     toggle = CreateEventA(NULL, FALSE, FALSE, TOGGLE_EVENT);
     if (!toggle) return 1;
-    if (GetLastError() == ERROR_ALREADY_EXISTS) {  /* lost a race with another press */
+    if (GetLastError() == ERROR_ALREADY_EXISTS) { /* lost a race with another press */
         SetEvent(toggle);
         return 0;
     }
     set_status("starting");
 
-    Recorder r = { 0 };
+    Recorder r = {0};
     HANDLE data = CreateEventA(NULL, FALSE, FALSE, NULL);
-    WAVEFORMATEX format = { WAVE_FORMAT_PCM, 1, RATE, RATE * 2, 2, 16, 0 };
+    WAVEFORMATEX format = {WAVE_FORMAT_PCM, 1, RATE, RATE * 2, 2, 16, 0};
     HWAVEIN mic;
-    MMRESULT opened = waveInOpen(&mic, pick_device(), &format, (DWORD_PTR)data, 0, CALLBACK_EVENT);
+    MMRESULT opened =
+        waveInOpen(&mic, pick_device(), &format, (DWORD_PTR)data, 0, CALLBACK_EVENT);
     if (opened != MMSYSERR_NOERROR) {
         char message[128];
-        snprintf(message, sizeof message, "Could not open the microphone (error %u)", opened);
+        snprintf(message, sizeof message, "Could not open the microphone (error %u)",
+                 opened);
         notify(message);
         set_status("");
         return 1;
@@ -247,10 +282,12 @@ int main(int argc, char **argv) {
     }
     waveInStart(mic);
 
-    HANDLE events[2] = { data, toggle };
-    int state = HOT, want_start = 1, first = 1;  /* the press that launched this process starts a recording */
+    HANDLE events[2] = {data, toggle};
+    int state = HOT, want_start = 1,
+        first = 1; /* the press that launched this process starts a recording */
     int announced = 0;
-    HANDLE worker = NULL;  /* the transcription in progress: it needs recording.raw until it is done */
+    HANDLE worker = NULL; /* the transcription in progress: it needs recording.raw until
+                             it is done */
     DWORD started = 0, deadline = 0;
     char raw[MAX_PATH];
     state_path("recording.raw", raw, sizeof raw);
@@ -258,14 +295,17 @@ int main(int argc, char **argv) {
         DWORD woke = WaitForMultipleObjects(2, events, FALSE, 50);
         drain(&r, mic);
         DWORD now = GetTickCount();
-        if (state == RECORDING && !announced && r.flowing && !r.chime_pending) {  /* the chime just played */
+        if (state == RECORDING && !announced && r.flowing &&
+            !r.chime_pending) { /* the chime just played */
             set_status("recording");
             announced = 1;
         }
         if (woke == WAIT_OBJECT_0 + 1) {
-            if (state == HOT) want_start = 1;
+            if (state == HOT)
+                want_start = 1;
             else if (state == RECORDING) {
-                set_status("processing");  /* show it at the press, not when the worker starts */
+                set_status("processing"); /* show it at the press, not when the worker
+                                             starts */
                 Beep(800, 40);
                 state = STOPPING;
                 deadline = now + GRACE_MS;
@@ -274,14 +314,16 @@ int main(int argc, char **argv) {
         if (want_start) {
             want_start = 0;
             char pid[32] = "0";
-            if (worker) MessageBeep(MB_ICONHAND);
-            else if (!(r.file = fopen(raw, "wb"))) notify("Could not write the recording");
+            if (worker)
+                MessageBeep(MB_ICONHAND);
+            else if (!(r.file = fopen(raw, "wb")))
+                notify("Could not write the recording");
             else {
                 read_state("foreground.pid", pid, sizeof pid);
                 state = RECORDING;
                 started = now;
                 announced = r.flowing;
-                if (r.flowing) {  /* a held-open mic: talk now */
+                if (r.flowing) { /* a held-open mic: talk now */
                     set_status("recording");
                     MessageBeep(MB_ICONASTERISK);
                 } else {
@@ -289,11 +331,14 @@ int main(int argc, char **argv) {
                     r.chime_pending = 1;
                 }
                 char arguments[64];
-                snprintf(arguments, sizeof arguments, "-Action Prepare -ForegroundPid %d", atoi(pid));
+                snprintf(arguments, sizeof arguments,
+                         "-Action Prepare -ForegroundPid %d", atoi(pid));
                 HANDLE prepare = run_script(arguments);
                 if (prepare) CloseHandle(prepare);
             }
-            if (first && state == HOT) deadline = now;  /* a first press that could not record has nothing to hold open for */
+            if (first && state == HOT)
+                deadline = now; /* a first press that could not record has nothing to
+                                   hold open for */
             first = 0;
         }
         if (state == RECORDING && now - started > MAX_MS) {
@@ -306,13 +351,16 @@ int main(int argc, char **argv) {
             r.file = NULL;
             state = HOT;
             worker = run_script("-Action Transcribe");
-            if (!worker) {  /* nothing will transcribe it: back to idle */
+            if (!worker) { /* nothing will transcribe it: back to idle */
                 notify("Could not start the transcription");
                 deadline = now + hot_ms();
                 set_status("hot");
-            } else deadline = (DWORD)-1;
+            } else
+                deadline = (DWORD)-1;
         }
-        if (worker && WaitForSingleObject(worker, 0) == WAIT_OBJECT_0) {  /* done: now the mic idles for the hot window */
+        if (worker &&
+            WaitForSingleObject(worker, 0) ==
+                WAIT_OBJECT_0) { /* done: now the mic idles for the hot window */
             CloseHandle(worker);
             worker = NULL;
             deadline = now + hot_ms();

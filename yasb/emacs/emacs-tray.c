@@ -26,11 +26,11 @@ enum { ICON_COLOR, ICON_OFF, ICON_SPIN };
 #define FRAME_MS 80
 #define TRAY_MESSAGE (WM_APP + 1)
 
-static const char *profiles[] = { "doom", "spacemacs" };
-static const char *titles[] = { "Doom Emacs", "Spacemacs" };
-static const char *status_words[] = { "not running", "starting", "running" };
+static const char *profiles[] = {"doom", "spacemacs"};
+static const char *titles[] = {"Doom Emacs", "Spacemacs"};
+static const char *status_words[] = {"not running", "starting", "running"};
 static HICON icons[2][ICON_SPIN + FRAMES];
-static int shown[2] = { -1, -1 };
+static int shown[2] = {-1, -1};
 static char dir[MAX_PATH];
 static UINT taskbar_created;
 
@@ -55,8 +55,12 @@ static DWORD server_pid(const char *path) {
 static int state(const char *profile) {
     const char *data = getenv("XDG_DATA_HOME");
     char path[MAX_PATH], mutex[96];
-    if (data && *data) snprintf(path, sizeof path, "%s\\emacs\\%s\\server\\%s", data, profile, profile);
-    else snprintf(path, sizeof path, "%s\\.local\\share\\emacs\\%s\\server\\%s", getenv("USERPROFILE"), profile, profile);
+    if (data && *data)
+        snprintf(path, sizeof path, "%s\\emacs\\%s\\server\\%s", data, profile,
+                 profile);
+    else
+        snprintf(path, sizeof path, "%s\\.local\\share\\emacs\\%s\\server\\%s",
+                 getenv("USERPROFILE"), profile, profile);
     if (pid_alive(server_pid(path))) return RUNNING;
     snprintf(mutex, sizeof mutex, "Local\\windots-emacs-daemon-%s", profile);
     HANDLE starting = OpenMutexA(SYNCHRONIZE, FALSE, mutex);
@@ -65,7 +69,8 @@ static int state(const char *profile) {
     return STARTING;
 }
 
-/* Which icon to show: color when up, gray when not running, a spin frame by the clock while starting. */
+/* Which icon to show: color when up, gray when not running, a spin frame by the clock
+ * while starting. */
 static int icon_index(int state, DWORD tick) {
     if (state == RUNNING) return ICON_COLOR;
     if (state == STOPPED) return ICON_OFF;
@@ -73,8 +78,12 @@ static int icon_index(int state, DWORD tick) {
 }
 
 /* conhost --headless runs pwsh with no console window, like the Start menu links. */
-static void daemon_command(const char *dir, const char *action, const char *profile, char *out, size_t size) {
-    snprintf(out, size, "conhost.exe --headless pwsh -NoProfile -ExecutionPolicy Bypass -File \"%s\\..\\..\\scripts\\Emacs-Daemon.ps1\" %s %s", dir, action, profile);
+static void daemon_command(const char *dir, const char *action, const char *profile,
+                           char *out, size_t size) {
+    snprintf(out, size,
+             "conhost.exe --headless pwsh -NoProfile -ExecutionPolicy Bypass -File "
+             "\"%s\\..\\..\\scripts\\Emacs-Daemon.ps1\" %s %s",
+             dir, action, profile);
 }
 
 static void run_action(const char *action, const char *profile) {
@@ -84,7 +93,7 @@ static void run_action(const char *action, const char *profile) {
 }
 
 static void menu(HWND window, int which) {
-    const char *actions[] = { NULL, "open", "start", "stop", "restart" };
+    const char *actions[] = {NULL, "open", "start", "stop", "restart"};
     int current = state(profiles[which]);
     HMENU popup = CreatePopupMenu();
     UINT disabled = current == STARTING ? MF_GRAYED : 0;
@@ -95,7 +104,8 @@ static void menu(HWND window, int which) {
     POINT cursor;
     GetCursorPos(&cursor);
     SetForegroundWindow(window);
-    int choice = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTALIGN, cursor.x, cursor.y, 0, window, NULL);
+    int choice = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTALIGN,
+                                cursor.x, cursor.y, 0, window, NULL);
     PostMessageA(window, WM_NULL, 0, 0);
     DestroyMenu(popup);
     if (choice >= 1 && choice <= 4) run_action(actions[choice], profiles[which]);
@@ -107,28 +117,34 @@ static void refresh(HWND window, int which) {
     int current = state(profiles[which]);
     int index = icon_index(current, GetTickCount());
     if (index == shown[which]) return;
-    NOTIFYICONDATAA data = { sizeof data };
+    NOTIFYICONDATAA data = {sizeof data};
     data.hWnd = window;
     data.uID = which;
     data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     data.uCallbackMessage = TRAY_MESSAGE;
     data.hIcon = icons[which][index];
-    snprintf(data.szTip, sizeof data.szTip, "%s: %s", titles[which], status_words[current]);
-    if (Shell_NotifyIconA(shown[which] < 0 ? NIM_ADD : NIM_MODIFY, &data)) shown[which] = index;
+    snprintf(data.szTip, sizeof data.szTip, "%s: %s", titles[which],
+             status_words[current]);
+    if (Shell_NotifyIconA(shown[which] < 0 ? NIM_ADD : NIM_MODIFY, &data))
+        shown[which] = index;
 }
 
-static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam,
+                                    LPARAM lparam) {
     if (message == WM_TIMER) {
         for (int i = 0; i < 2; i++) refresh(window, i);
     } else if (message == taskbar_created) {
-        /* Explorer or YASB's systray (re)started and lost every icon: add them again. */
+        /* Explorer or YASB's systray (re)started and lost every icon: add them again.
+         */
         shown[0] = shown[1] = -1;
     } else if (message == TRAY_MESSAGE && wparam < 2) {
-        if (lparam == WM_LBUTTONUP) run_action("open", profiles[wparam]);
-        else if (lparam == WM_RBUTTONUP) menu(window, (int)wparam);
+        if (lparam == WM_LBUTTONUP)
+            run_action("open", profiles[wparam]);
+        else if (lparam == WM_RBUTTONUP)
+            menu(window, (int)wparam);
     } else if (message == WM_DESTROY) {
         for (int i = 0; i < 2; i++) {
-            NOTIFYICONDATAA data = { sizeof data };
+            NOTIFYICONDATAA data = {sizeof data};
             data.hWnd = window;
             data.uID = i;
             Shell_NotifyIconA(NIM_DELETE, &data);
@@ -158,12 +174,14 @@ int main(void) {
         }
     }
     taskbar_created = RegisterWindowMessageA("TaskbarCreated");
-    WNDCLASSA window_class = { 0 };
+    WNDCLASSA window_class = {0};
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = GetModuleHandleA(NULL);
     window_class.lpszClassName = "windots-emacs-tray";
     RegisterClassA(&window_class);
-    HWND window = CreateWindowExA(WS_EX_TOOLWINDOW, window_class.lpszClassName, "", WS_POPUP, 0, 0, 0, 0, NULL, NULL, window_class.hInstance, NULL);
+    HWND window =
+        CreateWindowExA(WS_EX_TOOLWINDOW, window_class.lpszClassName, "", WS_POPUP, 0,
+                        0, 0, 0, NULL, NULL, window_class.hInstance, NULL);
     for (int i = 0; i < 2; i++) refresh(window, i);
     SetTimer(window, 1, FRAME_MS, NULL);
     MSG message;

@@ -24,8 +24,17 @@ function Set-Dword([string]$Path, [string]$Name, [int]$Value) {
     Write-Info "Setting ${Path}\$Name=$Value"
     if (-not $DryRun) {
         # New-Item -Force on an existing key recreates it, so only create missing keys.
-        if (-not (Test-Path -LiteralPath $Path)) { New-Item -Path $Path -Force | Out-Null }
-        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+        if (-not (Test-Path -LiteralPath $Path)) {
+            New-Item -Path $Path -Force | Out-Null
+        }
+        $property = @{
+            Path = $Path
+            Name = $Name
+            Value = $Value
+            PropertyType = 'DWord'
+            Force = $true
+        }
+        New-ItemProperty @property | Out-Null
     }
 }
 
@@ -50,12 +59,18 @@ Set-Dword $explorerAdvanced 'TaskbarEndTask' 1
 # host (user-owned, no admin needed) when turning the flag on; Windows
 # restarts it on the next clipboard use.
 $clipboardKey = 'HKCU:\Software\Microsoft\Clipboard'
-$clipboardWas = try { Get-ItemPropertyValue $clipboardKey 'EnableClipboardHistory' -ErrorAction Stop } catch { 0 }
+$clipboardWas = try {
+    Get-ItemPropertyValue $clipboardKey 'EnableClipboardHistory' -ErrorAction Stop
+}
+catch { 0 }
 Set-Dword $clipboardKey 'EnableClipboardHistory' 1
 if ($clipboardWas -ne 1 -and -not $DryRun) {
-    $cbdhsvc = Get-CimInstance Win32_Service -Filter "Name LIKE 'cbdhsvc[_]%' AND State = 'Running'"
+    $filter = "Name LIKE 'cbdhsvc[_]%' AND State = 'Running'"
+    $cbdhsvc = Get-CimInstance Win32_Service -Filter $filter
     # Low-memory machines share svchost hosts; only stop a dedicated one.
-    if ($cbdhsvc -and @(Get-CimInstance Win32_Service -Filter "ProcessId = $($cbdhsvc.ProcessId)").Count -eq 1) {
+    if ($cbdhsvc -and
+        @(Get-CimInstance Win32_Service -Filter "ProcessId = $($cbdhsvc.ProcessId)"
+        ).Count -eq 1) {
         Write-Info "Restarting $($cbdhsvc.Name) to apply clipboard history"
         Stop-Process -Id $cbdhsvc.ProcessId -Force
     }
@@ -66,26 +81,42 @@ if ($clipboardWas -ne 1 -and -not $DryRun) {
 # 03 then the FILETIME it was turned off), which Windows honours and Chrome
 # leaves alone.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-$approved = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
-foreach ($name in (Get-Item -LiteralPath $runKey).Property -like 'GoogleChromeAutoLaunch_*') {
+$approved = ('HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer' +
+    '\StartupApproved\Run')
+$chromeRuns = (Get-Item -LiteralPath $runKey).Property -like 'GoogleChromeAutoLaunch_*'
+foreach ($name in $chromeRuns) {
     Write-Info "Disabling sign-in launch: $name"
     Invoke-IfNotDryRun {
-        if (-not (Test-Path -LiteralPath $approved)) { New-Item -Path $approved -Force | Out-Null }
-        $value = [byte[]](3, 0, 0, 0) + [BitConverter]::GetBytes([DateTime]::UtcNow.ToFileTimeUtc())
-        New-ItemProperty -LiteralPath $approved -Name $name -Value $value -PropertyType Binary -Force | Out-Null
+        if (-not (Test-Path -LiteralPath $approved)) {
+            New-Item -Path $approved -Force | Out-Null
+        }
+        $stamp = [DateTime]::UtcNow.ToFileTimeUtc()
+        $value = [byte[]](3, 0, 0, 0) + [BitConverter]::GetBytes($stamp)
+        $property = @{
+            LiteralPath = $approved
+            Name = $name
+            Value = $value
+            PropertyType = 'Binary'
+            Force = $true
+        }
+        New-ItemProperty @property | Out-Null
     }
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Warn 'Skipping Windows Sudo, Developer Mode, Win32 long paths, and power-plan settings; they require an elevated session.'
+    Write-Warn ('Skipping Windows Sudo, Developer Mode, Win32 long paths, and ' +
+        'power-plan settings; they require an elevated session.')
     exit 0
 }
 
 Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo' 'Enabled' 3
-Set-Dword 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' 'AllowDevelopmentWithoutDevLicense' 1
+$appModelUnlock = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+Set-Dword $appModelUnlock 'AllowDevelopmentWithoutDevLicense' 1
 Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' 'LongPathsEnabled' 1
-# Hardware clock holds UTC, so a Linux dual boot doesn't shift the time. Takes effect after reboot.
-Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation' 'RealTimeIsUniversal' 1
+# Hardware clock holds UTC, so a Linux dual boot doesn't shift the time. Takes effect
+# after reboot.
+$timeZoneInfo = 'HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation'
+Set-Dword $timeZoneInfo 'RealTimeIsUniversal' 1
 
 # HKCU Policies keys are admin-writable only. Let this user flip
 # DisableLockWorkstation unelevated: Install-Startup.ps1 sets it per desktop
@@ -93,10 +124,14 @@ Set-Dword 'HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation' 'RealTime
 $lockPolicy = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
 Write-Info "Allowing $env:USERNAME to change $lockPolicy"
 if (-not $DryRun) {
-    if (-not (Test-Path -LiteralPath $lockPolicy)) { New-Item -Path $lockPolicy -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $lockPolicy)) {
+        New-Item -Path $lockPolicy -Force | Out-Null
+    }
     $acl = Get-Acl -Path $lockPolicy
     $user = [Security.Principal.WindowsIdentity]::GetCurrent().User
-    $acl.AddAccessRule([System.Security.AccessControl.RegistryAccessRule]::new($user, 'QueryValues, SetValue, CreateSubKey', 'Allow'))
+    $rule = [System.Security.AccessControl.RegistryAccessRule]::new(
+        $user, 'QueryValues, SetValue, CreateSubKey', 'Allow')
+    $acl.AddAccessRule($rule)
     Set-Acl -Path $lockPolicy -AclObject $acl
 }
 

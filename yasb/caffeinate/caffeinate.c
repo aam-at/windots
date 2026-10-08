@@ -18,9 +18,11 @@
 
 #define EVENT_NAME "Local\\windots-caffeinate"
 
-/* Tabler Icons glyphs as UTF-8: the filled mug while awake, the outline mug-off otherwise. */
+/* Tabler Icons glyphs as UTF-8: the filled mug while awake, the outline mug-off
+ * otherwise. */
 static void describe(int awake, char *out, size_t size) {
-    snprintf(out, size, "{\"icon\": \"%s\"}", awake ? "\xf0\x90\x80\x89" : "\xef\x85\xa5");
+    snprintf(out, size, "{\"icon\": \"%s\"}",
+             awake ? "\xf0\x90\x80\x89" : "\xef\x85\xa5");
 }
 
 static HANDLE open_running(DWORD access) {

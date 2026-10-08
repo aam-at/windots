@@ -7,7 +7,7 @@ times the first request (server start, model load and one transcription) and the
 A device this machine lacks is reported under the device it fell back to.
 
 Usage:
-  pwsh -File .\scripts\Benchmark-Whisper.ps1                       # a spoken sample (Windows TTS)
+  pwsh -File .\scripts\Benchmark-Whisper.ps1   # a spoken sample (Windows TTS)
   pwsh -File .\scripts\Benchmark-Whisper.ps1 -Audio my.wav -Runs 5
 #>
 
@@ -34,17 +34,22 @@ $raw = Join-Path $work 'sample.raw'
 ffmpeg -y -loglevel error -i $Audio -f s16le -ar 16000 -ac 1 $raw
 if ($LASTEXITCODE) { throw "ffmpeg could not read $Audio" }
 
-$tool = Join-Path ($env:DOTFILES ?? (Join-Path $HOME 'dotfiles')) 'scripts\whisper_ov.py'
+$dotfiles = $env:DOTFILES ?? (Join-Path $HOME 'dotfiles')
+$tool = Join-Path $dotfiles 'scripts\whisper_ov.py'
 . "$PSScriptRoot\Stop-WhisperServer.ps1"
 
 # One request: wall seconds, the device that served it, its generate time, the text.
 function Invoke-Request {
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $out = python $tool $raw 2>&1 | ForEach-Object ToString
-    $info = $out | Where-Object { $_ -match '^device=(\w+) audio=\S+ generate=([\d.]+)s' }
+    $info = $out | Where-Object {
+        $_ -match '^device=(\w+) audio=\S+ generate=([\d.]+)s'
+    }
     if ($LASTEXITCODE -or -not $info) { throw "request failed: $($out -join ' ')" }
     [pscustomobject]@{
-        Wall = $watch.Elapsed.TotalSeconds; Device = $Matches[1]; Generate = [double]$Matches[2]
+        Wall = $watch.Elapsed.TotalSeconds
+        Device = $Matches[1]
+        Generate = [double]$Matches[2]
         Text = ($out | Where-Object { $_ -notmatch '^device=' }) -join ' '
     }
 }
@@ -57,16 +62,28 @@ try {
         $first = Invoke-Request
         $warm = 1..$Runs | ForEach-Object { Invoke-Request }
         [pscustomobject]@{
-            Device              = if ($first.Device -ne $device) { "$device (ran on $($first.Device))" } else { $device }
+            Device = if ($first.Device -ne $device) {
+                "$device (ran on $($first.Device))"
+            }
+            else {
+                $device
+            }
             'First request (s)' = [math]::Round($first.Wall, 2)
-            'Warm request (s)'  = [math]::Round(($warm | Measure-Object Wall -Average).Average, 2)
-            'Warm generate (s)' = [math]::Round(($warm | Measure-Object Generate -Average).Average, 2)
-            Text                = $first.Text
+            'Warm request (s)' = [math]::Round(
+                ($warm | Measure-Object Wall -Average).Average, 2)
+            'Warm generate (s)' = [math]::Round(
+                ($warm | Measure-Object Generate -Average).Average, 2)
+            Text = $first.Text
         }
     }
 }
 finally {
     Stop-WhisperServer $tool
-    if ($null -ne $saved) { $env:DICTATION_DEVICE = $saved } else { Remove-Item Env:DICTATION_DEVICE -ErrorAction SilentlyContinue }
+    if ($null -ne $saved) {
+        $env:DICTATION_DEVICE = $saved
+    }
+    else {
+        Remove-Item Env:DICTATION_DEVICE -ErrorAction SilentlyContinue
+    }
 }
 $rows | Format-Table -AutoSize -Wrap

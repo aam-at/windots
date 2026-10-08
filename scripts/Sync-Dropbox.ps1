@@ -28,14 +28,20 @@ them in Emacs ediff, loading ~/dotfiles/emacs/funcs/aam-sync.el itself (the
 Emacs config doesn't load it).
 
 Usage:
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Resync -DryRun            # preview first Hot sync
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Resync                    # first Hot sync (once)
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Tier Rest -Resync -DryRun # same for the rest
-  pwsh -File .\scripts\Sync-Dropbox.ps1 [-Tier Rest]               # one sync
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Watch [-Tier Rest] # sync on its interval
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Install            # both tiers at sign-in, hidden
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Uninstall          # undo Install, stop the watchers
-  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Resolve            # ediff the conflicts in Emacs
+  # Preview the first Hot sync, then run it (once).
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Resync -DryRun
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Resync
+  # Same for the rest.
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Tier Rest -Resync -DryRun
+  # One sync.
+  pwsh -File .\scripts\Sync-Dropbox.ps1 [-Tier Rest]
+  # Sync on its interval.
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Watch [-Tier Rest]
+  # Both tiers at sign-in, hidden; Uninstall undoes that and stops the watchers.
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Install
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Uninstall
+  # Ediff the conflicts in Emacs.
+  pwsh -File .\scripts\Sync-Dropbox.ps1 -Action Resolve
 Logs: %LOCALAPPDATA%\windots\sync-dropbox-<tier>.log
 #>
 
@@ -55,15 +61,26 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$rclone = (Get-Command rclone -CommandType Application -ErrorAction SilentlyContinue).Source
-if (-not $rclone) { throw 'rclone was not found. Install it with: scoop install rclone' }
+$rclone = (
+    Get-Command rclone -CommandType Application -ErrorAction SilentlyContinue
+).Source
+if (-not $rclone) {
+    throw 'rclone was not found. Install it with: scoop install rclone'
+}
 
 $hot = 'Org', 'Git'
 $tiers = @{
     # Pairs of local path and remote, requests per second, minutes between runs,
     # seconds a local change must be quiet before it starts one.
-    Hot  = @{ Pairs = $hot | ForEach-Object { , @((Join-Path $Root $_), "dropbox:$_") }; Tps = 8; Minutes = 5; Quiet = 10; Exclude = @() }
-    Rest = @{ Pairs = , @($Root, 'dropbox:'); Tps = 4; Minutes = 360; Quiet = 600; Exclude = $hot | ForEach-Object { "/$_/**" } }
+    Hot = @{
+        Pairs = $hot | ForEach-Object { , @((Join-Path $Root $_), "dropbox:$_") }
+        Tps = 8; Minutes = 5; Quiet = 10; Exclude = @()
+    }
+    Rest = @{
+        Pairs = , @($Root, 'dropbox:')
+        Tps = 4; Minutes = 360; Quiet = 600
+        Exclude = $hot | ForEach-Object { "/$_/**" }
+    }
 }
 $config = $tiers[$Tier]
 
@@ -73,24 +90,31 @@ New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 
 function Invoke-Bisync([string]$Local, [string]$Remote) {
     # Keep the log to one generation of ~5MB.
-    if ((Test-Path -LiteralPath $log) -and (Get-Item -LiteralPath $log).Length -gt 5MB) {
+    if ((Test-Path -LiteralPath $log) -and
+        (Get-Item -LiteralPath $log).Length -gt 5MB) {
         Move-Item -LiteralPath $log -Destination "$log.1" -Force
     }
     $arguments = @(
         'bisync', $Local, $Remote
         '--create-empty-src-dirs'
-        '--compare', 'size,modtime'          # no hashing: re-reading every file each run is the slow part
-        '--conflict-resolve', 'newer'        # both edited: keep the newer ...
-        '--conflict-loser', 'num'            # ... and the other as file.conflict1
-        '--resilient', '--recover'           # carry on after a failed run instead of demanding --resync
-        '--max-lock', '2h'                   # one run per pair at a time; a crashed run's lock expires
-        '--max-delete', $MaxDelete           # abort if a run would delete more of either side
+        # No hashing: re-reading every file each run is the slow part.
+        '--compare', 'size,modtime'
+        # Both edited: keep the newer and the other as file.conflict1.
+        '--conflict-resolve', 'newer'
+        '--conflict-loser', 'num'
+        # Carry on after a failed run instead of demanding --resync.
+        '--resilient', '--recover'
+        # One run per pair at a time; a crashed run's lock expires.
+        '--max-lock', '2h'
+        # Abort if a run would delete more of either side.
+        '--max-delete', $MaxDelete
         '--tpslimit', $config.Tps
         '--exclude', 'node_modules/**'
         # Symlinks elsewhere (into Org/skills); Dropbox's API shows them as
         # empty files, which clash with the folders they resolve to here.
         '--exclude', '.claude/skills/**'
-        '--exclude', '.#*', '--exclude', '#*#', '--exclude', '*~'   # Emacs locks and backups
+        # Emacs locks and backups.
+        '--exclude', '.#*', '--exclude', '#*#', '--exclude', '*~'
         '--exclude', 'desktop.ini', '--exclude', 'Thumbs.db', '--exclude', '.DS_Store'
         '--log-file', $log, '--log-level', 'INFO'
     )
@@ -105,13 +129,19 @@ function Invoke-Bisync([string]$Local, [string]$Remote) {
 
 # Windows PowerShell has the WinRT toast API; pwsh doesn't, so hand it over.
 function Show-Toast([string]$Title, [string]$Text) {
+    # A WinRT type literal can't be wrapped, so build it from two strings.
+    $load = '[Windows.UI.Notifications.ToastNotificationManager, ' +
+    'Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null'
     $script = @"
-[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-`$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+$load
+`$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(
+    [Windows.UI.Notifications.ToastTemplateType]::ToastText02)
 `$lines = `$xml.GetElementsByTagName('text')
 [void]`$lines.Item(0).AppendChild(`$xml.CreateTextNode('$($Title -replace "'", "''")'))
 [void]`$lines.Item(1).AppendChild(`$xml.CreateTextNode('$($Text -replace "'", "''")'))
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new(`$xml))
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(
+    '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+).Show([Windows.UI.Notifications.ToastNotification]::new(`$xml))
 "@
     powershell.exe -NoProfile -Command $script
 }
@@ -119,24 +149,40 @@ function Show-Toast([string]$Title, [string]$Text) {
 # The tier's NAME.conflictN files, kept in a list; a notification for new ones.
 function Update-Conflicts {
     $list = Join-Path $logDir "dropbox-conflicts-$($Tier.ToLower()).txt"
-    $before = if (Test-Path -LiteralPath $list) { @(Get-Content -LiteralPath $list) } else { @() }
+    $before = if (Test-Path -LiteralPath $list) {
+        @(Get-Content -LiteralPath $list)
+    }
+    else { @() }
+    $search = @{
+        Recurse = $true; File = $true; Force = $true; Filter = '*.conflict*'
+        ErrorAction = 'SilentlyContinue'
+    }
     $found = foreach ($pair in $config.Pairs) {
-        Get-ChildItem -LiteralPath $pair[0] -Recurse -File -Force -Filter '*.conflict*' -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match '\.conflict\d+$' -and $_.FullName -notmatch '[\\/]node_modules[\\/]' } |
+        Get-ChildItem -LiteralPath $pair[0] @search |
+            Where-Object {
+                $_.Name -match '\.conflict\d+$' -and
+                $_.FullName -notmatch '[\\/]node_modules[\\/]'
+            } |
             ForEach-Object FullName
     }
     $found = @($found | Sort-Object)
     Set-Content -LiteralPath $list -Value $found
     $new = @($found | Where-Object { $_ -notin $before })
     if ($new) {
-        Show-Toast "Dropbox: $($found.Count) sync conflict(s)" "Both sides changed $(Split-Path -Leaf ($new[0] -replace '\.conflict\d+$')). Resolve: Sync-Dropbox.ps1 -Action Resolve"
+        $leaf = Split-Path -Leaf ($new[0] -replace '\.conflict\d+$')
+        Show-Toast "Dropbox: $($found.Count) sync conflict(s)" (
+            "Both sides changed $leaf. " +
+            'Resolve: Sync-Dropbox.ps1 -Action Resolve')
     }
 }
 
 # Local changes, one line per batch; the excludes mirror bisync's.
 function Start-Fswatch {
-    $fswatch = Join-Path $env:LOCALAPPDATA 'fswatch\bin\fswatch.exe'   # not the Scoop shim, so Kill stops fswatch itself
-    if (-not (Test-Path -LiteralPath $fswatch)) { throw 'fswatch was not found. Build it with: setup\Install-Fswatch.ps1' }
+    # Not the Scoop shim, so Kill stops fswatch itself.
+    $fswatch = Join-Path $env:LOCALAPPDATA 'fswatch\bin\fswatch.exe'
+    if (-not (Test-Path -LiteralPath $fswatch)) {
+        throw 'fswatch was not found. Build it with: setup\Install-Fswatch.ps1'
+    }
     $info = [Diagnostics.ProcessStartInfo]::new($fswatch)
     $info.RedirectStandardOutput = $true
     $arguments = @(
@@ -144,8 +190,15 @@ function Start-Fswatch {
         '-e', '[\\/](node_modules|\.claude[\\/]skills)([\\/]|$)'
         '-e', '[\\/](\.#[^\\/]*|#[^\\/]*#|[^\\/]*~|desktop\.ini|Thumbs\.db|\.DS_Store)$'
     )
-    if ($Tier -eq 'Rest') { foreach ($name in $hot) { $arguments += '-e', ('^{0}([\\/]|$)' -f [regex]::Escape((Join-Path $Root $name))) } }
-    foreach ($argument in $arguments + ($config.Pairs | ForEach-Object { $_[0] })) { $info.ArgumentList.Add($argument) }
+    if ($Tier -eq 'Rest') {
+        foreach ($name in $hot) {
+            $arguments += '-e',
+            ('^{0}([\\/]|$)' -f [regex]::Escape((Join-Path $Root $name)))
+        }
+    }
+    foreach ($argument in $arguments + ($config.Pairs | ForEach-Object { $_[0] })) {
+        $info.ArgumentList.Add($argument)
+    }
     [Diagnostics.Process]::Start($info)
 }
 
@@ -153,7 +206,10 @@ function Invoke-Tier {
     $worst = 0
     foreach ($pair in $config.Pairs) {
         $code = Invoke-Bisync @pair
-        if ($code -ne 0) { Write-Warning "bisync $($pair[1]) exited with $code; see $log"; $worst = $code }
+        if ($code -ne 0) {
+            Write-Warning "bisync $($pair[1]) exited with $code; see $log"
+            $worst = $code
+        }
     }
     if (-not $DryRun) { Update-Conflicts }
     $worst
@@ -174,7 +230,9 @@ switch ($Action) {
                 if (-not $batch.Wait($config.Minutes * 60000)) { continue }
                 if ($null -eq $batch.Result) {
                     # fswatch exited: sync on the interval alone until it restarts.
-                    Add-Content -LiteralPath $log "$(Get-Date -Format 'yyyy/MM/dd HH:mm:ss') ERROR : fswatch exited with $($watcher.ExitCode)"
+                    Add-Content -LiteralPath $log (
+                        "$(Get-Date -Format 'yyyy/MM/dd HH:mm:ss') ERROR : " +
+                        "fswatch exited with $($watcher.ExitCode)")
                     Start-Sleep -Seconds ($config.Minutes * 60)
                     continue
                 }
@@ -189,19 +247,24 @@ switch ($Action) {
         # Through Emacs-Daemon.ps1: it starts the Doom daemon if need be and finds its
         # server file (a bare emacsclient would run ALTERNATE_EDITOR and hang).
         $elisp = (Join-Path $HOME 'dotfiles\emacs\funcs\aam-sync.el').Replace('\', '/')
-        & (Join-Path $PSScriptRoot 'Emacs-Daemon.ps1') open doom -n -e "(progn (load `"$elisp`" nil t) (aam/sync-resolve-conflicts))"
+        & (Join-Path $PSScriptRoot 'Emacs-Daemon.ps1') open doom -n -e (
+            "(progn (load `"$elisp`" nil t) (aam/sync-resolve-conflicts))")
     }
     'Install' {
         # Startup shortcuts, like setup\Install-Startup.ps1; conhost --headless
         # keeps Windows Terminal (the default terminal) from opening a tab.
         # First on PATH: there can be several (Store and Scoop builds).
-        $pwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
+        $pwsh = (
+            Get-Command pwsh -CommandType Application | Select-Object -First 1
+        ).Source
         $startup = [Environment]::GetFolderPath('Startup')
         $shell = New-Object -ComObject WScript.Shell
         foreach ($name in $tiers.Keys) {
             $shortcut = $shell.CreateShortcut((Join-Path $startup "Dropbox $name.lnk"))
             $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\conhost.exe'
-            $shortcut.Arguments = '--headless "{0}" -NoProfile -File "{1}" -Action Watch -Tier {2}' -f $pwsh, $PSCommandPath, $name
+            $shortcut.Arguments =
+            '--headless "{0}" -NoProfile -File "{1}" -Action Watch -Tier {2}' -f
+            $pwsh, $PSCommandPath, $name
             $shortcut.Save()
             Write-Host "Startup: Dropbox $name"
         }
@@ -210,15 +273,24 @@ switch ($Action) {
         # Undoes Install and stops the running watchers.
         $startup = [Environment]::GetFolderPath('Startup')
         foreach ($name in $tiers.Keys) {
-            Remove-Item (Join-Path $startup "Dropbox $name.lnk") -ErrorAction SilentlyContinue
+            Remove-Item (
+                Join-Path $startup "Dropbox $name.lnk"
+            ) -ErrorAction SilentlyContinue
         }
         # Killed, a watcher skips its finally, so stop its fswatch too.
         $watchers = @(Get-CimInstance Win32_Process -Filter "Name = 'pwsh.exe'" |
-                Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'Sync-Dropbox\.ps1.*-Action Watch' } |
+                Where-Object {
+                    $_.ProcessId -ne $PID -and
+                    $_.CommandLine -match 'Sync-Dropbox\.ps1.*-Action Watch'
+                } |
                 ForEach-Object ProcessId)
         Get-CimInstance Win32_Process -Filter "Name = 'fswatch.exe'" |
-            Where-Object ParentProcessId -In $watchers | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-        foreach ($id in $watchers) { Stop-Process -Id $id -Force; Write-Host "Stopped $id" }
+            Where-Object ParentProcessId -In $watchers |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+        foreach ($id in $watchers) {
+            Stop-Process -Id $id -Force
+            Write-Host "Stopped $id"
+        }
         Write-Host 'Uninstalled'
     }
 }

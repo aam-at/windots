@@ -26,8 +26,14 @@ if (-not (Test-Path -LiteralPath $powerToysExe)) {
 function Merge-Object($Destination, $Source) {
     foreach ($p in $Source.PSObject.Properties) {
         $d = $Destination.PSObject.Properties[$p.Name]
-        if ($d -and $d.Value -is [pscustomobject] -and $p.Value -is [pscustomobject]) { Merge-Object $d.Value $p.Value }
-        else { $Destination | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force }
+        if ($d -and $d.Value -is [pscustomobject] -and
+            $p.Value -is [pscustomobject]) {
+            Merge-Object $d.Value $p.Value
+        }
+        else {
+            $Destination |
+                Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force
+        }
     }
 }
 $templatePath = WindotsPath 'config\powertoys\settings.json'
@@ -39,7 +45,12 @@ if (-not (Test-Path -LiteralPath $templatePath)) {
 
 try {
     $template = Get-Content -Raw -LiteralPath $templatePath | ConvertFrom-Json
-    $settings = if (Test-Path -LiteralPath $settingsPath) { Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json } else { [pscustomobject]@{} }
+    $settings = if (Test-Path -LiteralPath $settingsPath) {
+        Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
+    }
+    else {
+        [pscustomobject]@{}
+    }
     Merge-Object $settings $template
     if ($DesktopMode -eq 'Komorebi') { $settings.enabled.FancyZones = $false }
     # Deep enough for Command Palette's nested dock/provider settings;
@@ -49,18 +60,37 @@ try {
     $settingsDirectory = Split-Path -Parent $settingsPath
     if (-not (Test-Path -LiteralPath $settingsDirectory)) {
         Write-Info "Creating PowerToys settings directory: $settingsDirectory"
-        Invoke-IfNotDryRun { New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null }
+        Invoke-IfNotDryRun {
+            New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null
+        }
     }
 
-    if ((Test-Path -LiteralPath $settingsPath) -and (-not (Test-Path -LiteralPath "$settingsPath.windots-backup"))) {
+    if ((Test-Path -LiteralPath $settingsPath) -and
+        (-not (Test-Path -LiteralPath "$settingsPath.windots-backup"))) {
         Write-Info "Backing up PowerToys settings: $settingsPath.windots-backup"
-        Invoke-IfNotDryRun { Copy-Item -LiteralPath $settingsPath -Destination "$settingsPath.windots-backup" -ErrorAction Stop }
+        Invoke-IfNotDryRun {
+            $backup = @{
+                LiteralPath = $settingsPath
+                Destination = "$settingsPath.windots-backup"
+                ErrorAction = 'Stop'
+            }
+            Copy-Item @backup
+        }
     }
 
     Write-Info 'Applying PowerToys settings...'
-    Invoke-IfNotDryRun { Set-Content -LiteralPath $settingsPath -Value $settingsJson -Encoding utf8 -NoNewline }
+    Invoke-IfNotDryRun {
+        $save = @{
+            LiteralPath = $settingsPath
+            Value = $settingsJson
+            Encoding = 'utf8'
+            NoNewline = $true
+        }
+        Set-Content @save
+    }
 }
 catch {
     Write-Warn "Failed to configure PowerToys: $_"
 }
-Write-Info 'PowerToys settings saved. Restart PowerToys to apply them to the current session.'
+Write-Info ('PowerToys settings saved. ' +
+    'Restart PowerToys to apply them to the current session.')

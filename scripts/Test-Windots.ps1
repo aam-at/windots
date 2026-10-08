@@ -19,7 +19,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\setup\Common.ps1')
-if (-not $Path) { $Path = git -C $WindotsRoot ls-files '*.ps1' '*.ahk' '*.c' | ForEach-Object { WindotsPath $_ } }
+if (-not $Path) {
+    $Path = git -C $WindotsRoot ls-files '*.ps1' '*.ahk' '*.c' |
+        ForEach-Object { WindotsPath $_ }
+}
 $autoHotkey = Join-Path $ScoopRoot 'apps\autohotkey\current\v2\AutoHotkey64.exe'
 $failures = 0
 $checkedC = @()
@@ -31,8 +34,13 @@ foreach ($file in $Path) {
     switch ([IO.Path]::GetExtension($file)) {
         '.ps1' {
             $errors = $null
-            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $file), [ref]$null, [ref]$errors)
-            foreach ($e in $errors) { Write-Host "${file}:$($e.Extent.StartLineNumber): $($e.Message)" -ForegroundColor Red; $failures++ }
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+                (Resolve-Path -LiteralPath $file), [ref]$null, [ref]$errors)
+            foreach ($e in $errors) {
+                $message = "${file}:$($e.Extent.StartLineNumber): $($e.Message)"
+                Write-Host $message -ForegroundColor Red
+                $failures++
+            }
         }
         '.c' {
             # Native helpers: compile with warnings as errors, and run the
@@ -48,13 +56,23 @@ foreach ($file in $Path) {
             }
             # $PID: prek runs batches of files in parallel, and a .c and its
             # .test.c can land in different ones.
-            $exe = Join-Path ([IO.Path]::GetTempPath()) "windots-test-$([IO.Path]::GetFileNameWithoutExtension($source))-$PID.exe"
+            $baseName = [IO.Path]::GetFileNameWithoutExtension($source)
+            $tempDir = [IO.Path]::GetTempPath()
+            $exe = Join-Path $tempDir "windots-test-$baseName-$PID.exe"
             $build = if (Test-Path -LiteralPath $test) { $test } else { $source }
-            $output = gcc -Wall -Werror -I $cLibrary -o $exe $build -lws2_32 -lpowrprof -lwinmm 2>&1
-            if ($LASTEXITCODE -ne 0) { $output | Write-Host -ForegroundColor Red; $failures++; continue }
+            $libs = '-lws2_32', '-lpowrprof', '-lwinmm'
+            $output = gcc -Wall -Werror -I $cLibrary -o $exe $build @libs 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                $output | Write-Host -ForegroundColor Red
+                $failures++
+                continue
+            }
             if ($build -eq $test) {
                 $output = & $exe 2>&1
-                if ($LASTEXITCODE -ne 0) { $output | Write-Host -ForegroundColor Red; $failures++ }
+                if ($LASTEXITCODE -ne 0) {
+                    $output | Write-Host -ForegroundColor Red
+                    $failures++
+                }
             }
             Remove-Item -LiteralPath $exe -ErrorAction SilentlyContinue
         }
@@ -64,10 +82,23 @@ foreach ($file in $Path) {
                 continue
             }
             $errors, $warnings = (New-TemporaryFile), (New-TemporaryFile)
-            $arguments = '/ErrorStdOut=UTF-8', '/Validate', '/include', "`"$warnAll`"", "`"$(Resolve-Path -LiteralPath $file)`""
-            $process = Start-Process $autoHotkey -ArgumentList $arguments -Wait -PassThru -NoNewWindow -RedirectStandardError $errors -RedirectStandardOutput $warnings
+            $arguments = '/ErrorStdOut=UTF-8', '/Validate',
+            '/include', "`"$warnAll`"", "`"$(Resolve-Path -LiteralPath $file)`""
+            $start = @{
+                FilePath = $autoHotkey
+                ArgumentList = $arguments
+                Wait = $true
+                PassThru = $true
+                NoNewWindow = $true
+                RedirectStandardError = $errors
+                RedirectStandardOutput = $warnings
+            }
+            $process = Start-Process @start
             $output = @(Get-Content -LiteralPath $errors, $warnings)
-            if ($process.ExitCode -ne 0 -or $output) { $output | Write-Host -ForegroundColor Red; $failures++ }
+            if ($process.ExitCode -ne 0 -or $output) {
+                $output | Write-Host -ForegroundColor Red
+                $failures++
+            }
             Remove-Item -LiteralPath $errors, $warnings
         }
     }

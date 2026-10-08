@@ -22,7 +22,13 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
-function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$WorkingDirectory, [string]$IconLocation) {
+function New-Shortcut(
+    [string]$Path,
+    [string]$Target,
+    [string]$Arguments,
+    [string]$WorkingDirectory,
+    [string]$IconLocation
+) {
     $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
     $shortcut.TargetPath = $Target
     $shortcut.Arguments = $Arguments
@@ -37,7 +43,8 @@ function Resolve-Executable([string[]]$Candidates) {
             if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
             continue
         }
-        $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue
+        $command = Get-Command $candidate -CommandType Application `
+            -ErrorAction SilentlyContinue
         if ($command) { return @($command)[0].Source }
     }
 }
@@ -46,7 +53,12 @@ function Resolve-KanataGui {
     # Scoop's kanata package only shims the console (tty) build; the tray-icon
     # (gui) build sits unshimmed in the app folder, so PATH lookup can't find it.
     $kanataAppRoot = Join-Path $ScoopRoot 'apps\kanata\current'
-    Get-ChildItem -LiteralPath $kanataAppRoot -Filter 'kanata_windows_gui_winIOv2_*.exe' -ErrorAction SilentlyContinue |
+    $find = @{
+        LiteralPath = $kanataAppRoot
+        Filter = 'kanata_windows_gui_winIOv2_*.exe'
+        ErrorAction = 'SilentlyContinue'
+    }
+    Get-ChildItem @find |
         Where-Object { $_.Name -notlike '*cmd_allowed*' } |
         Select-Object -First 1 -ExpandProperty FullName
 }
@@ -65,17 +77,34 @@ function Ensure-StartupShortcut {
         return $false
     }
 
-    $startupDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
+    $startupDirectory = [Environment]::GetFolderPath(
+        [Environment+SpecialFolder]::Startup
+    )
     $shortcutPath = Join-Path $startupDirectory "$Name.lnk"
     Write-Info "Creating Startup shortcut: $shortcutPath"
     if ($DryRun) { return $true }
 
-    New-Shortcut -Path $shortcutPath -Target $target -Arguments $Arguments -WorkingDirectory (Split-Path -Parent $target)
+    $shortcut = @{
+        Path = $shortcutPath
+        Target = $target
+        Arguments = $Arguments
+        WorkingDirectory = Split-Path -Parent $target
+    }
+    New-Shortcut @shortcut
 
     # Start it now too, so setup doesn't require a reboot to see it running.
-    $processName = if ($RunningProcessName) { $RunningProcessName } else { [System.IO.Path]::GetFileNameWithoutExtension($target) }
-    # Only this session counts: a service with the same exe (Everything's) runs in session 0.
-    if (Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object SessionId -eq (Get-Process -Id $PID).SessionId) {
+    $processName = if ($RunningProcessName) {
+        $RunningProcessName
+    }
+    else {
+        [System.IO.Path]::GetFileNameWithoutExtension($target)
+    }
+    # Only this session counts: a service with the same exe (Everything's) runs in
+    # session 0.
+    if (
+        Get-Process -Name $processName -ErrorAction SilentlyContinue |
+            Where-Object SessionId -EQ (Get-Process -Id $PID).SessionId
+    ) {
         Write-Info "$Name is already running."
     }
     else {
@@ -88,7 +117,9 @@ function Ensure-StartupShortcut {
 }
 
 function Remove-StartupShortcut([string]$Name) {
-    $startupDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
+    $startupDirectory = [Environment]::GetFolderPath(
+        [Environment+SpecialFolder]::Startup
+    )
     $path = Join-Path $startupDirectory "$Name.lnk"
     if (-not (Test-Path -LiteralPath $path)) { return }
 
@@ -98,33 +129,46 @@ function Remove-StartupShortcut([string]$Name) {
 
 function Set-LockShortcut([bool]$Enabled) {
     $policy = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
-    Write-Info "$(if ($Enabled) { 'Enabling' } else { 'Disabling' }) the Win+L lock shortcut"
+    $verb = if ($Enabled) { 'Enabling' } else { 'Disabling' }
+    Write-Info "$verb the Win+L lock shortcut"
     if ($DryRun) { return }
     try {
-        New-ItemProperty -Path $policy -Name DisableLockWorkstation -Value ([int](-not $Enabled)) -PropertyType DWord -Force -ErrorAction Stop | Out-Null
+        $lock = @{
+            Path = $policy
+            Name = 'DisableLockWorkstation'
+            Value = [int](-not $Enabled)
+            PropertyType = 'DWord'
+            Force = $true
+            ErrorAction = 'Stop'
+        }
+        New-ItemProperty @lock | Out-Null
     }
     catch {
-        Write-Warn "Cannot change the Win+L lock shortcut; run setup\Configure-Registry.ps1 elevated first. ($($_.Exception.Message))"
+        Write-Warn (
+            'Cannot change the Win+L lock shortcut; ' +
+            'run setup\Configure-Registry.ps1 elevated first. ' +
+            "($($_.Exception.Message))"
+        )
     }
 }
 
 # Native helpers: battery.exe behind the YASB battery widget (hidden until it
-# builds), language.exe behind the language widget, window-watcher.exe, which replaces aw-watcher-window and
-# aw-watcher-afk (no ActivityWatch data until it builds), psmux-agent.exe
-# (psmux's status stats, auto-save and aw-watcher-tmux), dictate.exe (the Win+S
-# dictation recorder, also behind the YASB dictation widget), and dotfiles'
-# tools\wellbeing\wellbeing.exe
-# (screen time, limits, focus mode, bedtime). The build skips an exe newer
-# than its source.
+# builds), language.exe behind the language widget, window-watcher.exe, which
+# replaces aw-watcher-window and aw-watcher-afk (no ActivityWatch data until it
+# builds), psmux-agent.exe (psmux's status stats, auto-save and aw-watcher-tmux),
+# dictate.exe (the Win+S dictation recorder, also behind the YASB dictation
+# widget), and dotfiles' tools\wellbeing\wellbeing.exe (screen time, limits, focus
+# mode, bedtime). The build skips an exe newer than its source.
 function Build-NativeHelpers {
-    # The YASB dictation widget reads dictation\status.json, which dictate.exe keeps up to
-    # date, and shows its raw template when the file is missing: start it as idle.
+    # The YASB dictation widget reads dictation\status.json, which dictate.exe keeps up
+    # to date, and shows its raw template when the file is missing: start it as idle.
     $status = Join-Path $env:LOCALAPPDATA 'windots\dictation\status.json'
     if (-not (Test-Path -LiteralPath $status)) {
         Write-Info "Creating $status"
         Invoke-IfNotDryRun {
             $null = New-Item -ItemType Directory -Force (Split-Path $status)
-            Set-Content -LiteralPath $status -Value '{"icon": "\ue720", "text": "Dictation"}' -NoNewline
+            $idle = '{"icon": "\ue720", "text": "Dictation"}'
+            Set-Content -LiteralPath $status -Value $idle -NoNewline
         }
     }
     $buildScript = WindotsPath 'yasb\Build-Native.ps1'
@@ -133,16 +177,37 @@ function Build-NativeHelpers {
         @{ Source = WindotsPath 'yasb\language\language.c' }
         @{ Source = WindotsPath 'yasb\caffeinate\caffeinate.c'; Windows = $true }
         @{ Source = WindotsPath 'yasb\emacs\emacs-tray.c'; Windows = $true }
-        @{ Source = WindotsPath 'yasb\activitywatch\window-watcher.c'; Libs = 'ws2_32'; Windows = $true }
-        @{ Source = WindotsPath 'psmux\psmux-agent.c'; Libs = 'ws2_32'; Windows = $true }
-        @{ Source = WindotsPath 'yasb\dictation\dictate.c'; Libs = 'winmm'; Windows = $true }
-        @{ Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'; Libs = 'ws2_32', 'dwmapi'; Windows = $true }
+        @{
+            Source = WindotsPath 'yasb\activitywatch\window-watcher.c'
+            Libs = 'ws2_32'
+            Windows = $true
+        }
+        @{
+            Source = WindotsPath 'psmux\psmux-agent.c'
+            Libs = 'ws2_32'
+            Windows = $true
+        }
+        @{
+            Source = WindotsPath 'yasb\dictation\dictate.c'
+            Libs = 'winmm'
+            Windows = $true
+        }
+        @{
+            Source = Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.c'
+            Libs = 'ws2_32', 'dwmapi'
+            Windows = $true
+        }
     )
     foreach ($helper in $helpers) {
         Write-Info "Building $($helper.Source)"
         if ($DryRun) { continue }
         try { & $buildScript @helper }
-        catch { Write-Warn "$($_.Exception.Message) (retry: pwsh -File $buildScript $($helper.Source))" }
+        catch {
+            Write-Warn (
+                "$($_.Exception.Message) " +
+                "(retry: pwsh -File $buildScript $($helper.Source))"
+            )
+        }
     }
 
     # clipboard.exe, the YASB clipboard dropdown, is Rust (WinRT clipboard history
@@ -157,9 +222,14 @@ function Build-NativeHelpers {
         Push-Location $project
         try { cargo build --release } finally { Pop-Location }
         if ($LASTEXITCODE) { throw 'cargo build failed' }
-        Copy-Item "$project\target\release\clipboard.exe" "$project\clipboard.exe" -Force
+        $built = "$project\target\release\clipboard.exe"
+        Copy-Item $built "$project\clipboard.exe" -Force
     }
-    catch { Write-Warn "$($_.Exception.Message) (retry: cargo build --release in $project)" }
+    catch {
+        Write-Warn (
+            "$($_.Exception.Message) (retry: cargo build --release in $project)"
+        )
+    }
 }
 
 # aw-server serves dotfiles' tools\wellbeing\dashboard (screen time and
@@ -167,16 +237,28 @@ function Build-NativeHelpers {
 # /pages/wellbeing/, on its own origin so the page can query it. Returns
 # whether aw-server.toml changed, which takes a restart.
 function Set-WellbeingDashboard {
-    $config = Join-Path $env:LOCALAPPDATA 'activitywatch\activitywatch\aw-server\aw-server.toml'
-    $entry = "wellbeing = '{0}'" -f ((Join-Path $DotfilesRoot 'tools\wellbeing\dashboard') -replace '\\', '/')
-    $text = if (Test-Path -LiteralPath $config) { Get-Content -LiteralPath $config -Raw } else { "[server]`n`n[server.custom_static]`n" }
+    $config = Join-Path $env:LOCALAPPDATA (
+        'activitywatch\activitywatch\aw-server\aw-server.toml'
+    )
+    $dashboard = Join-Path $DotfilesRoot 'tools\wellbeing\dashboard'
+    $entry = "wellbeing = '{0}'" -f ($dashboard -replace '\\', '/')
+    $text = if (Test-Path -LiteralPath $config) {
+        Get-Content -LiteralPath $config -Raw
+    }
+    else {
+        "[server]`n`n[server.custom_static]`n"
+    }
     if ($text.Contains($entry)) { return $false }
     $text = $text -replace '(?m)^wellbeing\s*=.*\r?\n', ''
-    if ($text -notmatch '(?m)^\[server\.custom_static\]') { $text += "`n[server.custom_static]`n" }
-    $text = $text -replace '(?m)^\[server\.custom_static\][ \t]*\r?\n', "[server.custom_static]`n$entry`n"
+    if ($text -notmatch '(?m)^\[server\.custom_static\]') {
+        $text += "`n[server.custom_static]`n"
+    }
+    $text = $text -replace '(?m)^\[server\.custom_static\][ \t]*\r?\n',
+    "[server.custom_static]`n$entry`n"
     Write-Info "Serving the wellbeing dashboard from aw-server: $config"
     Invoke-IfNotDryRun {
-        New-Item -ItemType Directory -Path (Split-Path -Parent $config) -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $config) -Force |
+            Out-Null
         Set-Content -LiteralPath $config -Value $text -NoNewline
     }
     return $true
@@ -190,9 +272,10 @@ try {
     # clear its Startup shortcut and the Run entry its own option added.
     Remove-StartupShortcut 'VirtualDesktopHelper'
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    if (Get-ItemProperty -Path $runKey -Name 'Windows Virtual Desktop Helper' -ErrorAction SilentlyContinue) {
+    $runName = 'Windows Virtual Desktop Helper'
+    if (Get-ItemProperty -Path $runKey -Name $runName -ErrorAction SilentlyContinue) {
         Write-Info 'Removing the Windows Virtual Desktop Helper Registry startup entry'
-        Invoke-IfNotDryRun { Remove-ItemProperty -Path $runKey -Name 'Windows Virtual Desktop Helper' }
+        Invoke-IfNotDryRun { Remove-ItemProperty -Path $runKey -Name $runName }
     }
 
     if ($DesktopMode -eq 'Komorebi') {
@@ -204,34 +287,73 @@ try {
         # (floating dialogs, ignored tray windows), fetched fresh, not vendored.
         Write-Info 'Fetching Komorebi applications.json'
         $env:KOMOREBI_CONFIG_HOME = WindotsPath 'shells\komorebi'
-        [void](Invoke-NativeCommand -Description 'komorebic fetch-asc' -Action { komorebic fetch-asc })
+        $fetch = @{
+            Description = 'komorebic fetch-asc'
+            Action = { komorebic fetch-asc }
+        }
+        [void](Invoke-NativeCommand @fetch)
         $komorebiConfig = WindotsPath 'shells\komorebi\komorebi.json'
         $komorebiArguments = 'start --clean-state --config "{0}"' -f $komorebiConfig
-        [void](Ensure-StartupShortcut -Name 'Komorebi' -Candidates @('komorebic-no-console', 'komorebic') -Arguments $komorebiArguments -RunningProcessName 'komorebi')
+        $shortcut = @{
+            Name = 'Komorebi'
+            Candidates = @('komorebic-no-console', 'komorebic')
+            Arguments = $komorebiArguments
+            RunningProcessName = 'komorebi'
+        }
+        [void](Ensure-StartupShortcut @shortcut)
         $komorebiAhk = WindotsPath 'shells\komorebi\komorebi.ahk'
-        [void](Ensure-StartupShortcut -Name 'KomorebiAHK' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $komorebiAhk) -RunningProcessName 'AutoHotkeyUX')
+        $shortcut = @{
+            Name = 'KomorebiAHK'
+            Candidates = @('autohotkey', 'AutoHotkey64')
+            Arguments = ('"{0}"' -f $komorebiAhk)
+            RunningProcessName = 'AutoHotkeyUX'
+        }
+        [void](Ensure-StartupShortcut @shortcut)
         # masir: focus follows the mouse, limited to windows Komorebi manages.
         # It is a console app, which Windows Terminal (the default terminal)
         # would open a tab for; conhost --headless runs it with no window.
-        if ($masir = Resolve-Executable @((Join-Path $env:ProgramFiles 'masir\bin\masir.exe'), 'masir')) {
-            [void](Ensure-StartupShortcut -Name 'Masir' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $masir) -RunningProcessName 'masir')
+        $masirExe = Join-Path $env:ProgramFiles 'masir\bin\masir.exe'
+        if ($masir = Resolve-Executable @($masirExe, 'masir')) {
+            $shortcut = @{
+                Name = 'Masir'
+                Candidates = @(Join-Path $env:SystemRoot 'System32\conhost.exe')
+                Arguments = ('--headless "{0}"' -f $masir)
+                RunningProcessName = 'masir'
+            }
+            [void](Ensure-StartupShortcut @shortcut)
         }
     }
     else {
         Remove-StartupShortcut 'Komorebi'
         Remove-StartupShortcut 'KomorebiAHK'
         Remove-StartupShortcut 'Masir'
-        if (-not $DryRun) { Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force }
+        if (-not $DryRun) {
+            Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force
+        }
         $nativeDesktop = WindotsPath 'shells\native\Native-Desktop.ahk'
-        [void](Ensure-StartupShortcut -Name 'NativeDesktop' -Candidates @('autohotkey', 'AutoHotkey64') -Arguments ('"{0}"' -f $nativeDesktop) -RunningProcessName 'AutoHotkeyUX')
+        $shortcut = @{
+            Name = 'NativeDesktop'
+            Candidates = @('autohotkey', 'AutoHotkey64')
+            Arguments = ('"{0}"' -f $nativeDesktop)
+            RunningProcessName = 'AutoHotkeyUX'
+        }
+        [void](Ensure-StartupShortcut @shortcut)
     }
     # YASB is the top bar in both modes; its config lists "$env:YASB_WORKSPACES"
     # as the workspace widget, so each mode shows only its own workspaces.
-    $yasbWorkspaces = if ($DesktopMode -eq 'Komorebi') { 'komorebi_workspaces' } else { 'windows_desktops' }
+    $yasbWorkspaces = if ($DesktopMode -eq 'Komorebi') {
+        'komorebi_workspaces'
+    }
+    else {
+        'windows_desktops'
+    }
     Write-Info "Setting YASB_WORKSPACES=$yasbWorkspaces"
-    # Also set it for this process: a YASB launched from here inherits this env block, not the registry.
+    # Also set it for this process: a YASB launched from here inherits this env block,
+    # not the registry.
     Invoke-IfNotDryRun {
-        [Environment]::SetEnvironmentVariable('YASB_WORKSPACES', $yasbWorkspaces, 'User')
+        [Environment]::SetEnvironmentVariable(
+            'YASB_WORKSPACES', $yasbWorkspaces, 'User'
+        )
         $env:YASB_WORKSPACES = $yasbWorkspaces
     }
     Build-NativeHelpers
@@ -240,38 +362,115 @@ try {
     # dock slides in from the bottom edge, where the taskbar would pop up too.
     # Target the real exe, not the Scoop shim, which would stay running beside it.
     # Everything stays in the tray so searches (and the es CLI) are instant.
-    [void](Ensure-StartupShortcut -Name 'Everything' -Candidates @((Join-Path $ScoopRoot 'apps\everything\current\Everything.exe')) -Arguments '-startup' -RunningProcessName 'Everything')
+    $shortcut = @{
+        Name = 'Everything'
+        Candidates = @(
+            (Join-Path $ScoopRoot 'apps\everything\current\Everything.exe')
+        )
+        Arguments = '-startup'
+        RunningProcessName = 'Everything'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
     # ActivityWatch logs the active app and AFK time locally, for a daily view
     # of where focus went (http://127.0.0.1:5600). Only its server runs: the
     # native window-watcher.exe replaces both Python watchers, and aw-qt (a
     # tray icon that starts them) isn't needed. aw-server is a console app,
     # so conhost --headless runs it with no window, like masir.
-    $awServer = Join-Path $ScoopRoot 'apps\activitywatch\current\aw-server\aw-server.exe'
+    $awServer = Join-Path $ScoopRoot (
+        'apps\activitywatch\current\aw-server\aw-server.exe'
+    )
     # A running aw-server reads its config only on start.
-    if ((Set-WellbeingDashboard) -and -not $DryRun) { Get-Process -Name aw-server -ErrorAction SilentlyContinue | Stop-Process -Force }
-    [void](Ensure-StartupShortcut -Name 'ActivityWatch' -Candidates @(Join-Path $env:SystemRoot 'System32\conhost.exe') -Arguments ('--headless "{0}"' -f $awServer) -RunningProcessName 'aw-server')
-    [void](Ensure-StartupShortcut -Name 'WindowWatcher' -Candidates @((WindotsPath 'yasb\activitywatch\window-watcher.exe')) -RunningProcessName 'window-watcher')
-    [void](Ensure-StartupShortcut -Name 'PsmuxAgent' -Candidates @((WindotsPath 'psmux\psmux-agent.exe')) -RunningProcessName 'psmux-agent')
-    [void](Ensure-StartupShortcut -Name 'Wellbeing' -Candidates @((Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')) -RunningProcessName 'wellbeing')
-    [void](Ensure-StartupShortcut -Name 'THide'-Candidates @((Join-Path $ScoopRoot 'apps\thide\current\thide.exe'), 'thide') -Arguments 'start' -RunningProcessName 'thide')
+    if ((Set-WellbeingDashboard) -and -not $DryRun) {
+        Get-Process -Name aw-server -ErrorAction SilentlyContinue | Stop-Process -Force
+    }
+    $shortcut = @{
+        Name = 'ActivityWatch'
+        Candidates = @(Join-Path $env:SystemRoot 'System32\conhost.exe')
+        Arguments = ('--headless "{0}"' -f $awServer)
+        RunningProcessName = 'aw-server'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'WindowWatcher'
+        Candidates = @((WindotsPath 'yasb\activitywatch\window-watcher.exe'))
+        RunningProcessName = 'window-watcher'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'PsmuxAgent'
+        Candidates = @((WindotsPath 'psmux\psmux-agent.exe'))
+        RunningProcessName = 'psmux-agent'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'Wellbeing'
+        Candidates = @(
+            (Join-Path $DotfilesRoot 'tools\wellbeing\wellbeing.exe')
+        )
+        RunningProcessName = 'wellbeing'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'THide'
+        Candidates = @(
+            (Join-Path $ScoopRoot 'apps\thide\current\thide.exe'),
+            'thide'
+        )
+        Arguments = 'start'
+        RunningProcessName = 'thide'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
     # Doom's daemon starts at login; the other Emacs links are in the Start menu.
-    # conhost --headless runs pwsh with no console window, which -WindowStyle Hidden only hides after it flashes.
+    # conhost --headless runs pwsh with no console window, which -WindowStyle Hidden
+    # only hides after it flashes.
     $pwsh = (Get-Process -Id $PID).Path
     $conhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
     $emacsIcon = Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\emacs.exe'
     function Get-EmacsArguments($Action, $EmacsProfile) {
-        '--headless "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" {2} {3}' -f $pwsh, (WindotsPath 'scripts\Emacs-Daemon.ps1'), $Action, $EmacsProfile
+        '--headless "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" {2} {3}' -f
+        $pwsh, (WindotsPath 'scripts\Emacs-Daemon.ps1'), $Action, $EmacsProfile
     }
-    [void](Ensure-StartupShortcut -Name 'EmacsTray' -Candidates @((WindotsPath 'yasb\emacs\emacs-tray.exe')) -RunningProcessName 'emacs-tray')
-    [void](Ensure-StartupShortcut -Name 'DoomDaemon' -Candidates @($conhost) -RunningProcessName 'emacs' -Arguments (Get-EmacsArguments 'start' 'doom'))
-    foreach ($link in @('Doom', 'open', 'doom'), @('DoomDaemon', 'start', 'doom'), @('Spacemacs', 'open', 'spacemacs'), @('SpacemacsDaemon', 'start', 'spacemacs')) {
-        $linkPath = Join-Path ([Environment]::GetFolderPath('Programs')) "$($link[0]).lnk"
+    $shortcut = @{
+        Name = 'EmacsTray'
+        Candidates = @((WindotsPath 'yasb\emacs\emacs-tray.exe'))
+        RunningProcessName = 'emacs-tray'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'DoomDaemon'
+        Candidates = @($conhost)
+        RunningProcessName = 'emacs'
+        Arguments = (Get-EmacsArguments 'start' 'doom')
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $emacsLinks = @('Doom', 'open', 'doom'),
+    @('DoomDaemon', 'start', 'doom'),
+    @('Spacemacs', 'open', 'spacemacs'),
+    @('SpacemacsDaemon', 'start', 'spacemacs')
+    foreach ($link in $emacsLinks) {
+        $programs = [Environment]::GetFolderPath('Programs')
+        $linkPath = Join-Path $programs "$($link[0]).lnk"
         Write-Info "Creating Start menu link: $linkPath"
-        Invoke-IfNotDryRun { New-Shortcut -Path $linkPath -Target $conhost -Arguments (Get-EmacsArguments $link[1] $link[2]) -WorkingDirectory $HOME -IconLocation $emacsIcon }
+        Invoke-IfNotDryRun {
+            $shortcut = @{
+                Path = $linkPath
+                Target = $conhost
+                Arguments = (Get-EmacsArguments $link[1] $link[2])
+                WorkingDirectory = $HOME
+                IconLocation = $emacsIcon
+            }
+            New-Shortcut @shortcut
+        }
     }
     $kanataConfig = Join-Path $HOME '.config\kanata\config.kbd'
-    $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') | Where-Object { $_ }
-    [void](Ensure-StartupShortcut -Name 'Kanata' -Candidates $kanataCandidates -Arguments ('-c "{0}"' -f $kanataConfig))
+    $kanataCandidates = @(Resolve-KanataGui) + @('kanata_gui', 'kanata-gui', 'kanata') |
+        Where-Object { $_ }
+    $shortcut = @{
+        Name = 'Kanata'
+        Candidates = $kanataCandidates
+        Arguments = ('-c "{0}"' -f $kanataConfig)
+    }
+    [void](Ensure-StartupShortcut @shortcut)
 }
 catch {
     Write-Error $_

@@ -26,14 +26,20 @@ function Install-WingetPackage {
     winget list -e --id $Id --accept-source-agreements *>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Verbose "winget package is installed; checking for updates: $Id"
-        return Invoke-NativeCommand -Description "winget package update $Id" -SuccessExitCodes @(0, -1978335189) -Action {
-            winget upgrade -e --id $Id --silent --accept-source-agreements --accept-package-agreements
+        $update = @{
+            Description = "winget package update $Id"
+            SuccessExitCodes = @(0, -1978335189)
+        }
+        return Invoke-NativeCommand @update -Action {
+            winget upgrade -e --id $Id --silent --accept-source-agreements `
+                --accept-package-agreements
         }
     }
 
     Write-Info "winget install -e --id $Id"
     return Invoke-NativeCommand -Description "winget package $Id" -Action {
-        winget install -e --id $Id --silent --accept-source-agreements --accept-package-agreements @Override
+        winget install -e --id $Id --silent --accept-source-agreements `
+            --accept-package-agreements @Override
     }
 }
 
@@ -44,11 +50,15 @@ function Install-ScoopPackage {
     scoop prefix $Name *>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Verbose "scoop package is installed; checking for updates: $Name"
-        return Invoke-NativeCommand -Description "Scoop package update $Name" -Action { scoop update $Name }
+        return Invoke-NativeCommand -Description "Scoop package update $Name" -Action {
+            scoop update $Name
+        }
     }
 
     Write-Info "scoop install $Source"
-    return Invoke-NativeCommand -Description "Scoop package $Name" -Action { scoop install $Source }
+    return Invoke-NativeCommand -Description "Scoop package $Name" -Action {
+        scoop install $Source
+    }
 }
 
 $packageFailures = [System.Collections.Generic.List[string]]::new()
@@ -63,7 +73,11 @@ $wingetApps = @(
 )
 # Installer arguments for packages that need more than the default install.
 $wingetOverrides = @{
-    'Microsoft.VisualStudio.BuildTools' = @('--override', '--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended')
+    'Microsoft.VisualStudio.BuildTools' = @(
+        '--override'
+        ('--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools ' +
+        '--includeRecommended')
+    )
 }
 
 if (Test-Command 'winget') {
@@ -75,11 +89,16 @@ if (Test-Command 'winget') {
     }
     # tailscale login needs the Tailscale service (tailscaled) running.
     $tailscaled = Get-Service -Name Tailscale -ErrorAction SilentlyContinue
-    if ($tailscaled -and ($tailscaled.Status -ne 'Running' -or $tailscaled.StartType -ne 'Automatic')) {
-        Write-Info 'Requesting administrator approval to enable and start the Tailscale service...'
+    if ($tailscaled -and
+        ($tailscaled.Status -ne 'Running' -or $tailscaled.StartType -ne 'Automatic')) {
+        Write-Info ('Requesting administrator approval to enable and start the ' +
+            'Tailscale service...')
         Invoke-IfNotDryRun {
-            if ($null -eq (Invoke-Elevated '-NoProfile', '-Command', 'Set-Service -Name Tailscale -StartupType Automatic -Status Running')) {
-                Write-Warn 'Tailscale service was not started (elevation declined); run: Start-Service Tailscale'
+            if ($null -eq (Invoke-Elevated '-NoProfile', '-Command', (
+                        'Set-Service -Name Tailscale -StartupType Automatic ' +
+                        '-Status Running'))) {
+                Write-Warn ('Tailscale service was not started (elevation declined); ' +
+                    'run: Start-Service Tailscale')
             }
         }
     }
@@ -112,11 +131,10 @@ $uvTools = @('tmuxp')
 $bunApps = @(
     '@anthropic-ai/claude-code@latest', '@github/copilot',
     '@github/copilot-language-server', '@google/gemini-cli@latest',
-    '@marp-team/marp-cli', '@openai/codex@latest', 'bibtex-tidy',
-    'dockerfile-language-server-nodejs', 'js-beautify', 'oh-my-pi', 'opencode-ai',
-    'pi-coding-agent', 'prettier', 'typescript', 'typescript-formatter',
-    'typescript-language-server', 'vim-language-server', 'vscode-json-languageserver',
-    'yaml-language-server'
+    '@marp-team/marp-cli', 'bibtex-tidy', 'dockerfile-language-server-nodejs',
+    'js-beautify', 'oh-my-pi', 'opencode-ai', 'pi-coding-agent', 'prettier',
+    'typescript', 'typescript-formatter', 'typescript-language-server',
+    'vim-language-server', 'vscode-json-languageserver', 'yaml-language-server'
 )
 
 if (Test-Command 'scoop') {
@@ -125,7 +143,9 @@ if (Test-Command 'scoop') {
     foreach ($b in $scoopBuckets) {
         if ($b -notin $existingBuckets) {
             Write-Info "scoop bucket add $b"
-            if (-not (Invoke-NativeCommand -Description "Scoop bucket $b" -Action { scoop bucket add $b })) {
+            if (-not (Invoke-NativeCommand -Description "Scoop bucket $b" -Action {
+                        scoop bucket add $b
+                    })) {
                 $packageFailures.Add("scoop bucket:$b")
             }
         }
@@ -144,23 +164,32 @@ if (Test-Command 'scoop') {
         Write-Info 'Checking repo scoop manifests for new versions'
         Invoke-IfNotDryRun {
             # Scoop's scripts read absent config keys, which our strict mode rejects.
-            try { & { Set-StrictMode -Off; & $checkver -App '*' -Dir $manifestDir -Update -SkipUpdated } }
+            try {
+                & {
+                    Set-StrictMode -Off
+                    & $checkver -App '*' -Dir $manifestDir -Update -SkipUpdated
+                }
+            }
             catch { Write-Warn "checkver failed; installing manifests as they are: $_" }
         }
     }
     foreach ($manifest in Get-ChildItem -Path $manifestDir -Filter '*.json') {
-        if (-not (Install-ScoopPackage -Name $manifest.BaseName -Source $manifest.FullName)) {
+        $package = @{ Name = $manifest.BaseName; Source = $manifest.FullName }
+        if (-not (Install-ScoopPackage @package)) {
             $packageFailures.Add("scoop:$($manifest.BaseName)")
         }
     }
     # Everything reads the NTFS index through its service, so the app itself
     # runs unelevated with no UAC prompt at each start. Register it once.
     $everything = Join-Path $ScoopRoot 'apps\everything\current\Everything.exe'
-    if ((Test-Path -LiteralPath $everything) -and -not (Get-Service -Name Everything -ErrorAction SilentlyContinue)) {
-        Write-Info 'Requesting administrator approval to install the Everything service...'
+    if ((Test-Path -LiteralPath $everything) -and
+        -not (Get-Service -Name Everything -ErrorAction SilentlyContinue)) {
+        Write-Info ('Requesting administrator approval to install the ' +
+            'Everything service...')
         Invoke-IfNotDryRun {
             if ($null -eq (Invoke-Elevated '-install-service' $everything)) {
-                Write-Warn 'Everything service was not installed (elevation declined); Everything will ask for admin rights to index.'
+                Write-Warn ('Everything service was not installed (elevation ' +
+                    'declined); Everything will ask for admin rights to index.')
             }
         }
     }
@@ -168,7 +197,9 @@ if (Test-Command 'scoop') {
     # every cmd window through cmd's per-user AutoRun; re-running is harmless.
     if (Test-Command 'clink') {
         Write-Info 'Enabling Clink in cmd.exe (AutoRun)'
-        if (-not (Invoke-NativeCommand -Description 'Clink AutoRun' -Action { clink autorun install })) {
+        if (-not (Invoke-NativeCommand -Description 'Clink AutoRun' -Action {
+                    clink autorun install
+                })) {
             $packageFailures.Add('clink:autorun')
         }
     }
@@ -176,17 +207,22 @@ if (Test-Command 'scoop') {
     # which Yazi passes when detecting file types, so every preview was blank.
     $gitFile = Join-Path $HOME 'scoop\apps\git\current\usr\bin\file.exe'
     if (Test-Path -LiteralPath $gitFile) {
-        if (-not (Invoke-NativeCommand -Description 'Scoop shim file' -Action { scoop shim add file $gitFile })) {
+        if (-not (Invoke-NativeCommand -Description 'Scoop shim file' -Action {
+                    scoop shim add file $gitFile
+                })) {
             $packageFailures.Add('scoop shim:file')
         }
     }
 
     # fswatch has no Windows release or Scoop package; built from source in MSYS2.
-    # Not the MSYS2 package: it lags upstream (1.21.0 vs 1.22.0), needs MSYS2 DLLs beside
-    # it and starts slower (~87 ms vs ~52 ms); event latency is the same. Ours is static.
+    # Not the MSYS2 package: it lags upstream (1.21.0 vs 1.22.0), needs MSYS2 DLLs
+    # beside it and starts slower (~87 ms vs ~52 ms); event latency is the same. Ours
+    # is static.
     # ponytail: skipped once installed; bump -Version in Install-Fswatch.ps1 to upgrade.
     Write-Info 'Building fswatch (MSYS2)'
-    if (-not (Invoke-NativeCommand -Description 'fswatch build' -Action { & (Join-Path $PSScriptRoot 'Install-Fswatch.ps1') })) {
+    if (-not (Invoke-NativeCommand -Description 'fswatch build' -Action {
+                & (Join-Path $PSScriptRoot 'Install-Fswatch.ps1')
+            })) {
         $packageFailures.Add('build:fswatch')
     }
 
@@ -194,8 +230,10 @@ if (Test-Command 'scoop') {
     Write-Info 'Installing ledger (MSYS2)'
     $env:MSYSTEM = 'UCRT64'
     if (-not (Invoke-NativeCommand -Description 'ledger install' -Action {
-                & (Join-Path $ScoopRoot 'apps\msys2\current\usr\bin\bash.exe') -lc 'pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ledger'
-                scoop shim add ledger (Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\ledger.exe')
+                & (Join-Path $ScoopRoot 'apps\msys2\current\usr\bin\bash.exe') -lc (
+                    'pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ledger')
+                scoop shim add ledger (
+                    Join-Path $ScoopRoot 'apps\msys2\current\ucrt64\bin\ledger.exe')
             })) {
         $packageFailures.Add('msys2:ledger')
     }
@@ -204,7 +242,9 @@ if (Test-Command 'scoop') {
     # (CopilotChat's tiktoken_core is fetched by its lazy.nvim build step.)
     if (Test-Command 'rustup') {
         Write-Info 'rustup default stable'
-        if (-not (Invoke-NativeCommand -Description 'Rust stable toolchain' -Action { rustup default stable })) {
+        if (-not (Invoke-NativeCommand -Description 'Rust stable toolchain' -Action {
+                    rustup default stable
+                })) {
             $packageFailures.Add('rustup:stable')
         }
     }
@@ -212,7 +252,9 @@ if (Test-Command 'scoop') {
     if (Test-Command 'bun') {
         foreach ($app in $bunApps) {
             Write-Info "bun add --global $app"
-            if (-not (Invoke-NativeCommand -Description "Bun package $app" -Action { bun add --global $app })) {
+            if (-not (Invoke-NativeCommand -Description "Bun package $app" -Action {
+                        bun add --global $app
+                    })) {
                 $packageFailures.Add("bun:$app")
             }
         }
@@ -221,11 +263,38 @@ if (Test-Command 'scoop') {
         Write-Warn 'bun not found after Scoop installation; skipping Bun packages.'
     }
 
+    # Install Codex with OpenAI's native Windows installer.
+    Write-Info 'Installing Codex with the native installer'
+    Invoke-IfNotDryRun {
+        try {
+            Invoke-WithEnvironment @{ CODEX_NON_INTERACTIVE = '1' } {
+                Invoke-RestMethod 'https://chatgpt.com/codex/install.ps1' |
+                    Invoke-Expression
+            }
+        }
+        catch {
+            Write-Warn "Codex installation failed: $_"
+            $packageFailures.Add('installer:codex')
+        }
+    }
+
+    # Install OMP alongside the Codex and Claude command-line tools.
+    Write-Info 'Installing OMP'
+    Invoke-IfNotDryRun {
+        try { Invoke-RestMethod 'https://omp.sh/install.ps1' | Invoke-Expression }
+        catch {
+            Write-Warn "OMP installation failed: $_"
+            $packageFailures.Add('installer:omp')
+        }
+    }
+
     # tmuxp: tmux session templates, run against rmux (rmux\tmux.cmd) or psmux.
     if (Test-Command 'uv') {
         foreach ($tool in $uvTools) {
             Write-Info "uv tool install $tool"
-            if (-not (Invoke-NativeCommand -Description "uv tool $tool" -Action { uv tool install $tool })) {
+            if (-not (Invoke-NativeCommand -Description "uv tool $tool" -Action {
+                        uv tool install $tool
+                    })) {
                 $packageFailures.Add("uv:$tool")
             }
         }
@@ -241,20 +310,26 @@ else {
 # No package manager ships VirtualDesktopAccessor, so fetch the pinned release
 # and verify its hash before anything loads it.
 # ponytail: pinned to one release; bump URL + hash after a Windows build breaks it.
-$vdaUrl = 'https://github.com/Ciantic/VirtualDesktopAccessor/releases/download/2024-12-16-windows11/VirtualDesktopAccessor.dll'
+$vdaUrl = 'https://github.com/Ciantic/VirtualDesktopAccessor/releases/download/' +
+'2024-12-16-windows11/VirtualDesktopAccessor.dll'
 $vdaHash = '8740C572A1C000E3B87FFEB1E4C397EAE9AF3BD4A2ABDC3BCFFACAB4493F8FF5'
-$vdaPath = Join-Path $env:LOCALAPPDATA 'VirtualDesktopAccessor\VirtualDesktopAccessor.dll'
-if ((Test-Path -LiteralPath $vdaPath) -and (Get-FileHash -LiteralPath $vdaPath -Algorithm SHA256).Hash -eq $vdaHash) {
+$vdaPath =
+Join-Path $env:LOCALAPPDATA 'VirtualDesktopAccessor\VirtualDesktopAccessor.dll'
+if ((Test-Path -LiteralPath $vdaPath) -and
+    (Get-FileHash -LiteralPath $vdaPath -Algorithm SHA256).Hash -eq $vdaHash) {
     Write-Verbose "VirtualDesktopAccessor already installed: $vdaPath"
 }
 else {
     Write-Info "Downloading VirtualDesktopAccessor to $vdaPath"
     Invoke-IfNotDryRun {
         try {
-            New-Item -ItemType Directory -Path (Split-Path -Parent $vdaPath) -Force | Out-Null
+            New-Item -ItemType Directory -Path (
+                Split-Path -Parent $vdaPath
+            ) -Force | Out-Null
             $download = "$vdaPath.download"
             Invoke-WebRequest -Uri $vdaUrl -OutFile $download
-            if ((Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash -ne $vdaHash) {
+            if ((Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash -ne
+                $vdaHash) {
                 Remove-Item -LiteralPath $download -Force
                 throw 'SHA256 mismatch.'
             }
@@ -280,7 +355,9 @@ else {
         $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
         if ($repo.InstallationPolicy -ne 'Trusted') {
             Write-Info 'Trusting PSGallery repository'
-            Invoke-IfNotDryRun { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }
+            Invoke-IfNotDryRun {
+                Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
+            }
         }
     }
     catch {
@@ -290,7 +367,11 @@ else {
     foreach ($psModule in $psModules) {
         if (-not (Get-Module -ListAvailable -Name $psModule)) {
             Write-Info "Installing PS module: $psModule"
-            Invoke-IfNotDryRun { Install-Module -Name $psModule -Force -AcceptLicense -Scope CurrentUser -Repository PSGallery }
+            $install = @{
+                Name = $psModule; Force = $true; AcceptLicense = $true
+                Scope = 'CurrentUser'; Repository = 'PSGallery'
+            }
+            Invoke-IfNotDryRun { Install-Module @install }
         }
         else {
             Write-Info "PS module already available: $psModule"

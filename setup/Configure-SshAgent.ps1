@@ -40,12 +40,14 @@ if ($agent.StartType -ne 'Automatic' -or $agent.Status -ne 'Running') {
         exit 0
     }
 
-    $enableAgent = 'Set-Service -Name ssh-agent -StartupType Automatic; Start-Service -Name ssh-agent'
+    $enableAgent = 'Set-Service -Name ssh-agent -StartupType Automatic; ' +
+    'Start-Service -Name ssh-agent'
     if (Test-IsAdmin) {
         Invoke-Expression $enableAgent
     }
     else {
-        Write-Info 'Requesting administrator approval to enable the ssh-agent service...'
+        Write-Info ('Requesting administrator approval to enable the ssh-agent ' +
+            'service...')
         if ($null -eq (Invoke-Elevated '-NoProfile', '-Command', $enableAgent)) {
             throw 'Enabling the ssh-agent service needs administrator approval.'
         }

@@ -15,10 +15,11 @@ starts this script twice:
           confs), else the active pane of the client the foreground window hosts
   focus   anything else: typed at the focused window with SendInput
 
-Needs python and uv (Scoop), yasb\dictation\dictate.exe (built by setup) and the OpenVINO
-setup, setup\Install-WhisperOpenVino.ps1. The model runs on the NPU first on battery
-and the GPU first on AC (CPU as the last resort). Overrides: DICTATION_DEVICE (a comma
-list such as NPU,GPU, tried in order; disables the power switch), DICTATION_LANG.
+Needs python and uv (Scoop), yasb\dictation\dictate.exe (built by setup) and the
+OpenVINO setup, setup\Install-WhisperOpenVino.ps1. The model runs on the NPU first on
+battery and the GPU first on AC (CPU as the last resort). Overrides: DICTATION_DEVICE
+(a comma list such as NPU,GPU, tried in order; disables the power switch),
+DICTATION_LANG.
 The microphone is chosen from the right-click menu of the bar's dictation widget.
 
 Run with pwsh (7.3+, for correct native argument quoting), no profile:
@@ -27,7 +28,9 @@ State and logs: %LOCALAPPDATA%\windots\dictation
 #>
 
 param(
-    [Parameter(Mandatory)][ValidateSet('Prepare', 'Transcribe', 'Notify')][string]$Action,
+    [Parameter(Mandatory)]
+    [ValidateSet('Prepare', 'Transcribe', 'Notify')]
+    [string]$Action,
     [string]$Message,
     # The window that had focus at the key press, from the hotkey; Prepare starts a
     # moment later, which is long enough for focus to have moved.
@@ -49,14 +52,20 @@ $whisperOv = Join-Path $DotfilesRoot 'scripts\whisper_ov.py'
 # A balloon needs its tray icon alive for a moment, so it lives in its own
 # short process and never delays the toggle or the transcription.
 if ($Action -eq 'Notify') {
-    $icon = [Windows.Forms.NotifyIcon]@{ Icon = [Drawing.SystemIcons]::Information; Visible = $true }
+    $icon = [Windows.Forms.NotifyIcon]@{
+        Icon = [Drawing.SystemIcons]::Information
+        Visible = $true
+    }
     $icon.ShowBalloonTip(4000, 'Dictation', $Message, 'None')
     Start-Sleep 5
     $icon.Dispose()
     return
 }
 function Notify($text) {
-    Start-Process pwsh -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', $PSCommandPath, '-Action', 'Notify', '-Message', "`"$($text -replace '"', "'")`""
+    Start-Process pwsh -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-File', $PSCommandPath, '-Action', 'Notify'
+        '-Message', "`"$($text -replace '"', "'")`""
+    )
 }
 
 # The window and typing helpers take about 0.3 s to compile, so they wait until the
@@ -66,16 +75,20 @@ function Initialize-Native {
     if ('Win.Native' -as [type]) { return }
     Add-Type -Namespace Win -Name Native -MemberDefinition @'
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+[DllImport("user32.dll")]
+public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 [StructLayout(LayoutKind.Explicit, Size = 40)] public struct INPUT {
     [FieldOffset(0)] public uint type; [FieldOffset(8)] public ushort vk;
     [FieldOffset(10)] public ushort scan; [FieldOffset(12)] public uint flags; }
-[DllImport("user32.dll")] public static extern uint SendInput(uint n, INPUT[] i, int size);
+[DllImport("user32.dll")]
+public static extern uint SendInput(uint n, INPUT[] i, int size);
 public static void Type(string s) {
     var i = new INPUT[s.Length * 2];
     for (int k = 0; k < s.Length; k++) {
-        i[2*k] = new INPUT { type = 1, scan = s[k], flags = 4 };      // KEYEVENTF_UNICODE
-        i[2*k+1] = new INPUT { type = 1, scan = s[k], flags = 6 };    // | KEYEVENTF_KEYUP
+        // KEYEVENTF_UNICODE
+        i[2*k] = new INPUT { type = 1, scan = s[k], flags = 4 };
+        // | KEYEVENTF_KEYUP
+        i[2*k+1] = new INPUT { type = 1, scan = s[k], flags = 6 };
     }
     SendInput((uint)i.Length, i, 40);
 }
@@ -95,8 +108,11 @@ function Invoke-Tmux([string]$Bin, [string[]]$Arguments, [string]$Text) {
     $in = if ($null -ne $Text) { New-TemporaryFile }
     try {
         $redirect = @{ RedirectStandardOutput = $out }
-        if ($in) { [IO.File]::WriteAllText($in, $Text, [Text.UTF8Encoding]::new()); $redirect.RedirectStandardInput = $in }
-        $p = Start-Process $Bin -ArgumentList $Arguments -NoNewWindow -PassThru @redirect
+        if ($in) {
+            [IO.File]::WriteAllText($in, $Text, [Text.UTF8Encoding]::new())
+            $redirect.RedirectStandardInput = $in
+        }
+        $p = Start-Process $Bin $Arguments -NoNewWindow -PassThru @redirect
         if (-not $p.WaitForExit(3000)) { $p.Kill($true); return $null }
         if ($p.ExitCode) { return $null }
         , @(Get-Content $out)
@@ -106,27 +122,41 @@ function Invoke-Tmux([string]$Bin, [string[]]$Arguments, [string]$Text) {
 
 function Get-Target {
     if ($env:DICTATION_TMUX_PANE) {
-        return @{ kind = 'tmux'; id = $env:DICTATION_TMUX_PANE; bin = $env:DICTATION_TMUX ?? 'rmux' }
+        return @{
+            kind = 'tmux'
+            id = $env:DICTATION_TMUX_PANE
+            bin = $env:DICTATION_TMUX ?? 'rmux'
+        }
     }
     $fg = $ForegroundPid
     Initialize-Native
-    if (-not $fg) { $null = [Win.Native]::GetWindowThreadProcessId([Win.Native]::GetForegroundWindow(), [ref]$fg) }
+    if (-not $fg) {
+        $null = [Win.Native]::GetWindowThreadProcessId(
+            [Win.Native]::GetForegroundWindow(), [ref]$fg)
+    }
     $procs = Get-CimInstance Win32_Process
     $tree = @($fg); do {
         $n = $tree.Count
-        $tree = @($tree + $procs.Where({ $_.ParentProcessId -in $tree }).ProcessId | Select-Object -Unique)
+        $tree = @($tree +
+            $procs.Where({ $_.ParentProcessId -in $tree }).ProcessId |
+                Select-Object -Unique)
     } while ($tree.Count -gt $n)
-    $clients = $procs.Where({ $_.ProcessId -in $tree -and $_.CommandLine -notmatch '\b(server|daemon)\b' })
+    $clients = $procs.Where({
+            $_.ProcessId -in $tree -and $_.CommandLine -notmatch '\b(server|daemon)\b'
+        })
 
     if ($clients.Where({ $_.Name -eq 'herdr.exe' })) {
         # Exactly one focused pane, or the target is ambiguous.
-        $focused = @((herdr pane list | ConvertFrom-Json).result.panes.Where({ $_.focused }).pane_id)
+        $herdrPanes = (herdr pane list | ConvertFrom-Json).result.panes
+        $focused = @($herdrPanes.Where({ $_.focused }).pane_id)
         if ($focused.Count -eq 1) { return @{ kind = 'herdr'; id = $focused[0] } }
     }
     foreach ($bin in 'rmux', 'psmux') {
         if ($clients.Where({ $_.Name -eq "$bin.exe" })) {
             $pane = Invoke-Tmux $bin 'list-clients', '-F', '#{pane_id}'
-            if ($pane -and $pane.Count -eq 1) { return @{ kind = 'tmux'; id = $pane[0]; bin = $bin } }
+            if ($pane -and $pane.Count -eq 1) {
+                return @{ kind = 'tmux'; id = $pane[0]; bin = $bin }
+            }
         }
     }
     @{ kind = 'focus' }
@@ -137,8 +167,10 @@ function Send-ToTarget($t, $text) {
         'herdr' { $null = herdr pane send-text $t.id $text; $LASTEXITCODE -eq 0 }
         'tmux' {
             # A named buffer leaves the default tmux paste buffer alone.
-            $null -ne (Invoke-Tmux $t.bin 'load-buffer', '-b', 'dictation-target', '-' $text) -and
-            $null -ne (Invoke-Tmux $t.bin 'paste-buffer', '-d', '-b', 'dictation-target', '-t', $t.id)
+            $load = 'load-buffer', '-b', 'dictation-target', '-'
+            $paste = 'paste-buffer', '-d', '-b', 'dictation-target', '-t', $t.id
+            $null -ne (Invoke-Tmux $t.bin $load $text) -and
+            $null -ne (Invoke-Tmux $t.bin $paste)
         }
         default { Initialize-Native; [Win.Native]::Type($text); $true }
     }
@@ -157,7 +189,8 @@ function Send-ToTarget($t, $text) {
 function Use-PowerDevice {
     $spec = $env:DICTATION_DEVICE
     if (-not $spec) {
-        $spec = [Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus -eq 'Offline' ? 'NPU,GPU' : 'GPU,NPU'
+        $power = [Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus
+        $spec = $power -eq 'Offline' ? 'NPU,GPU' : 'GPU,NPU'
     }
     $last = "$state\device"
     if ((Test-Path $last) -and (Get-Content $last) -ne $spec) {
@@ -178,11 +211,18 @@ function Invoke-Transcribe {
     try {
         # Prepare writes the target about a second after recording starts; wait if you
         # stopped sooner than that, and deliver to the focused window if it never comes.
-        foreach ($i in 1..50) { if (Test-Path $targetFile) { break }; Start-Sleep -Milliseconds 100 }
-        $t = if (Test-Path $targetFile) { Get-Content $targetFile -Raw | ConvertFrom-Json } else { @{ kind = 'focus' } }
+        foreach ($i in 1..50) {
+            if (Test-Path $targetFile) { break }
+            Start-Sleep -Milliseconds 100
+        }
+        $t = if (Test-Path $targetFile) {
+            Get-Content $targetFile -Raw | ConvertFrom-Json
+        }
+        else { @{ kind = 'focus' } }
         Set-Content $log ''
         # Drop bracketed non-speech tags such as [BLANK_AUDIO], then trim.
-        $text = ((Get-Transcript) -replace '\[[A-Z_ ]+\]' -replace '\s+', ' ' -replace '^[^\p{L}\p{N}]+').Trim()
+        $text = (Get-Transcript) -replace '\[[A-Z_ ]+\]' -replace '\s+', ' '
+        $text = ($text -replace '^[^\p{L}\p{N}]+').Trim()
         if (-not $text) { Notify 'No speech detected'; return }
 
         # No balloon on success: a balloon takes a second to appear, long after the text

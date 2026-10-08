@@ -12,11 +12,18 @@ static int failures;
 #define CHECK_STR(actual, expected) check_str(__LINE__, actual, expected)
 static void check_str(int line, const char *actual, const char *expected) {
     if (strcmp(actual, expected) == 0) return;
-    printf("battery.test.c:%d: got  %s\n                  want %s\n", line, actual, expected);
+    printf("battery.test.c:%d: got  %s\n                  want %s\n", line, actual,
+           expected);
     failures++;
 }
 
-#define CHECK(condition) do { if (!(condition)) { printf("battery.test.c:%d: failed: %s\n", __LINE__, #condition); failures++; } } while (0)
+#define CHECK(condition)                                                               \
+    do {                                                                               \
+        if (!(condition)) {                                                            \
+            printf("battery.test.c:%d: failed: %s\n", __LINE__, #condition);           \
+            failures++;                                                                \
+        }                                                                              \
+    } while (0)
 
 static SYSTEM_POWER_STATUS power(int plugged, int percent, DWORD life_seconds) {
     SYSTEM_POWER_STATUS p = {0};
@@ -26,7 +33,8 @@ static SYSTEM_POWER_STATUS power(int plugged, int percent, DWORD life_seconds) {
     return p;
 }
 
-static SYSTEM_BATTERY_STATE state(int charging, DWORD remaining_mwh, DWORD max_mwh, LONG rate_mw) {
+static SYSTEM_BATTERY_STATE state(int charging, DWORD remaining_mwh, DWORD max_mwh,
+                                  LONG rate_mw) {
     SYSTEM_BATTERY_STATE s = {0};
     s.AcOnLine = charging;
     s.Charging = (BOOLEAN)charging;
@@ -70,34 +78,42 @@ static void test_smoothing(void) {
 
 static void test_describe(void) {
     /* Charging: missing capacity over the smoothed rate, 45 Wh at 45 W. */
-    CHECK_STR(run(power(1, 50, (DWORD)-1), state(1, 45000, 90000, 45000), (Rates){45000, 0}),
+    CHECK_STR(
+        run(power(1, 50, (DWORD)-1), state(1, 45000, 90000, 45000), (Rates){45000, 0}),
         "{\"icon\": \"\xEE\xAE\xB0\", \"percent\": 50, \"time\": \"1h 0m\"}");
     /* The smoothed rate wins over a momentary trickle. */
-    CHECK_STR(run(power(1, 50, (DWORD)-1), state(1, 45000, 90000, 1500), (Rates){45000, 0}),
+    CHECK_STR(
+        run(power(1, 50, (DWORD)-1), state(1, 45000, 90000, 1500), (Rates){45000, 0}),
         "{\"icon\": \"\xEE\xAE\xB0\", \"percent\": 50, \"time\": \"1h 0m\"}");
     /* Plugged in, not charging. */
     CHECK_STR(run(power(1, 100, (DWORD)-1), state(0, 90000, 90000, 0), (Rates){0}),
-        "{\"icon\": \"\xEE\xAE\xB5\", \"percent\": 100, \"time\": \"full\"}");
-    CHECK_STR(run(power(1, 80, (DWORD)-1), state(0, 72000, 90000, 0), (Rates){0}),
+              "{\"icon\": \"\xEE\xAE\xB5\", \"percent\": 100, \"time\": \"full\"}");
+    CHECK_STR(
+        run(power(1, 80, (DWORD)-1), state(0, 72000, 90000, 0), (Rates){0}),
         "{\"icon\": \"\xEE\xAE\xB3\", \"percent\": 80, \"time\": \"not charging\"}");
     /* On battery: Windows' estimate, as on the taskbar. */
-    CHECK_STR(run(power(0, 58, 2 * 3600 + 5 * 60), state(0, 52000, 90000, -20000), (Rates){0, 10000}),
-        "{\"icon\": \"\xEE\xAE\xA6\", \"percent\": 58, \"time\": \"2h 5m\"}");
+    CHECK_STR(run(power(0, 58, 2 * 3600 + 5 * 60), state(0, 52000, 90000, -20000),
+                  (Rates){0, 10000}),
+              "{\"icon\": \"\xEE\xAE\xA6\", \"percent\": 58, \"time\": \"2h 5m\"}");
     /* Windows has no estimate yet: fall back to the smoothed discharge rate. */
-    CHECK_STR(run(power(0, 58, (DWORD)-1), state(0, 52000, 90000, 0), (Rates){0, 13000}),
+    CHECK_STR(
+        run(power(0, 58, (DWORD)-1), state(0, 52000, 90000, 0), (Rates){0, 13000}),
         "{\"icon\": \"\xEE\xAE\xA6\", \"percent\": 58, \"time\": \"4h 0m\"}");
     /* No estimate and no rate seen yet: no time rather than a wrong one. */
     CHECK_STR(run(power(0, 58, (DWORD)-1), state(0, 52000, 90000, 0), (Rates){0}),
-        "{\"icon\": \"\xEE\xAE\xA6\", \"percent\": 58, \"time\": \"\"}");
+              "{\"icon\": \"\xEE\xAE\xA6\", \"percent\": 58, \"time\": \"\"}");
 }
 
 static void test_icon_levels(void) {
     /* Eleven levels, rounded: 0-4% empty, 95-100% full. */
-    int cases[][2] = {{0, 0xA0}, {4, 0xA0}, {5, 0xA1}, {14, 0xA1}, {15, 0xA2}, {50, 0xA5}, {94, 0xA9}, {95, 0xAA}, {100, 0xAA}};
+    int cases[][2] = {{0, 0xA0},  {4, 0xA0},  {5, 0xA1},  {14, 0xA1}, {15, 0xA2},
+                      {50, 0xA5}, {94, 0xA9}, {95, 0xAA}, {100, 0xAA}};
     for (size_t i = 0; i < sizeof cases / sizeof *cases; i++) {
-        const char *json = run(power(0, cases[i][0], 3600), state(0, 1, 1, -1), (Rates){0});
+        const char *json =
+            run(power(0, cases[i][0], 3600), state(0, 1, 1, -1), (Rates){0});
         if ((unsigned char)json[12] != cases[i][1]) {
-            printf("battery.test.c: %d%% on battery: glyph EE AE %02X, want %02X\n", cases[i][0], (unsigned char)json[12], cases[i][1]);
+            printf("battery.test.c: %d%% on battery: glyph EE AE %02X, want %02X\n",
+                   cases[i][0], (unsigned char)json[12], cases[i][1]);
             failures++;
         }
         /* On AC, the charging set: same level, 0xAB up. */
@@ -111,7 +127,9 @@ int main(void) {
     test_smoothing();
     test_describe();
     test_icon_levels();
-    if (failures) printf("%d battery test(s) failed\n", failures);
-    else printf("battery tests passed\n");
+    if (failures)
+        printf("%d battery test(s) failed\n", failures);
+    else
+        printf("battery tests passed\n");
     return failures != 0;
 }

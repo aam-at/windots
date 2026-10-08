@@ -28,8 +28,12 @@ $buttonId = [Windows.Automation.PropertyCondition]::new(
 function Find-DndButton {
     $walker = [Windows.Automation.TreeWalker]::ControlViewWalker
     $element = [Windows.Automation.AutomationElement]::FocusedElement
-    while ($element -and $element.Current.Name -ne $center) { $element = $walker.GetParent($element) }
-    if ($element) { $element.FindFirst([Windows.Automation.TreeScope]::Descendants, $buttonId) }
+    while ($element -and $element.Current.Name -ne $center) {
+        $element = $walker.GetParent($element)
+    }
+    if ($element) {
+        $element.FindFirst([Windows.Automation.TreeScope]::Descendants, $buttonId)
+    }
 }
 
 # ms-actioncenter: toggles the centre, so only open it when it isn't already.

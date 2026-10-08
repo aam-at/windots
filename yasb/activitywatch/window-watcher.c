@@ -79,9 +79,12 @@ static UINT_PTR pending_timer;
 static HWINEVENTHOOK title_hook;
 static DWORD title_hook_pid;
 
-static void setup_bucket(Bucket *bucket, const char *id, const char *client, const char *type, const char *host) {
+static void setup_bucket(Bucket *bucket, const char *id, const char *client,
+                         const char *type, const char *host) {
     snprintf(bucket->path, sizeof bucket->path, "/api/0/buckets/%s", id);
-    snprintf(bucket->json, sizeof bucket->json, "{\"client\": \"%s\", \"type\": \"%s\", \"hostname\": \"%s\"}", client, type, host);
+    snprintf(bucket->json, sizeof bucket->json,
+             "{\"client\": \"%s\", \"type\": \"%s\", \"hostname\": \"%s\"}", client,
+             type, host);
     bucket->ready = 0;
 }
 
@@ -96,7 +99,8 @@ static void json_utf8(const wchar_t *in, char *out, size_t size) {
    spaces after them. "◐ Fix bug" and "● main.c - Zed" keep only the text. */
 static const wchar_t *strip_status(const wchar_t *title) {
     const wchar_t *start = title;
-    while (*start && ((*start >= 0x80 && !IsCharAlphaNumericW(*start)) || (*start == L' ' && start != title)))
+    while (*start && ((*start >= 0x80 && !IsCharAlphaNumericW(*start)) ||
+                      (*start == L' ' && start != title)))
         start++;
     return *start ? start : title;
 }
@@ -113,35 +117,46 @@ static void read_window(HWND hwnd, Window *window) {
     DWORD pid = 0, size = MAX_PATH;
     GetWindowThreadProcessId(hwnd, &pid);
     HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (!process || !QueryFullProcessImageNameW(process, 0, path, &size)) wcscpy(path, L"unknown");
+    if (!process || !QueryFullProcessImageNameW(process, 0, path, &size))
+        wcscpy(path, L"unknown");
     if (process) CloseHandle(process);
     GetWindowTextW(hwnd, title, 1024);
     make_window(path, title, window);
 }
 
-static void heartbeat_to_server(Bucket *bucket, ULONGLONG at, double duration, const char *data) {
-    if (!bucket->ready && !(bucket->ready = http_post(bucket->path, bucket->json))) return;
-    char path[512], timestamp[64], body[sizeof current.app + sizeof current.title + 200];
+static void heartbeat_to_server(Bucket *bucket, ULONGLONG at, double duration,
+                                const char *data) {
+    if (!bucket->ready && !(bucket->ready = http_post(bucket->path, bucket->json)))
+        return;
+    char path[512], timestamp[64],
+        body[sizeof current.app + sizeof current.title + 200];
     format_timestamp(at, timestamp, sizeof timestamp);
-    snprintf(path, sizeof path, "%s/heartbeat?pulsetime=%d", bucket->path, bucket->pulsetime);
-    snprintf(body, sizeof body, "{\"timestamp\": \"%s\", \"duration\": %.3f, \"data\": %s}", timestamp, duration, data);
+    snprintf(path, sizeof path, "%s/heartbeat?pulsetime=%d", bucket->path,
+             bucket->pulsetime);
+    snprintf(body, sizeof body,
+             "{\"timestamp\": \"%s\", \"duration\": %.3f, \"data\": %s}", timestamp,
+             duration, data);
     /* Server down: retry the bucket too once it is back. */
     if (!http_post(path, body)) bucket->ready = 0;
 }
 
 /* Where heartbeats go; the tests record them instead. */
-static void (*send_heartbeat)(Bucket *, ULONGLONG, double, const char *) = heartbeat_to_server;
+static void (*send_heartbeat)(Bucket *, ULONGLONG, double,
+                              const char *) = heartbeat_to_server;
 
 static void send_window(const Window *window, ULONGLONG at) {
     char data[sizeof window->app + sizeof window->title + 32];
-    snprintf(data, sizeof data, "{\"app\": \"%s\", \"title\": \"%s\"}", window->app, window->title);
+    snprintf(data, sizeof data, "{\"app\": \"%s\", \"title\": \"%s\"}", window->app,
+             window->title);
     send_heartbeat(&window_bucket, at, 0, data);
 }
 
 /* The focused window at this time. On a change, closes the old event at
    this moment so its duration is exact, then opens the new one. */
 static void observe(const Window *now, ULONGLONG at) {
-    if (have_current && strcmp(now->app, current.app) == 0 && strcmp(now->title, current.title) == 0) return;
+    if (have_current && strcmp(now->app, current.app) == 0 &&
+        strcmp(now->title, current.title) == 0)
+        return;
     if (have_current) send_window(&current, at);
     current = *now;
     have_current = 1;
@@ -154,7 +169,8 @@ static void keep_alive(ULONGLONG at) {
 }
 
 static void send_afk(int away, ULONGLONG at, double duration) {
-    send_heartbeat(&afk_bucket, at, duration, away ? "{\"status\": \"afk\"}" : "{\"status\": \"not-afk\"}");
+    send_heartbeat(&afk_bucket, at, duration,
+                   away ? "{\"status\": \"afk\"}" : "{\"status\": \"not-afk\"}");
 }
 
 /* aw-watcher-afk's state machine (aw_watcher_afk/afk.py heartbeat_loop):
@@ -168,23 +184,26 @@ static void observe_input(ULONGLONG now, double idle_seconds) {
         afk = 0;
         afk_state_start = last_input + ONE_MS;
         send_afk(0, afk_state_start, 0);
-    }
-    else if (!afk && idle_seconds >= AFK_TIMEOUT_S) {
+    } else if (!afk && idle_seconds >= AFK_TIMEOUT_S) {
         /* Away: the not-afk event ends at the last input. */
         send_afk(0, last_input > afk_state_start ? last_input : afk_state_start, 0);
         afk = 1;
         afk_state_start = last_input + ONE_MS;
         send_afk(1, afk_state_start, idle_seconds);
-    }
-    else if (now - afk_last_sent < HEARTBEAT_MS * (TICKS_PER_SECOND / 1000)) return;
+    } else if (now - afk_last_sent < HEARTBEAT_MS * (TICKS_PER_SECOND / 1000))
+        return;
     /* Never before the current event's start: aw-server can't merge a
        heartbeat that precedes it and would open a duplicate event. */
-    else if (afk) send_afk(1, afk_state_start, (now - afk_state_start) / (double)TICKS_PER_SECOND);
-    else send_afk(0, last_input > afk_state_start ? last_input : afk_state_start, 0);
+    else if (afk)
+        send_afk(1, afk_state_start,
+                 (now - afk_state_start) / (double)TICKS_PER_SECOND);
+    else
+        send_afk(0, last_input > afk_state_start ? last_input : afk_state_start, 0);
     afk_last_sent = now;
 }
 
-static void CALLBACK on_title_change(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD);
+static void CALLBACK on_title_change(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD,
+                                     DWORD);
 
 /* Follows title changes of the focused process only; a global hook would
    wake us for every caption and accessible name in the session. */
@@ -193,7 +212,8 @@ static void watch_titles_of(HWND hwnd) {
     GetWindowThreadProcessId(hwnd, &pid);
     if (pid == title_hook_pid && title_hook) return;
     if (title_hook) UnhookWinEvent(title_hook);
-    title_hook = SetWinEventHook(EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE, NULL, on_title_change, pid, 0, WINEVENT_OUTOFCONTEXT);
+    title_hook = SetWinEventHook(EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE, NULL,
+                                 on_title_change, pid, 0, WINEVENT_OUTOFCONTEXT);
     title_hook_pid = pid;
 }
 
@@ -225,18 +245,26 @@ static void CALLBACK on_afk_poll(HWND hwnd, UINT message, UINT_PTR id, DWORD tim
     observe_input(now_ticks(), (GetTickCount() - input.dwTime) / 1000.0);
 }
 
-static void CALLBACK on_focus(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG object, LONG child, DWORD thread, DWORD time) {
+static void CALLBACK on_focus(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG object,
+                              LONG child, DWORD thread, DWORD time) {
     sample();
 }
 
-static void CALLBACK on_title_change(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG object, LONG child, DWORD thread, DWORD time) {
-    if (object != OBJID_WINDOW || child != CHILDID_SELF || hwnd != GetForegroundWindow()) return;
+static void CALLBACK on_title_change(HWINEVENTHOOK hook, DWORD event, HWND hwnd,
+                                     LONG object, LONG child, DWORD thread,
+                                     DWORD time) {
+    if (object != OBJID_WINDOW || child != CHILDID_SELF ||
+        hwnd != GetForegroundWindow())
+        return;
     DWORD since = GetTickCount() - last_sample_tick;
-    if (since >= MIN_SAMPLE_MS) sample();
-    else if (!pending_timer) pending_timer = SetTimer(NULL, 0, MIN_SAMPLE_MS - since, on_pending);
+    if (since >= MIN_SAMPLE_MS)
+        sample();
+    else if (!pending_timer)
+        pending_timer = SetTimer(NULL, 0, MIN_SAMPLE_MS - since, on_pending);
 }
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command_line, int show) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command_line,
+                   int show) {
     CreateMutexW(NULL, FALSE, L"windots-window-watcher");
     if (GetLastError() == ERROR_ALREADY_EXISTS) return 0;
 
@@ -250,7 +278,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command_line, i
     snprintf(id, sizeof id, "aw-watcher-afk_%s", host);
     setup_bucket(&afk_bucket, id, "aw-watcher-afk", "afkstatus", host);
 
-    SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, on_focus, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, on_focus, 0,
+                    0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
     SetTimer(NULL, 0, HEARTBEAT_MS, on_heartbeat);
     SetTimer(NULL, 0, AFK_POLL_MS, on_afk_poll);
     sample();

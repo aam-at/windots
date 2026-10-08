@@ -8,8 +8,10 @@ and compacts their virtual disks, which otherwise never shrink.
 
 Usage:
   pwsh -File .\scripts\Optimize-Disk.ps1
-  pwsh -File .\scripts\Optimize-Disk.ps1 -Deep        # also DISM component cleanup (slow)
-  pwsh -File .\scripts\Optimize-Disk.ps1 -Compact     # also compact the WSL and Docker disks
+  pwsh -File .\scripts\Optimize-Disk.ps1 -Deep        # also DISM component cleanup
+                                                      # (slow)
+  pwsh -File .\scripts\Optimize-Disk.ps1 -Compact     # also compact the WSL and
+                                                      # Docker disks
   pwsh -File .\scripts\Optimize-Disk.ps1 -Elevate     # rerun as admin (UAC prompt)
   pwsh -File .\scripts\Optimize-Disk.ps1 -WhatIf      # list what would be removed
 #>
@@ -23,13 +25,16 @@ param(
 
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot '..\setup\Common.ps1')
-if ($Elevate -and -not (Test-IsAdmin)) { return Invoke-ScriptElevated $PSCommandPath $PSBoundParameters }
+if ($Elevate -and -not (Test-IsAdmin)) {
+    return Invoke-ScriptElevated $PSCommandPath $PSBoundParameters
+}
 
 function Get-FreeGb { [math]::Round((Get-PSDrive $env:SystemDrive[0]).Free / 1GB, 2) }
 
 function Clear-Folder($path, $filter = '*') {
     if (-not (Test-Path $path)) { return }
-    foreach ($item in Get-ChildItem $path -Filter $filter -Force -ErrorAction SilentlyContinue) {
+    $items = Get-ChildItem $path -Filter $filter -Force -ErrorAction SilentlyContinue
+    foreach ($item in $items) {
         if ($PSCmdlet.ShouldProcess($item.FullName, 'Remove')) {
             Remove-Item $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -41,17 +46,31 @@ function Invoke-Tool($name, [string[]]$arguments) {
     if (-not (Test-Command $name)) { return }
     if (-not $PSCmdlet.ShouldProcess("$name $arguments", 'Run')) { return }
     $out = & $name @arguments 2>&1
-    if ($LASTEXITCODE) { Write-Warning "$name $arguments exited $LASTEXITCODE`: $($out | Select-Object -Last 1)" }
+    if ($LASTEXITCODE) {
+        Write-Warning ("$name $arguments exited $LASTEXITCODE`: " +
+            "$($out | Select-Object -Last 1)")
+    }
 }
 
 # Compacts every WSL distro's and Docker Desktop's VHDX, run after the fstrim above
 # so the freed blocks are zeroed. Sparse VHDX files hand space back on their own.
 function Compress-WslDisks {
-    $distros = Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss -ErrorAction SilentlyContinue | ForEach-Object {
-        Join-Path ($_.GetValue('BasePath') -replace '^\\\\\?\\') ($_.GetValue('VhdFileName') ?? 'ext4.vhdx')
+    $lxss = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss'
+    $distros = Get-ChildItem $lxss -ErrorAction SilentlyContinue | ForEach-Object {
+        $base = $_.GetValue('BasePath') -replace '^\\\\\?\\'
+        Join-Path $base ($_.GetValue('VhdFileName') ?? 'ext4.vhdx')
     }
-    $docker = Get-ChildItem "$env:LOCALAPPDATA\Docker\wsl" -Recurse -Filter *.vhdx -ErrorAction SilentlyContinue | ForEach-Object FullName
-    $disks = @($distros; $docker) | Where-Object { (Test-Path $_) -and -not ((Get-Item $_).Attributes -band [IO.FileAttributes]::SparseFile) }
+    $vhdx = @{
+        Path = "$env:LOCALAPPDATA\Docker\wsl"
+        Recurse = $true
+        Filter = '*.vhdx'
+        ErrorAction = 'SilentlyContinue'
+    }
+    $docker = Get-ChildItem @vhdx | ForEach-Object FullName
+    $disks = @($distros; $docker) | Where-Object {
+        (Test-Path $_) -and
+        -not ((Get-Item $_).Attributes -band [IO.FileAttributes]::SparseFile)
+    }
     if (-not $disks) { return }
     if ($PSCmdlet.ShouldProcess('WSL and Docker Desktop', 'Shut down')) {
         Stop-Process -Name 'Docker Desktop' -Force -ErrorAction SilentlyContinue
@@ -63,9 +82,17 @@ function Compress-WslDisks {
         foreach ($disk in $disks) {
             if (-not $PSCmdlet.ShouldProcess($disk, 'Compact')) { continue }
             $was = & $gb
-            Set-Content $commands "select vdisk file=`"$disk`"", 'attach vdisk readonly', 'compact vdisk', 'detach vdisk'
+            Set-Content $commands @(
+                "select vdisk file=`"$disk`""
+                'attach vdisk readonly'
+                'compact vdisk'
+                'detach vdisk'
+            )
             $out = diskpart /s $commands
-            if ($LASTEXITCODE) { Write-Warning "diskpart failed on $disk`: $($out | Select-Object -Last 1)" }
+            if ($LASTEXITCODE) {
+                Write-Warning ("diskpart failed on $disk`: " +
+                    "$($out | Select-Object -Last 1)")
+            }
             else { "Compacted $disk`: $was GB -> $(& $gb) GB" }
         }
     }
@@ -93,25 +120,33 @@ Invoke-Tool wsl    '-u', 'root', 'fstrim', '-av'
 Clear-Folder $env:TEMP
 Clear-Folder "$env:LOCALAPPDATA\CrashDumps"
 Clear-Folder "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" 'thumbcache_*.db'
-if ($PSCmdlet.ShouldProcess('Recycle Bin', 'Empty')) { Clear-RecycleBin -Force -ErrorAction SilentlyContinue }
+if ($PSCmdlet.ShouldProcess('Recycle Bin', 'Empty')) {
+    Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+}
 
 # System junk
 if (Test-IsAdmin) {
     Clear-Folder "$env:SystemRoot\Temp"
     Clear-Folder "$env:SystemRoot\Minidump"
     Clear-Folder "$env:SystemRoot\Logs\CBS" '*.log'
-    if ($PSCmdlet.ShouldProcess('Delivery Optimization cache', 'Clear')) { Delete-DeliveryOptimizationCache -Force -ErrorAction SilentlyContinue }
+    if ($PSCmdlet.ShouldProcess('Delivery Optimization cache', 'Clear')) {
+        Delete-DeliveryOptimizationCache -Force -ErrorAction SilentlyContinue
+    }
     if ($PSCmdlet.ShouldProcess('Windows Update download cache', 'Clear')) {
         Stop-Service wuauserv, bits -Force -ErrorAction SilentlyContinue
         try { Clear-Folder "$env:SystemRoot\SoftwareDistribution\Download" }
         finally { Start-Service wuauserv, bits -ErrorAction SilentlyContinue }
     }
-    if ($Deep) { Invoke-Tool dism '/Online', '/Cleanup-Image', '/StartComponentCleanup' }
+    if ($Deep) {
+        Invoke-Tool dism '/Online', '/Cleanup-Image', '/StartComponentCleanup'
+    }
     if ($Compact) { Compress-WslDisks }
 }
 else {
-    Write-Warning "Not elevated: skipped $env:SystemRoot\Temp, Windows Update, Delivery Optimization, CBS logs, minidumps, DISM and -Compact."
+    Write-Warning ("Not elevated: skipped $env:SystemRoot\Temp, Windows Update, " +
+        'Delivery Optimization, CBS logs, minidumps, DISM and -Compact.')
 }
 
 $after = Get-FreeGb
-"Free on $env:SystemDrive $before GB -> $after GB ($([math]::Round($after - $before, 2)) GB)"
+$gained = [math]::Round($after - $before, 2)
+"Free on $env:SystemDrive $before GB -> $after GB ($gained GB)"

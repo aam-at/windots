@@ -10,9 +10,12 @@ Usage (fresh Windows box, from a regular PowerShell prompt):
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$BootstrapUrl = 'https://raw.githubusercontent.com/aam-at/windots/master/setup/Bootstrap.ps1'
+$BootstrapUrl = 'https://raw.githubusercontent.com/aam-at/windots/' +
+'master/setup/Bootstrap.ps1'
 
-function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
+function Test-Command($name) {
+    $null -ne (Get-Command $name -ErrorAction SilentlyContinue)
+}
 
 if (-not (Test-Command 'scoop')) {
     Write-Host '[INFO] Installing Scoop...'
@@ -24,7 +27,11 @@ if (-not (Test-Command 'scoop')) {
     # $env:PATH by hand.
     Write-Host '[INFO] Reopening a shell so Scoop is on PATH...'
     $hostExe = (Get-Process -Id $PID).Path
-    Start-Process -FilePath $hostExe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "irm $BootstrapUrl | iex") -Wait -NoNewWindow
+    $hostArgs = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-Command', "irm $BootstrapUrl | iex"
+    )
+    Start-Process -FilePath $hostExe -ArgumentList $hostArgs -Wait -NoNewWindow
     exit $LASTEXITCODE
 }
 

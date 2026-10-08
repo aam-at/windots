@@ -40,8 +40,10 @@ static void smooth(double *average, double sample) {
 static void format_duration(char *out, size_t size, double seconds) {
     long minutes = (long)(seconds / 60);
     if (minutes < 1) minutes = 1;
-    if (minutes >= 60) snprintf(out, size, "%ldh %ldm", minutes / 60, minutes % 60);
-    else snprintf(out, size, "%ldm", minutes);
+    if (minutes >= 60)
+        snprintf(out, size, "%ldh %ldm", minutes / 60, minutes % 60);
+    else
+        snprintf(out, size, "%ldm", minutes);
 }
 
 /* Folds the current rate into the smoothed ones; returns whether it did. */
@@ -49,39 +51,51 @@ static int update_rates(Rates *rates, const SYSTEM_BATTERY_STATE *battery) {
     /* Rate is signed in practice: positive charging, negative discharging. */
     LONG rate = (LONG)battery->Rate;
     if (battery->Charging && rate > 0) return smooth(&rates->charge_mw, rate), 1;
-    if (battery->Discharging && rate < 0) return smooth(&rates->discharge_mw, -(double)rate), 1;
+    if (battery->Discharging && rate < 0)
+        return smooth(&rates->discharge_mw, -(double)rate), 1;
     return 0;
 }
 
 /* The widget's JSON line for this state. */
-static void describe(const SYSTEM_POWER_STATUS *power, const SYSTEM_BATTERY_STATE *battery, const Rates *rates, char *out, size_t size) {
+static void describe(const SYSTEM_POWER_STATUS *power,
+                     const SYSTEM_BATTERY_STATE *battery, const Rates *rates, char *out,
+                     size_t size) {
     int percent = power->BatteryLifePercent;
     int plugged = power->ACLineStatus == 1;
     char time[32] = "";
     if (plugged) {
-        if (battery->Charging && rates->charge_mw > 0 && battery->RemainingCapacity < battery->MaxCapacity)
-            format_duration(time, sizeof time, 3600.0 * (battery->MaxCapacity - battery->RemainingCapacity) / rates->charge_mw);
+        if (battery->Charging && rates->charge_mw > 0 &&
+            battery->RemainingCapacity < battery->MaxCapacity)
+            format_duration(time, sizeof time,
+                            3600.0 *
+                                (battery->MaxCapacity - battery->RemainingCapacity) /
+                                rates->charge_mw);
         else if (!battery->Charging)
             snprintf(time, sizeof time, percent >= 100 ? "full" : "not charging");
-    }
-    else if (power->BatteryLifeTime != (DWORD)-1)
+    } else if (power->BatteryLifeTime != (DWORD)-1)
         format_duration(time, sizeof time, power->BatteryLifeTime);
     else if (rates->discharge_mw > 0)
-        format_duration(time, sizeof time, 3600.0 * battery->RemainingCapacity / rates->discharge_mw);
+        format_duration(time, sizeof time,
+                        3600.0 * battery->RemainingCapacity / rates->discharge_mw);
 
     /* Segoe Fluent Battery0..10 (U+EBA0) and BatteryCharging0..10 (U+EBAB):
        the taskbar's eleven levels, with the plug whenever on AC. UTF-8 is
        EE AE xx for the whole range. */
     int glyph = (plugged ? 0xAB : 0xA0) + (percent + 5) / 10;
-    snprintf(out, size, "{\"icon\": \"\xEE\xAE%c\", \"percent\": %d, \"time\": \"%s\"}", glyph, percent, time);
+    snprintf(out, size, "{\"icon\": \"\xEE\xAE%c\", \"percent\": %d, \"time\": \"%s\"}",
+             glyph, percent, time);
 }
 
 int main(void) {
     SYSTEM_POWER_STATUS power;
-    if (!GetSystemPowerStatus(&power) || power.BatteryFlag == 128 || power.BatteryLifePercent > 100) return 0;
+    if (!GetSystemPowerStatus(&power) || power.BatteryFlag == 128 ||
+        power.BatteryLifePercent > 100)
+        return 0;
 
     SYSTEM_BATTERY_STATE battery;
-    if (CallNtPowerInformation(SystemBatteryState, NULL, 0, &battery, sizeof battery) != 0) return 0;
+    if (CallNtPowerInformation(SystemBatteryState, NULL, 0, &battery, sizeof battery) !=
+        0)
+        return 0;
 
     char path[MAX_PATH];
     rates_path(path, sizeof path);

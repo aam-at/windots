@@ -13,11 +13,13 @@ $ErrorActionPreference = 'Stop'
 
 try {
     # Creates the Komorebi startup shortcuts and removes the native-mode one.
-    & (Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1') -DesktopMode Komorebi -DryRun:$DryRun
+    $installStartup = Join-Path $PSScriptRoot '..\..\setup\Install-Startup.ps1'
+    & $installStartup -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure Komorebi startup shortcuts.' }
 
     # FancyZones off: two window managers would fight over every window.
-    & (Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1') -DesktopMode Komorebi -DryRun:$DryRun
+    $configurePowerToys = Join-Path $PSScriptRoot '..\..\setup\Configure-PowerToys.ps1'
+    & $configurePowerToys -DesktopMode Komorebi -DryRun:$DryRun
     if (-not $?) { throw 'Failed to configure PowerToys.' }
 
     $nativeBindings = Join-Path $PSScriptRoot '..\native\Native-Desktop.ahk'
@@ -26,27 +28,32 @@ try {
     $config = Join-Path $PSScriptRoot 'komorebi.json'
     $bindings = Join-Path $PSScriptRoot 'komorebi.ahk'
 
-    if (-not (Get-Command komorebic.exe -CommandType Application -ErrorAction SilentlyContinue)) {
+    $application = @{ CommandType = 'Application'; ErrorAction = 'SilentlyContinue' }
+    if (-not (Get-Command komorebic.exe @application)) {
         throw 'komorebic.exe was not found on PATH.'
     }
-    if (-not (Get-Command autohotkey.exe -CommandType Application -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command autohotkey.exe @application)) {
         throw 'autohotkey.exe was not found on PATH.'
     }
 
     Invoke-IfNotDryRun { komorebic stop 2>$null }
     Invoke-IfNotDryRun {
         komorebic start --clean-state --config $config
-        if ($LASTEXITCODE -ne 0) { throw "Komorebi failed to start with exit code $LASTEXITCODE." }
+        if ($LASTEXITCODE -ne 0) {
+            throw "Komorebi failed to start with exit code $LASTEXITCODE."
+        }
     }
     Invoke-IfNotDryRun {
-        Start-Process -FilePath (Get-Command autohotkey.exe -CommandType Application).Source -ArgumentList ('"{0}"' -f $bindings)
+        $autohotkey = (Get-Command autohotkey.exe -CommandType Application).Source
+        Start-Process -FilePath $autohotkey -ArgumentList ('"{0}"' -f $bindings)
     }
 
     # PowerToys reads its settings only at startup.
     $powerToys = Join-Path $env:ProgramFiles 'PowerToys\PowerToys.exe'
     if (Test-Path -LiteralPath $powerToys) {
         Invoke-IfNotDryRun {
-            Get-Process -Name PowerToys -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name PowerToys -ErrorAction SilentlyContinue |
+                Stop-Process -Force
             Start-Process -FilePath $powerToys
         }
     }
@@ -59,7 +66,12 @@ try {
         }
     }
 
-    $message = if ($DryRun) { 'Komorebi desktop mode validated.' } else { 'Komorebi desktop mode is active.' }
+    $message = if ($DryRun) {
+        'Komorebi desktop mode validated.'
+    }
+    else {
+        'Komorebi desktop mode is active.'
+    }
     Write-Host $message -ForegroundColor Cyan
 }
 catch {
