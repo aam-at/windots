@@ -31,21 +31,25 @@ function Set-HomeEnvironment {
     }
 }
 
-# ~/.local/bin leads the user PATH so its wrappers (cmd\*.cmd) win over
-# Scoop's shims of the same name.
+# The user PATH leads with ~/.local/bin, so its wrappers (cmd\*.cmd) win over
+# Scoop's shims of the same name, then with the real pwsh, so herdr launches it
+# and not the shim: herdr restores a pane in the cwd of the process it launched,
+# and a shim stays in its start dir.
 function Add-UserBinToPath {
-    $binDirectory = Join-Path $HOME '.local\bin'
+    $leading = @(
+        (Join-Path $HOME '.local\bin'), (Join-Path $ScoopRoot 'apps\pwsh\current'))
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $pathEntries = @($userPath -split ';' | Where-Object { $_ })
-    if ($pathEntries[0] -ne $binDirectory -or
+    $head = @($pathEntries | Select-Object -First $leading.Count)
+    if (($head -join ';') -ne ($leading -join ';') -or
         $pathEntries -contains (Join-Path $HOME 'bin')) {
-        Write-Info "Putting $binDirectory first on the user PATH"
+        Write-Info "Putting $($leading -join ', ') first on the user PATH"
         $others = @($pathEntries | Where-Object {
-                $_ -ne $binDirectory -and $_ -ne (Join-Path $HOME 'bin')
+                $_ -notin $leading -and $_ -ne (Join-Path $HOME 'bin')
             })
         Invoke-IfNotDryRun {
             [Environment]::SetEnvironmentVariable(
-                'Path', ((@($binDirectory) + $others) -join ';'), 'User')
+                'Path', (($leading + $others) -join ';'), 'User')
         }
     }
 }

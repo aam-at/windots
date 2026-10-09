@@ -19,6 +19,9 @@ selection_bg = "#504945"
 # -----------------------------------------------------------------------------
 
 [terminal]
+# Must resolve to the real exe, not the scoop shim: herdr saves the cwd of the
+# process it spawned, and the shim sits in its start dir for the pane's life.
+# setup\Configure-Env.ps1 puts the real one ahead of the shims on the user PATH.
 default_shell = "pwsh.exe"
 shell_mode = "non_login"
 new_cwd = "follow"
