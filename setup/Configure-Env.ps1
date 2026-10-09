@@ -98,6 +98,19 @@ function Set-AspellFilterPath {
     }
 }
 
+# direnv runs .envrc files through bash from PATH, and System32's bash is WSL's
+# launcher, which can't chdir into this machine's Windows paths. Point direnv
+# at Scoop's Git Bash instead. Generated on every run, so it follows $ScoopRoot.
+function Set-DirenvConfig {
+    $bash = Join-Path $ScoopRoot 'apps\git\current\bin\bash.exe'
+    $conf = Join-Path $HOME '.config\direnv\direnv.toml'
+    Write-Info "Writing $conf with bash_path=$bash"
+    Invoke-IfNotDryRun {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $conf) -Force | Out-Null
+        Set-Content -LiteralPath $conf -Value "bash_path = '$bash'" -Encoding utf8
+    }
+}
+
 # Layer the Windows lazygit override over the shared config. An existing value is kept.
 function Set-LazygitConfig {
     if ([Environment]::GetEnvironmentVariable('LG_CONFIG_FILE', 'User')) { return }
@@ -149,5 +162,6 @@ Add-UserBinToPath
 Set-YasbTheme
 Set-DictationWindow
 Set-AspellFilterPath
+Set-DirenvConfig
 Set-LazygitConfig
 Set-RegionalSettings
