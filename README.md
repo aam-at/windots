@@ -24,8 +24,8 @@ Windows dotfiles and setup scripts.
   supplied. Use `-DryRun` to preview the setup without making changes.
 
 - Skip steps with `-Skip` and a comma-separated list of step names:
-  `Env`, `Registry`, `Ssh`, `Apps`, `PowerToys`, `Links`, `Startup`, `Emacs`,
-  `Fonts`. For example: `pwsh -File .\setup\Setup.ps1 -DryRun -Skip Apps,Fonts`.
+  `Env`, `Registry`, `Ssh`, `Apps`, `AiTools`, `Msys2`, `PowerToys`, `Links`,
+  `Startup`, `Emacs`, `Fonts`. For example: `pwsh -File .\setup\Setup.ps1 -DryRun -Skip Apps,Fonts`.
   The header of `setup\Setup.ps1` says what each step does.
 
 - The setup turns on only the PowerToys modules listed in

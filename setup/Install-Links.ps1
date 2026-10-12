@@ -135,8 +135,6 @@ $terminalState = Join-Path $env:LOCALAPPDATA (
     'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState'
 )
 $linkMap = @{
-    (Join-Path $HOME '.local\bin\cc-personal.cmd') = (WindotsPath 'cmd\cc-personal.cmd')
-    (Join-Path $HOME '.local\bin\cc-work.cmd') = (WindotsPath 'cmd\cc-work.cmd')
     (Join-Path $HOME '.local\bin\y.cmd') = (WindotsPath 'cmd\y.cmd')
     (Join-Path $env:LOCALAPPDATA 'clink\default_settings') =
     (WindotsPath 'config\clink\default_settings')

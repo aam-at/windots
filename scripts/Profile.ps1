@@ -275,7 +275,7 @@ if ($init = Import-ToolInit starship init, powershell, --print-full-init) {
 }
 
 # herdr restores panes by typing a bare `claude --resume <id>`: no CLAUDE_CONFIG_DIR
-# (the cc-* launchers set it) and maybe the wrong cwd. Recover both from the
+# (the launcher sets it) and maybe the wrong cwd. Recover both from the
 # transcript, found by searching every ~\.claude-* config dir.
 function claude {
     $t = if ($args[0] -in '--resume', '-r' -and

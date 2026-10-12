@@ -109,7 +109,7 @@ else {
 
 $scoopBuckets = @('extras')
 $scoopAppsMain = @(
-    '7zip', 'ag', 'antigravity-cli', 'aspell', 'atuin', 'bat', 'bitwarden-cli',
+    '7zip', 'ag', 'aspell', 'atuin', 'bat', 'bitwarden-cli',
     'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake',
     'curl', 'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch',
     'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt',
@@ -122,19 +122,17 @@ $scoopAppsMain = @(
     'zellij', 'zoxide'
 )
 $scoopAppsExtras = @(
-    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'chatgpt', 'claude',
-    'everything', 'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win',
-    'handbrake', 'herdr', 'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto',
-    'television', 'thorium-reader', 'totalcommander', 'wezterm', 'winrar', 'yasb', 'zed'
+    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'everything',
+    'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr',
+    'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto', 'television',
+    'thorium-reader', 'totalcommander', 'wezterm', 'winrar', 'yasb', 'zed'
 )
 $uvTools = @('tmuxp')
 $bunApps = @(
-    '@anthropic-ai/claude-code@latest', '@github/copilot',
-    '@github/copilot-language-server', '@google/gemini-cli@latest',
-    '@marp-team/marp-cli', 'bibtex-tidy', 'dockerfile-language-server-nodejs',
-    'js-beautify', 'oh-my-pi', 'opencode-ai', 'pi-coding-agent', 'prettier',
-    'typescript', 'typescript-formatter', 'typescript-language-server',
-    'vim-language-server', 'vscode-json-languageserver', 'yaml-language-server'
+    '@github/copilot-language-server', '@marp-team/marp-cli', 'bibtex-tidy',
+    'dockerfile-language-server-nodejs', 'js-beautify', 'prettier', 'typescript',
+    'typescript-formatter', 'typescript-language-server', 'vim-language-server',
+    'vscode-json-languageserver', 'yaml-language-server'
 )
 
 if (Test-Command 'scoop') {
@@ -261,31 +259,6 @@ if (Test-Command 'scoop') {
     }
     else {
         Write-Warn 'bun not found after Scoop installation; skipping Bun packages.'
-    }
-
-    # Install Codex with OpenAI's native Windows installer.
-    Write-Info 'Installing Codex with the native installer'
-    Invoke-IfNotDryRun {
-        try {
-            Invoke-WithEnvironment @{ CODEX_NON_INTERACTIVE = '1' } {
-                Invoke-RestMethod 'https://chatgpt.com/codex/install.ps1' |
-                    Invoke-Expression
-            }
-        }
-        catch {
-            Write-Warn "Codex installation failed: $_"
-            $packageFailures.Add('installer:codex')
-        }
-    }
-
-    # Install OMP alongside the Codex and Claude command-line tools.
-    Write-Info 'Installing OMP'
-    Invoke-IfNotDryRun {
-        try { Invoke-RestMethod 'https://omp.sh/install.ps1' | Invoke-Expression }
-        catch {
-            Write-Warn "OMP installation failed: $_"
-            $packageFailures.Add('installer:omp')
-        }
     }
 
     # tmuxp: tmux session templates, run against rmux (rmux\tmux.cmd) or psmux.

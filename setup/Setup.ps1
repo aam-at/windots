@@ -9,6 +9,8 @@ column is the name to pass to -Skip (comma-separated, e.g. -Skip Apps,Fonts):
                                  Mode, long paths, lid/sleep power plan
   Ssh        Configure-SshAgent  enable ssh-agent (UAC), load ~/.ssh/id_ed25519
   Apps       Install-Apps        winget, Scoop, Bun packages, PowerShell modules
+  AiTools    Install-AiTools     Claude, Codex, Gemini, Copilot, OMP and other
+                                 AI tools (Scoop, Bun, uv, Go, installers)
   Msys2      Configure-Msys2     update MSYS2, install gcc/enchant for Emacs jinx
   PowerToys  Configure-PowerToys merge config/powertoys/settings.json (no FancyZones
                                  with -DesktopMode Komorebi)
@@ -76,6 +78,7 @@ try {
         Registry = { Configure-Registry }
         Ssh = { Invoke-Step 'Configure-SshAgent' }
         Apps = { Invoke-Step 'Install-Apps' }
+        AiTools = { Invoke-Step 'Install-AiTools' }
         Msys2 = { Invoke-Step 'Configure-Msys2' }
         PowerToys = {
             Invoke-Step 'Configure-PowerToys' @{ DesktopMode = $DesktopMode }
