@@ -176,6 +176,7 @@ function Build-NativeHelpers {
         @{ Source = WindotsPath 'yasb\battery\battery.c'; Libs = 'powrprof' }
         @{ Source = WindotsPath 'yasb\language\language.c' }
         @{ Source = WindotsPath 'yasb\caffeinate\caffeinate.c'; Windows = $true }
+        @{ Source = WindotsPath 'yasb\brightness\brightness.c'; Windows = $true }
         @{ Source = WindotsPath 'yasb\emacs\emacs-tray.c'; Windows = $true }
         @{
             Source = WindotsPath 'yasb\activitywatch\window-watcher.c'
@@ -394,6 +395,12 @@ try {
         Name = 'WindowWatcher'
         Candidates = @((WindotsPath 'yasb\activitywatch\window-watcher.exe'))
         RunningProcessName = 'window-watcher'
+    }
+    [void](Ensure-StartupShortcut @shortcut)
+    $shortcut = @{
+        Name = 'BrightnessOff'
+        Candidates = @((WindotsPath 'yasb\brightness\brightness.exe'))
+        RunningProcessName = 'brightness'
     }
     [void](Ensure-StartupShortcut @shortcut)
     $shortcut = @{
