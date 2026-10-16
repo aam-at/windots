@@ -21,14 +21,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
-
-$scoopApps = @('antigravity-cli', 'chatgpt', 'claude')
-$bunTools = @(
-    '@anthropic-ai/claude-code@latest', '@github/copilot', '@google/gemini-cli@latest',
-    '@tawandotorg/claude-sync', 'oh-my-pi', 'opencode-ai', 'pi-coding-agent'
-)
-$uvTools = @('claude-swap')
-$goTools = @()
+. (Join-Path $PSScriptRoot 'Packages.ps1')
 
 $failures = [System.Collections.Generic.List[string]]::new()
 
@@ -48,14 +41,14 @@ function Install-Tools([string]$Runtime, [string[]]$Tools, [scriptblock]$Install
     }
 }
 
-Install-Tools 'scoop' $scoopApps {
+Install-Tools 'scoop' $aiScoopApps {
     param($t)
     scoop prefix $t *>$null
     if ($LASTEXITCODE -eq 0) { scoop update $t } else { scoop install $t }
 }
-Install-Tools 'bun' $bunTools { param($t) bun add --global $t }
-Install-Tools 'uv' $uvTools { param($t) uv tool install --upgrade $t }
-Install-Tools 'go' $goTools { param($t) go install $t }
+Install-Tools 'bun' $aiBunTools { param($t) bun add --global $t }
+Install-Tools 'uv' $aiUvTools { param($t) uv tool install --upgrade $t }
+Install-Tools 'go' $aiGoTools { param($t) go install $t }
 
 # Codex: OpenAI's native Windows installer.
 Write-Info 'Installing Codex with the native installer'

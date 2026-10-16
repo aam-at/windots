@@ -19,6 +19,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'Common.ps1')
+. (Join-Path $PSScriptRoot 'Packages.ps1')
 
 function Install-WingetPackage {
     param([Parameter(Mandatory)][string]$Id, [string[]]$Override)
@@ -50,9 +51,23 @@ function Install-ScoopPackage {
     scoop prefix $Name *>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Verbose "scoop package is installed; checking for updates: $Name"
-        return Invoke-NativeCommand -Description "Scoop package update $Name" -Action {
-            scoop update $Name
+        if ($DryRun) { return $true }
+        # Scoop reports a blocked app with Write-Host, which only *>&1 captures.
+        $output = scoop update $Name *>&1
+        $updated = $LASTEXITCODE -eq 0
+        $output | Out-Host
+        # Only an app with an update that is running is blocked: ask, then retry.
+        if (Test-ScoopBlocked $Name ($output | Out-String)) {
+            # A no leaves the app as it is, which is not a failure.
+            if (-not (Stop-ForUpdate $Name)) { return $true }
+            try {
+                return Invoke-NativeCommand -Description "Scoop package update $Name" `
+                    -Action { scoop update $Name }
+            }
+            finally { Restart-ScoopLiveApp $Name }
         }
+        if (-not $updated) { Write-Warn "Scoop package update $Name failed." }
+        return $updated
     }
 
     Write-Info "scoop install $Source"
@@ -62,23 +77,6 @@ function Install-ScoopPackage {
 }
 
 $packageFailures = [System.Collections.Generic.List[string]]::new()
-
-# Winget apps (install per-ID for clearer output and retries)
-$wingetApps = @(
-    'Dropbox.Dropbox', 'FSFhu.Hunspell', 'Google.GoogleDrive', 'Helvesec.RMUX',
-    'HTTPie.HTTPie', 'IJHack.QtPass', 'LGUG2Z.masir', 'lin-ycv.EverythingCmdPal',
-    'marlocarlo.psmux', 'Microsoft.PowerShell', 'Microsoft.PowerToys',
-    'Microsoft.VisualStudio.BuildTools', 'Microsoft.VisualStudioCode',
-    'Microsoft.WindowsTerminal', 'Tailscale.Tailscale', 'VideoLAN.VLC', 'WinFsp.WinFsp'
-)
-# Installer arguments for packages that need more than the default install.
-$wingetOverrides = @{
-    'Microsoft.VisualStudio.BuildTools' = @(
-        '--override'
-        ('--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools ' +
-        '--includeRecommended')
-    )
-}
 
 if (Test-Command 'winget') {
     Write-Info 'Installing applications via winget...'
@@ -106,34 +104,6 @@ if (Test-Command 'winget') {
 else {
     Write-Warn 'winget not found; skipping winget apps.'
 }
-
-$scoopBuckets = @('extras')
-$scoopAppsMain = @(
-    '7zip', 'ag', 'aspell', 'atuin', 'bat', 'bitwarden-cli',
-    'bottom', 'broot', 'btop', 'bun', 'busybox', 'clink', 'clink-completions', 'cmake',
-    'curl', 'delta', 'direnv', 'dust', 'everything-cli', 'eza', 'far', 'fastfetch',
-    'fd', 'ffmpeg', 'fzf', 'gcc', 'gdu', 'gh', 'ghostscript', 'git', 'git-crypt',
-    'gitui', 'glow', 'gnupg', 'go', 'gping', 'helix', 'hledger', 'imagemagick', 'jq',
-    'lazygit', 'less', 'lsd', 'lua', 'luarocks', 'mosh-client', 'msys2', 'navi',
-    'neovim', 'nodejs-lts', 'ouch', 'pandoc', 'pkgconf', 'poppler', 'prek', 'procs',
-    'pwsh', 'python', 'rclone', 'ripgrep', 'rtk', 'rustup', 'sd', 'sed', 'shellcheck',
-    'shfmt', 'sqlite', 'starship', 'sysinternals', 'tealdeer', 'tectonic', 'texlab',
-    'tree-sitter', 'uv', 'vale', 'vim', 'watchexec', 'wget', 'xh', 'yazi', 'yt-dlp',
-    'zellij', 'zoxide'
-)
-$scoopAppsExtras = @(
-    'activitywatch', 'antigravity-ide', 'autohotkey', 'bitwarden', 'everything',
-    'everything-powertoys', 'gitu', 'googlechrome', 'gpg4win', 'handbrake', 'herdr',
-    'kanata', 'komorebi', 'mupdf', 'notepadplusplus', 'quarto', 'television',
-    'thorium-reader', 'totalcommander', 'wezterm', 'winrar', 'yasb', 'zed'
-)
-$uvTools = @('tmuxp')
-$bunApps = @(
-    '@github/copilot-language-server', '@marp-team/marp-cli', 'bibtex-tidy',
-    'dockerfile-language-server-nodejs', 'js-beautify', 'prettier', 'typescript',
-    'typescript-formatter', 'typescript-language-server', 'vim-language-server',
-    'vscode-json-languageserver', 'yaml-language-server'
-)
 
 if (Test-Command 'scoop') {
     Write-Info 'Ensuring scoop buckets and apps are installed...'
@@ -319,11 +289,6 @@ if (-not (Test-Command Install-Module)) {
     Write-Warn 'Install-Module not available; skipping PS module installs.'
 }
 else {
-    $psModules = @(
-        'CompletionPredictor',
-        'PSScriptAnalyzer'
-    )
-
     try {
         $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
         if ($repo.InstallationPolicy -ne 'Trusted') {

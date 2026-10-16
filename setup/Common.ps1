@@ -174,3 +174,114 @@ function Stop-AutoHotkeyScript([string]$ScriptPath) {
         Where-Object { $_.CommandLine -like "*$ScriptPath*" } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 }
+
+# Running processes, grouped by Scoop app: the folder under scoop\apps they run from.
+# Not this script's process or its parents (the shell and terminal running it).
+function Get-RunningScoopApps {
+    $root = Join-Path $ScoopRoot 'apps\'
+    $parents = @{}
+    foreach ($p in Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId) {
+        $parents[[int]$p.ProcessId] = [int]$p.ParentProcessId
+    }
+    $own = [System.Collections.Generic.HashSet[int]]::new()
+    $id = [int]$PID
+    while ($id -and $own.Add($id)) { $id = $parents[$id] }
+    Get-Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Path -and $_.Path.StartsWith($root, 'OrdinalIgnoreCase') -and
+            -not $own.Contains($_.Id)
+        } |
+        Group-Object { ($_.Path.Substring($root.Length) -split '\\')[0] }
+}
+
+# Asks before stopping the running $Processes of $App. Returns $true when none are
+# left running (none were, or the user said yes), $false when the user said no.
+function Confirm-StopApp([string]$App, [object[]]$Processes) {
+    if (-not $Processes) { return $true }
+    $names = ($Processes | ForEach-Object Name | Sort-Object -Unique) -join ', '
+    if ($DryRun) {
+        Write-Info "$App is running ($names); would ask before stopping it."
+        return $false
+    }
+    $answer = Read-Host "$App is running ($names). Stop it? [y/N]"
+    if ($answer -notmatch '^y') {
+        Write-Warn "$App is still running; it is not updated."
+        return $false
+    }
+    $Processes | Stop-Process -Force -ErrorAction SilentlyContinue
+    $Processes | Wait-Process -ErrorAction SilentlyContinue
+    return $true
+}
+
+# Scoop skips an update while the app runs. True when $Output says so for $App.
+function Test-ScoopBlocked([string]$App, [string]$Output) {
+    $Output -match ('instances of "{0}" are still running' -f [regex]::Escape($App))
+}
+
+# Processes of a Scoop app: those running from its folder, plus the $liveApps names
+# (AutoHotkey's shim copy runs from scoop\shims, outside the folder).
+function Get-ScoopAppProcesses([string]$App) {
+    $names = @($liveApps | Where-Object ScoopApp -EQ $App | ForEach-Object Processes)
+    $fromFolder = @(Get-RunningScoopApps | Where-Object Name -EQ $App |
+            ForEach-Object Group)
+    $byName = @()
+    if ($names) {
+        $byName = @(Get-Process -Name $names -ErrorAction SilentlyContinue)
+    }
+    @($fromFolder + $byName) | Sort-Object Id -Unique
+}
+
+# Apps Stop-ForUpdate stopped in this run; only these are started again.
+$script:stoppedApps = [System.Collections.Generic.List[string]]::new()
+
+# Stops the running processes of a Scoop app whose update is blocked. $autoStopApps
+# close gracefully without asking, so their windows save state; other apps ask
+# first. Returns $true when the update can go ahead.
+function Stop-ForUpdate([string]$App) {
+    $procs = @(Get-ScoopAppProcesses $App)
+    if (-not $procs) { return $true }
+    if ($App -in @($autoStopApps | ForEach-Object ScoopApp)) {
+        if ($DryRun) {
+            Write-Info "$App is running; would close it for its update."
+            return $false
+        }
+        Write-Info "Closing $App for its update"
+        $procs | ForEach-Object { $_.CloseMainWindow() | Out-Null }
+        $procs | Wait-Process -Timeout 20 -ErrorAction SilentlyContinue
+        $procs | Where-Object { -not $_.HasExited } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+        $script:stoppedApps.Add($App)
+        return $true
+    }
+    if (Confirm-StopApp $App $procs) {
+        $script:stoppedApps.Add($App)
+        return $true
+    }
+    return $false
+}
+
+# Starts an app stopped by Stop-ForUpdate again, right after its update: auto-stop
+# apps with their last session, the others through their Startup shortcuts.
+function Restart-ScoopLiveApp([string]$App) {
+    if ($App -notin $script:stoppedApps) { return }
+    $auto = $autoStopApps | Where-Object ScoopApp -EQ $App
+    if ($auto) {
+        Write-Info "Restarting $App"
+        $exe = Join-Path $ScoopRoot "apps\$App\current\$($auto.Exe)"
+        $start = @{ FilePath = $exe }
+        if ($auto.Arguments) { $start.ArgumentList = $auto.Arguments }
+        Invoke-IfNotDryRun { Start-Process @start }
+        return
+    }
+    $live = $liveApps | Where-Object ScoopApp -EQ $App
+    if (-not $live) { return }
+    $startup = [Environment]::GetFolderPath('Startup')
+    $links = @($live.Shortcuts | ForEach-Object { Join-Path $startup "$_.lnk" } |
+            Where-Object { Test-Path -LiteralPath $_ })
+    if (-not $links) {
+        Write-Warn "$($live.App) has no Startup shortcut; start it by hand."
+        return
+    }
+    Write-Info "Restarting $($live.App)"
+    Invoke-IfNotDryRun { $links | ForEach-Object { Invoke-Item -LiteralPath $_ } }
+}
