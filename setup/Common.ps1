@@ -176,8 +176,10 @@ function Stop-AutoHotkeyScript([string]$ScriptPath) {
 }
 
 # Running processes, grouped by Scoop app: the folder under scoop\apps they run from.
-# Not this script's process or its parents (the shell and terminal running it).
+# Excludes this script and its parents, or selects only those with -HostProcessesOnly.
 function Get-RunningScoopApps {
+    param([switch]$HostProcessesOnly)
+
     $root = Join-Path $ScoopRoot 'apps\'
     $parents = @{}
     foreach ($p in Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId) {
@@ -189,7 +191,7 @@ function Get-RunningScoopApps {
     Get-Process -ErrorAction SilentlyContinue |
         Where-Object {
             $_.Path -and $_.Path.StartsWith($root, 'OrdinalIgnoreCase') -and
-            -not $own.Contains($_.Id)
+            ($own.Contains($_.Id) -eq [bool]$HostProcessesOnly)
         } |
         Group-Object { ($_.Path.Substring($root.Length) -split '\\')[0] }
 }
@@ -238,6 +240,12 @@ $script:stoppedApps = [System.Collections.Generic.List[string]]::new()
 # close gracefully without asking, so their windows save state; other apps ask
 # first. Returns $true when the update can go ahead.
 function Stop-ForUpdate([string]$App) {
+    if (Get-RunningScoopApps -HostProcessesOnly | Where-Object Name -EQ $App) {
+        Write-Warn ("$App is hosting this script or its parent shell; it is not " +
+            'updated. Close those sessions and run scripts\Update-Apps.cmd ' +
+            'from Explorer to update from Windows PowerShell instead.')
+        return $false
+    }
     $procs = @(Get-ScoopAppProcesses $App)
     if (-not $procs) { return $true }
     if ($App -in @($autoStopApps | ForEach-Object ScoopApp)) {
@@ -248,9 +256,19 @@ function Stop-ForUpdate([string]$App) {
         Write-Info "Closing $App for its update"
         $procs | ForEach-Object { $_.CloseMainWindow() | Out-Null }
         $procs | Wait-Process -Timeout 20 -ErrorAction SilentlyContinue
-        $procs | Where-Object { -not $_.HasExited } |
-            Stop-Process -Force -ErrorAction SilentlyContinue
         $script:stoppedApps.Add($App)
+        # Closing a window can leave background processes or spawn new children.
+        # Refresh the list, then wait for forced exits before Scoop checks again.
+        $remaining = @(Get-ScoopAppProcesses $App)
+        if ($remaining) {
+            $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+            $remaining | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue
+        }
+        if (@(Get-ScoopAppProcesses $App).Count -gt 0) {
+            Write-Warn "$App is still running after closing it; it is not updated."
+            Restart-ScoopLiveApp $App
+            return $false
+        }
         return $true
     }
     if (Confirm-StopApp $App $procs) {
@@ -269,7 +287,7 @@ function Restart-ScoopLiveApp([string]$App) {
         Write-Info "Restarting $App"
         $exe = Join-Path $ScoopRoot "apps\$App\current\$($auto.Exe)"
         $start = @{ FilePath = $exe }
-        if ($auto.Arguments) { $start.ArgumentList = $auto.Arguments }
+        if ($auto['Arguments']) { $start.ArgumentList = $auto['Arguments'] }
         Invoke-IfNotDryRun { Start-Process @start }
         return
     }
