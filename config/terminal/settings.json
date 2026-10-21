@@ -1,65 +1,90 @@
 {
     "$help": "https://aka.ms/terminal-documentation",
     "$schema": "https://aka.ms/terminal-profiles-schema",
-    "actions": [
+    "actions": 
+    [
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 0
             },
             "id": "User.SwitchToTab1"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 1
             },
             "id": "User.SwitchToTab2"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 2
             },
             "id": "User.SwitchToTab3"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 3
             },
             "id": "User.SwitchToTab4"
         },
         {
-            "command": {
+            "command": 
+            {
+                "action": "swapPane",
+                "direction": "up"
+            },
+            "id": "User.SwapPaneUp"
+        },
+        {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 4
             },
             "id": "User.SwitchToTab5"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 5
             },
             "id": "User.SwitchToTab6"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 6
             },
             "id": "User.SwitchToTab7"
         },
         {
-            "command": {
+            "command": 
+            {
+                "action": "closeTab"
+            },
+            "id": "User.CloseTab"
+        },
+        {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 7
             },
             "id": "User.SwitchToTab8"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "switchToTab",
                 "index": 8
             },
@@ -70,6 +95,15 @@
             "id": "User.DuplicateTab"
         },
         {
+            "command": 
+            {
+                "action": "splitPane",
+                "split": "down",
+                "splitMode": "duplicate"
+            },
+            "id": "User.SplitDown"
+        },
+        {
             "command": "tabSearch",
             "id": "User.TabSearch"
         },
@@ -78,35 +112,44 @@
             "id": "User.RenameTab"
         },
         {
-            "command": {
-                "action": "closeTab"
-            },
-            "id": "User.CloseTab"
-        },
-        {
-            "command": {
+            "command": 
+            {
                 "action": "moveTab",
                 "direction": "forward"
             },
             "id": "User.MoveTabForward"
         },
         {
-            "command": {
+            "command": "togglePaneZoom",
+            "id": "User.ZoomPane"
+        },
+        {
+            "command": 
+            {
+                "action": "scrollToMark",
+                "direction": "previous"
+            },
+            "id": "User.PreviousPrompt"
+        },
+        {
+            "command": 
+            {
                 "action": "moveTab",
                 "direction": "backward"
             },
             "id": "User.MoveTabBackward"
         },
         {
-            "command": {
-                "action": "splitPane",
-                "split": "down",
-                "splitMode": "duplicate"
+            "command": 
+            {
+                "action": "swapPane",
+                "direction": "down"
             },
-            "id": "User.SplitDown"
+            "id": "User.SwapPaneDown"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "splitPane",
                 "split": "right",
                 "splitMode": "duplicate"
@@ -118,95 +161,96 @@
             "id": "User.RotateSplit"
         },
         {
-            "command": "togglePaneZoom",
-            "id": "User.ZoomPane"
+            "command": 
+            {
+                "action": "scrollToMark",
+                "direction": "next"
+            },
+            "id": "User.NextPrompt"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "moveFocus",
                 "direction": "nextInOrder"
             },
             "id": "User.NextPane"
         },
         {
-            "command": {
-                "action": "moveFocus",
-                "direction": "previousInOrder"
-            },
-            "id": "User.PreviousPane"
-        },
-        {
-            "command": {
+            "command": 
+            {
                 "action": "moveFocus",
                 "direction": "left"
             },
             "id": "User.FocusPaneLeft"
         },
         {
-            "command": {
+            "command": 
+            {
+                "action": "moveFocus",
+                "direction": "previousInOrder"
+            },
+            "id": "User.PreviousPane"
+        },
+        {
+            "command": 
+            {
                 "action": "moveFocus",
                 "direction": "right"
             },
             "id": "User.FocusPaneRight"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "moveFocus",
                 "direction": "up"
             },
             "id": "User.FocusPaneUp"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "moveFocus",
                 "direction": "down"
             },
             "id": "User.FocusPaneDown"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "swapPane",
                 "direction": "left"
             },
             "id": "User.SwapPaneLeft"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "swapPane",
                 "direction": "right"
             },
             "id": "User.SwapPaneRight"
         },
         {
-            "command": {
-                "action": "swapPane",
-                "direction": "up"
-            },
-            "id": "User.SwapPaneUp"
-        },
-        {
-            "command": {
-                "action": "swapPane",
-                "direction": "down"
-            },
-            "id": "User.SwapPaneDown"
-        },
-        {
-            "command": {
+            "command": 
+            {
                 "action": "swapPane",
                 "direction": "nextInOrder"
             },
             "id": "User.SwapPaneNext"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "swapPane",
                 "direction": "previousInOrder"
             },
             "id": "User.SwapPanePrevious"
         },
         {
-            "command": {
+            "command": 
+            {
                 "action": "swapPane",
                 "direction": "first"
             },
@@ -217,21 +261,8 @@
             "id": "User.ClosePane"
         },
         {
-            "command": {
-                "action": "scrollToMark",
-                "direction": "previous"
-            },
-            "id": "User.PreviousPrompt"
-        },
-        {
-            "command": {
-                "action": "scrollToMark",
-                "direction": "next"
-            },
-            "id": "User.NextPrompt"
-        },
-        {
-            "command": {
+            "command": 
+            {
                 "action": "globalSummon",
                 "dropdownDuration": 0,
                 "monitor": "toCurrent",
@@ -245,42 +276,71 @@
     "copyFormatting": "none",
     "copyOnSelect": true,
     "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
-    "keybindings": [
+    "keybindings": 
+    [
         {
             "id": "User.QuakeInstant",
             "keys": "win+sc(41)"
-        },
-        {
-            "id": "Terminal.CopyToClipboard",
-            "keys": "ctrl+c"
-        },
-        {
-            "id": "Terminal.FindText",
-            "keys": "ctrl+shift+f"
-        },
-        {
-            "id": "Terminal.PasteFromClipboard",
-            "keys": "ctrl+v"
         },
         {
             "id": "User.SwitchToTab1",
             "keys": "ctrl+shift+1"
         },
         {
+            "id": "Terminal.CopyToClipboard",
+            "keys": "ctrl+c"
+        },
+        {
+            "id": "User.TabSearch",
+            "keys": "ctrl+shift+d"
+        },
+        {
+            "id": "User.SwapPaneRight",
+            "keys": "shift+right"
+        },
+        {
+            "id": "Terminal.PasteFromClipboard",
+            "keys": "ctrl+v"
+        },
+        {
+            "id": "Terminal.FindText",
+            "keys": "ctrl+shift+f"
+        },
+        {
+            "id": "User.PreviousPrompt",
+            "keys": "ctrl+shift+z"
+        },
+        {
             "id": "User.SwitchToTab2",
             "keys": "ctrl+shift+2"
+        },
+        {
+            "id": "User.SwitchToTab5",
+            "keys": "ctrl+shift+5"
+        },
+        {
+            "id": "User.MoveTabBackward",
+            "keys": "ctrl+shift+comma"
+        },
+        {
+            "id": "User.SwapPaneNext",
+            "keys": "alt+h"
         },
         {
             "id": "User.SwitchToTab3",
             "keys": "ctrl+shift+3"
         },
         {
+            "id": "User.SplitDown",
+            "keys": "ctrl+minus"
+        },
+        {
             "id": "User.SwitchToTab4",
             "keys": "ctrl+shift+4"
         },
         {
-            "id": "User.SwitchToTab5",
-            "keys": "ctrl+shift+5"
+            "id": "User.DuplicateTab",
+            "keys": "ctrl+shift+t"
         },
         {
             "id": "User.SwitchToTab6",
@@ -299,14 +359,6 @@
             "keys": "ctrl+shift+9"
         },
         {
-            "id": "User.DuplicateTab",
-            "keys": "ctrl+shift+t"
-        },
-        {
-            "id": "User.TabSearch",
-            "keys": "ctrl+shift+d"
-        },
-        {
             "id": "User.RenameTab",
             "keys": "f2"
         },
@@ -315,16 +367,12 @@
             "keys": "ctrl+shift+q"
         },
         {
+            "id": "User.SwapPaneFirst",
+            "keys": "alt+`"
+        },
+        {
             "id": "User.MoveTabForward",
             "keys": "ctrl+shift+period"
-        },
-        {
-            "id": "User.MoveTabBackward",
-            "keys": "ctrl+shift+comma"
-        },
-        {
-            "id": "User.SplitDown",
-            "keys": "ctrl+minus"
         },
         {
             "id": "User.SplitRight",
@@ -339,6 +387,10 @@
             "keys": "ctrl+alt+z"
         },
         {
+            "id": "User.SwapPaneLeft",
+            "keys": "shift+left"
+        },
+        {
             "id": "User.NextPane",
             "keys": "ctrl+]"
         },
@@ -349,6 +401,10 @@
         {
             "id": "User.FocusPaneLeft",
             "keys": "ctrl+shift+left"
+        },
+        {
+            "id": "User.SwapPanePrevious",
+            "keys": "alt+l"
         },
         {
             "id": "User.FocusPaneRight",
@@ -363,14 +419,6 @@
             "keys": "ctrl+shift+down"
         },
         {
-            "id": "User.SwapPaneLeft",
-            "keys": "shift+left"
-        },
-        {
-            "id": "User.SwapPaneRight",
-            "keys": "shift+right"
-        },
-        {
             "id": "User.SwapPaneUp",
             "keys": "alt+k"
         },
@@ -379,47 +427,36 @@
             "keys": "alt+j"
         },
         {
-            "id": "User.SwapPaneNext",
-            "keys": "alt+h"
-        },
-        {
-            "id": "User.SwapPanePrevious",
-            "keys": "alt+l"
-        },
-        {
-            "id": "User.SwapPaneFirst",
-            "keys": "alt+`"
-        },
-        {
             "id": "User.ClosePane",
             "keys": "ctrl+shift+w"
-        },
-        {
-            "id": "User.PreviousPrompt",
-            "keys": "ctrl+shift+z"
         },
         {
             "id": "User.NextPrompt",
             "keys": "ctrl+shift+x"
         }
     ],
-    "newTabMenu": [
+    "newTabMenu": 
+    [
         {
             "type": "remainingProfiles"
         }
     ],
-    "profiles": {
-        "defaults": {
+    "profiles": 
+    {
+        "defaults": 
+        {
             "colorScheme": "GruvboxDark",
             "cursorShape": "bar",
-            "font": {
+            "font": 
+            {
                 "face": "JetBrainsMono Nerd Font"
             },
             "opacity": 95,
             "padding": "12, 8",
             "scrollbarState": "hidden"
         },
-        "list": [
+        "list": 
+        [
             {
                 "commandline": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
                 "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
@@ -433,22 +470,10 @@
                 "name": "Command Prompt"
             },
             {
-                "guid": "{963ff2f7-6aed-5ce3-9d91-90d99571f53a}",
-                "hidden": true,
-                "name": "Ubuntu-24.04",
-                "source": "Windows.Terminal.Wsl"
-            },
-            {
                 "guid": "{b453ae62-4e3d-5e58-b989-0a998ec441b8}",
                 "hidden": false,
                 "name": "Azure Cloud Shell",
                 "source": "Windows.Terminal.Azure"
-            },
-            {
-                "guid": "{d8e96812-b789-5068-a5ae-10b2fb53e95f}",
-                "hidden": false,
-                "name": "Ubuntu 24.04.1 LTS",
-                "source": "CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc"
             },
             {
                 "guid": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
@@ -484,7 +509,8 @@
             }
         ]
     },
-    "schemes": [
+    "schemes": 
+    [
         {
             "background": "#282828",
             "black": "#282828",
@@ -511,20 +537,24 @@
     ],
     "showTabsFullscreen": true,
     "theme": "gruvbox",
-    "themes": [
+    "themes": 
+    [
         {
             "name": "gruvbox",
-            "tab": {
+            "tab": 
+            {
                 "background": "#282828FF",
                 "iconStyle": "default",
                 "showCloseButton": "hover",
                 "unfocusedBackground": "#1D2021FF"
             },
-            "tabRow": {
+            "tabRow": 
+            {
                 "background": "#1D2021FF",
                 "unfocusedBackground": "#1D2021FF"
             },
-            "window": {
+            "window": 
+            {
                 "applicationTheme": "dark",
                 "experimental.rainbowFrame": false,
                 "frame": null,
