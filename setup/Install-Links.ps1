@@ -176,6 +176,12 @@ $linkMap = @{
     (Join-Path $env:APPDATA 'helix') = (DotfilesPath 'config\helix')
     (Join-Path $env:APPDATA 'herdr\config.toml') =
     (WindotsPath 'config\herdr\config.toml')
+    (Join-Path $HOME '.t3\userdata\settings.json') =
+    (DotfilesPath 'config\t3code\settings.json')
+    (Join-Path $HOME '.t3\userdata\client-settings.json') =
+    (DotfilesPath 'config\t3code\client-settings.json')
+    (Join-Path $HOME '.t3\userdata\keybindings.json') =
+    (DotfilesPath 'config\t3code\keybindings.json')
     (Join-Path $env:APPDATA 'yazi\config') = (DotfilesPath 'config\yazi')
     (Join-Path $env:APPDATA 'Zed') = (DotfilesPath 'config\zed')
     (Join-Path $HOME '.config\emacs\doom') = (DotfilesPath 'emacs\doom')
