@@ -7,7 +7,8 @@ not updated. The manifest bump writes to scoop\; review it with git diff.
 A running app is stopped only when Scoop has an update for it and can't install
 it while it runs, and it is restarted right after its update. Chrome closes
 without asking and reopens with its last session. You're asked first for the
-others (AutoHotkey, YASB and ActivityWatch come back from their Startup shortcuts).
+others (AutoHotkey and YASB are supervised for crash recovery; ActivityWatch
+comes back from its Startup shortcut).
 To update Scoop's pwsh itself, close PowerShell 7 sessions and open Update-Apps.cmd
 from Explorer. It uses the built-in Windows PowerShell, avoiding a lock on pwsh.
 

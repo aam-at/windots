@@ -198,7 +198,11 @@ function Get-RunningScoopApps {
 
 # Asks before stopping the running $Processes of $App. Returns $true when none are
 # left running (none were, or the user said yes), $false when the user said no.
-function Confirm-StopApp([string]$App, [object[]]$Processes) {
+function Confirm-StopApp(
+    [string]$App,
+    [object[]]$Processes,
+    [switch]$PauseRestart
+) {
     if (-not $Processes) { return $true }
     $names = ($Processes | ForEach-Object Name | Sort-Object -Unique) -join ', '
     if ($DryRun) {
@@ -210,9 +214,31 @@ function Confirm-StopApp([string]$App, [object[]]$Processes) {
         Write-Warn "$App is still running; it is not updated."
         return $false
     }
+    if ($PauseRestart) { Set-ScoopAppRestartPaused $App $true }
     $Processes | Stop-Process -Force -ErrorAction SilentlyContinue
     $Processes | Wait-Process -ErrorAction SilentlyContinue
     return $true
+}
+
+function Set-ScoopAppRestartPaused([string]$App, [bool]$Paused) {
+    $live = $liveApps | Where-Object ScoopApp -EQ $App
+    if (-not $live.RestartOnCrash) { return }
+    $directory = Join-Path $env:LOCALAPPDATA 'windots\restart'
+    $path = Join-Path $directory "$($live.App).paused"
+    if ($Paused) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        Set-Content -LiteralPath $path -Value $PID -NoNewline
+    }
+    else { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+}
+
+function Test-ScoopAppRestartSupervisor([string]$App) {
+    $live = $liveApps | Where-Object ScoopApp -EQ $App
+    if (-not $live.RestartOnCrash) { return $false }
+    $pattern = "*Restart-OnCrash.ps1* -AppName $($live.App) *"
+    [bool](Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" `
+            -ErrorAction SilentlyContinue |
+            Where-Object CommandLine -Like $pattern)
 }
 
 # Scoop skips an update while the app runs. True when $Output says so for $App.
@@ -254,6 +280,7 @@ function Stop-ForUpdate([string]$App) {
             return $false
         }
         Write-Info "Closing $App for its update"
+        Set-ScoopAppRestartPaused $App $true
         $procs | ForEach-Object { $_.CloseMainWindow() | Out-Null }
         $procs | Wait-Process -Timeout 20 -ErrorAction SilentlyContinue
         $script:stoppedApps.Add($App)
@@ -271,7 +298,8 @@ function Stop-ForUpdate([string]$App) {
         }
         return $true
     }
-    if (Confirm-StopApp $App $procs) {
+    $pauseRestart = [bool](($liveApps | Where-Object ScoopApp -EQ $App).RestartOnCrash)
+    if (Confirm-StopApp $App $procs -PauseRestart:$pauseRestart) {
         $script:stoppedApps.Add($App)
         return $true
     }
@@ -282,6 +310,7 @@ function Stop-ForUpdate([string]$App) {
 # apps with their last session, the others through their Startup shortcuts.
 function Restart-ScoopLiveApp([string]$App) {
     if ($App -notin $script:stoppedApps) { return }
+    Set-ScoopAppRestartPaused $App $false
     $auto = $autoStopApps | Where-Object ScoopApp -EQ $App
     if ($auto) {
         Write-Info "Restarting $App"
@@ -293,6 +322,10 @@ function Restart-ScoopLiveApp([string]$App) {
     }
     $live = $liveApps | Where-Object ScoopApp -EQ $App
     if (-not $live) { return }
+    if (Test-ScoopAppRestartSupervisor $App) {
+        Write-Info "$($live.App) crash supervisor will relaunch it."
+        return
+    }
     $startup = [Environment]::GetFolderPath('Startup')
     $links = @($live.Shortcuts | ForEach-Object { Join-Path $startup "$_.lnk" } |
             Where-Object { Test-Path -LiteralPath $_ })

@@ -82,8 +82,15 @@ $liveApps = @(
         ScoopApp = 'autohotkey'
         Processes = 'AutoHotkey64', 'AutoHotkeyUX', 'autohotkey'
         Shortcuts = 'NativeDesktop', 'KomorebiAHK'
+        RestartOnCrash = $true
     }
-    @{ App = 'YASB'; ScoopApp = 'yasb'; Processes = 'yasb'; Shortcuts = 'YASB' }
+    @{
+        App = 'YASB'
+        ScoopApp = 'yasb'
+        Processes = 'yasb'
+        Shortcuts = 'YASB'
+        RestartOnCrash = $true
+    }
     @{
         App = 'ActivityWatch'
         ScoopApp = 'activitywatch'

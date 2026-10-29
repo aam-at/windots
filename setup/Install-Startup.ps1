@@ -1,6 +1,7 @@
 <#
-Creates the Startup-folder shortcuts for the chosen desktop mode (plus YASB, thide,
-Kanata and the Doom daemon, used by both, and Start menu links for Emacs),
+Creates the Startup-folder shortcuts for the chosen desktop mode (plus supervised
+YASB and AutoHotkey launchers, thide, Kanata and the Doom daemon, used by both,
+and Start menu links for Emacs),
 removes the other mode's shortcuts, and starts anything not yet running.
 Both modes turn off the Win+L lock shortcut so the AutoHotkey bindings can use
 Win+L as niri's focus-right.
@@ -114,6 +115,93 @@ function Ensure-StartupShortcut {
         Start-Process @start | Out-Null
     }
     return $true
+}
+
+function Ensure-RestartingStartupShortcut {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Executable,
+        [string]$Arguments,
+        [Parameter(Mandatory)][string[]]$ProcessNames,
+        [string]$ScriptPath,
+        [string]$SupervisorName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SupervisorName)) {
+        $SupervisorName = $Name
+    }
+    $supervisor = WindotsPath 'scripts\Restart-OnCrash.ps1'
+    $powershell = Join-Path $env:SystemRoot (
+        'System32\WindowsPowerShell\v1.0\powershell.exe'
+    )
+    $spec = @{
+        Executable = $Executable
+        Arguments = $Arguments
+        ProcessNames = $ProcessNames
+        ScriptPath = $ScriptPath
+    }
+    $specBase64 = [Convert]::ToBase64String(
+        [Text.Encoding]::Unicode.GetBytes(($spec | ConvertTo-Json -Compress))
+    )
+    $supervisorArguments = (
+        '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass ' +
+        '-File "{0}" -AppName {1} -SpecBase64 {2}'
+    ) -f $supervisor, $SupervisorName, $specBase64
+    $startupDirectory = [Environment]::GetFolderPath(
+        [Environment+SpecialFolder]::Startup
+    )
+    $shortcutPath = Join-Path $startupDirectory "$Name.lnk"
+    Write-Info "Creating crash-restarting Startup shortcut: $shortcutPath"
+    if ($DryRun) { return }
+
+    New-Shortcut -Path $shortcutPath -Target $powershell `
+        -Arguments $supervisorArguments -WorkingDirectory $WindotsRoot -IconLocation ''
+
+    $supervisorPattern = "*Restart-OnCrash.ps1* -AppName $SupervisorName *"
+    $supervisorRunning = Get-CimInstance Win32_Process -Filter `
+        "Name = 'powershell.exe'" -ErrorAction SilentlyContinue |
+        Where-Object CommandLine -Like $supervisorPattern
+    if ($supervisorRunning) {
+        foreach ($runningSupervisor in $supervisorRunning) {
+            $match = [regex]::Match(
+                $runningSupervisor.CommandLine,
+                '-SpecBase64\s+(?<spec>\S+)'
+            )
+            if ($match.Success -and $match.Groups['spec'].Value -eq $specBase64) {
+                Write-Info "$Name crash supervisor is already running."
+                return
+            }
+            if ($match.Success -and $SupervisorName -eq 'AutoHotkey') {
+                $oldSpec = [Text.Encoding]::Unicode.GetString(
+                    [Convert]::FromBase64String($match.Groups['spec'].Value)
+                ) | ConvertFrom-Json
+                if ($oldSpec.ScriptPath -and $oldSpec.ScriptPath -ne $ScriptPath) {
+                    $oldScript = [IO.Path]::GetFullPath([string]$oldSpec.ScriptPath)
+                    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+                        Where-Object {
+                            $_.Name -in @($oldSpec.ProcessNames) -and
+                            $_.CommandLine -like "*$oldScript*"
+                        } |
+                        ForEach-Object {
+                            Stop-Process -Id $_.ProcessId -Force `
+                                -ErrorAction SilentlyContinue
+                        }
+                }
+            }
+            Stop-Process -Id $runningSupervisor.ProcessId -Force `
+                -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Monitor an app already running in this session when setup is rerun. The
+    # supervisor also finds it by process name/script path if it starts first.
+    $start = @{
+        FilePath = $powershell
+        ArgumentList = $supervisorArguments
+        WindowStyle = 'Hidden'
+        WorkingDirectory = $WindotsRoot
+    }
+    Start-Process @start | Out-Null
 }
 
 function Remove-StartupShortcut([string]$Name) {
@@ -279,6 +367,9 @@ try {
         Invoke-IfNotDryRun { Remove-ItemProperty -Path $runKey -Name $runName }
     }
 
+    $autoHotkeyExe = Join-Path $ScoopRoot (
+        'apps\autohotkey\current\v2\AutoHotkey64.exe'
+    )
     if ($DesktopMode -eq 'Komorebi') {
         # --ahk is end-of-life in komorebic (not in `komorebic start --help`
         # any more): it prints a deprecation notice and never actually starts
@@ -303,13 +394,13 @@ try {
         }
         [void](Ensure-StartupShortcut @shortcut)
         $komorebiAhk = WindotsPath 'shells\komorebi\komorebi.ahk'
-        $shortcut = @{
-            Name = 'KomorebiAHK'
-            Candidates = @('autohotkey', 'AutoHotkey64')
-            Arguments = ('"{0}"' -f $komorebiAhk)
-            RunningProcessName = 'AutoHotkeyUX'
+        if (Test-Path -LiteralPath $autoHotkeyExe -PathType Leaf) {
+            Ensure-RestartingStartupShortcut -Name 'KomorebiAHK' `
+                -Executable $autoHotkeyExe -Arguments ('"{0}"' -f $komorebiAhk) `
+                -ProcessNames @('AutoHotkey64.exe', 'AutoHotkeyUX.exe') `
+                -ScriptPath $komorebiAhk -SupervisorName 'AutoHotkey'
         }
-        [void](Ensure-StartupShortcut @shortcut)
+        else { Write-Warn "AutoHotkey executable not found: $autoHotkeyExe" }
         # masir: focus follows the mouse, limited to windows Komorebi manages.
         # It is a console app, which Windows Terminal (the default terminal)
         # would open a tab for; conhost --headless runs it with no window.
@@ -332,13 +423,13 @@ try {
             Get-Process -Name masir -ErrorAction SilentlyContinue | Stop-Process -Force
         }
         $nativeDesktop = WindotsPath 'shells\native\Native-Desktop.ahk'
-        $shortcut = @{
-            Name = 'NativeDesktop'
-            Candidates = @('autohotkey', 'AutoHotkey64')
-            Arguments = ('"{0}"' -f $nativeDesktop)
-            RunningProcessName = 'AutoHotkeyUX'
+        if (Test-Path -LiteralPath $autoHotkeyExe -PathType Leaf) {
+            Ensure-RestartingStartupShortcut -Name 'NativeDesktop' `
+                -Executable $autoHotkeyExe -Arguments ('"{0}"' -f $nativeDesktop) `
+                -ProcessNames @('AutoHotkey64.exe', 'AutoHotkeyUX.exe') `
+                -ScriptPath $nativeDesktop -SupervisorName 'AutoHotkey'
         }
-        [void](Ensure-StartupShortcut @shortcut)
+        else { Write-Warn "AutoHotkey executable not found: $autoHotkeyExe" }
     }
     # YASB is the top bar in both modes; its config lists "$env:YASB_WORKSPACES"
     # as the workspace widget, so each mode shows only its own workspaces.
@@ -358,7 +449,12 @@ try {
         $env:YASB_WORKSPACES = $yasbWorkspaces
     }
     Build-NativeHelpers
-    [void](Ensure-StartupShortcut -Name 'YASB' -Candidates @('yasb'))
+    $yasbExe = Join-Path $ScoopRoot 'apps\yasb\current\yasb.exe'
+    if (Test-Path -LiteralPath $yasbExe -PathType Leaf) {
+        Ensure-RestartingStartupShortcut -Name 'YASB' -Executable $yasbExe `
+            -ProcessNames @('yasb.exe')
+    }
+    else { Write-Warn "YASB executable not found: $yasbExe" }
     # thide (scoop\thide.json) hides the Windows taskbar in both modes: the YASB
     # dock slides in from the bottom edge, where the taskbar would pop up too.
     # Target the real exe, not the Scoop shim, which would stay running beside it.
