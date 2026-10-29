@@ -1,0 +1,32 @@
+{
+    "version": "0.4.0",
+    "description": "Agent harness for learning difficult things.",
+    "homepage": "https://github.com/amosblomqvist/learnharness",
+    "license": "AGPL-3.0",
+    "url": "https://github.com/amosblomqvist/learnharness/releases/download/v0.4.0/LearnHarness-0.4.0-x64-setup.exe",
+    "hash": "0d7b4cdd8196eb6c5ce114d093bfa5bf7f9ea220af80956f922aff7d8876093b",
+    "installer": {
+        "args": [
+            "/S",
+            "/D=$dir"
+        ]
+    },
+    "uninstaller": {
+        "file": "Uninstall LearnHarness.exe",
+        "args": [
+            "/S",
+            "_?=$dir"
+        ]
+    },
+    "bin": "LearnHarness.exe",
+    "shortcuts": [
+        [
+            "LearnHarness.exe",
+            "LearnHarness"
+        ]
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "url": "https://github.com/amosblomqvist/learnharness/releases/download/v$version/LearnHarness-$version-x64-setup.exe"
+    }
+}
