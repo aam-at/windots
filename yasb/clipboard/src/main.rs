@@ -10,8 +10,8 @@
 use std::cell::RefCell;
 use windows::{
     ApplicationModel::DataTransfer::{
-        Clipboard, ClipboardHistoryItem, ClipboardHistoryItemsResultStatus, DataPackageView,
-        StandardDataFormats,
+        Clipboard, ClipboardHistoryItem, ClipboardHistoryItemsResultStatus,
+        DataPackageView, SetHistoryItemAsContentStatus, StandardDataFormats,
     },
     Graphics::Imaging::{
         BitmapAlphaMode, BitmapDecoder, BitmapInterpolationMode, BitmapPixelFormat,
@@ -38,6 +38,7 @@ const CLEAR_H: i32 = 28;
 /// The list is as tall as this many text rows; taller image rows use it up faster.
 const MAX_ROWS: i32 = 8;
 const DEFAULT_PREVIEW: usize = 60;
+const THUMB_TIMER: usize = 1;
 
 const fn rgb(r: u32, g: u32, b: u32) -> COLORREF {
     COLORREF(r | g << 8 | b << 16)
@@ -56,49 +57,108 @@ struct Thumb {
     height: i32,
 }
 
+impl Drop for Thumb {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = DeleteObject(self.bitmap.into());
+        }
+    }
+}
+
 struct Entry {
     /// One-line text preview, or "Image  W×H".
     label: String,
     thumb: Option<Thumb>,
     item: ClipboardHistoryItem,
+    search_label: String,
+    is_image: bool,
+    thumbnail_attempted: bool,
+}
+
+impl Entry {
+    fn new(item: ClipboardHistoryItem, label: String, is_image: bool) -> Self {
+        let search_label = label.to_lowercase();
+        Self {
+            item,
+            label,
+            search_label,
+            is_image,
+            thumbnail_attempted: false,
+            thumb: None,
+        }
+    }
 }
 
 #[derive(Default)]
 struct State {
     entries: Vec<Entry>, // newest first
     query: String,
-    selected: usize, // position in shown()
-    scroll: usize,   // position in shown() of the first visible row
+    filtered: Vec<usize>,
+    selected: usize, // position in filtered
+    scroll: usize,   // position in filtered of the first visible row
     scale: f32,
     font: HFONT,
     preview: usize,
     clear_hover: bool,
+    notice: Option<String>,
+    high_surrogate: Option<u16>,
 }
 
 impl State {
+    fn input_unit(&mut self, unit: u16) {
+        let old_len = self.query.len();
+        if (0xD800..=0xDBFF).contains(&unit) {
+            self.high_surrogate = Some(unit);
+            return;
+        }
+        let high = self.high_surrogate.take();
+        if unit == 8 {
+            self.query.pop();
+        } else if unit >= 32 {
+            let scalar = if (0xDC00..=0xDFFF).contains(&unit) {
+                high.map(|h| {
+                    0x10000 + (((h as u32 - 0xD800) << 10) | (unit as u32 - 0xDC00))
+                })
+            } else {
+                Some(unit as u32)
+            };
+            if let Some(c) = scalar.and_then(char::from_u32) {
+                self.query.push(c);
+            }
+        }
+        (self.selected, self.scroll) = (0, 0);
+        if self.query.len() != old_len {
+            self.refilter();
+        }
+    }
+
     fn px(&self, logical: i32) -> i32 {
         (logical as f32 * self.scale).round() as i32
     }
 
     /// Indexes into `entries` that match the query.
-    fn shown(&self) -> Vec<usize> {
+    fn refilter(&mut self) {
         let query = self.query.to_lowercase();
-        (0..self.entries.len())
-            .filter(|&i| self.entries[i].label.to_lowercase().contains(&query))
-            .collect()
+        self.filtered = (0..self.entries.len())
+            .filter(|&i| self.entries[i].search_label.contains(&query))
+            .collect();
     }
 
     fn row_height(&self, index: usize) -> i32 {
-        self.px(if self.entries[index].thumb.is_some() { IMAGE_ROW } else { ROW })
+        self.px(if self.entries[index].is_image {
+            IMAGE_ROW
+        } else {
+            ROW
+        })
     }
 
-    /// (position in shown(), top within the list, height) of the rows that fit
+    /// (position in filtered, top within the list, height) of the rows that fit
     /// in the list starting at `scroll`.
     fn layout(&self) -> Vec<(usize, i32, i32)> {
         let limit = self.px(ROW * MAX_ROWS);
         let mut rows: Vec<(usize, i32, i32)> = vec![];
         let mut top = 0;
-        for (position, &index) in self.shown().iter().enumerate().skip(self.scroll) {
+        for (position, &index) in self.filtered.iter().enumerate().skip(self.scroll) {
             let height = self.row_height(index);
             if top + height > limit && !rows.is_empty() {
                 break;
@@ -112,7 +172,7 @@ impl State {
     /// The last scroll position that still fills the list.
     fn max_scroll(&self) -> usize {
         let limit = self.px(ROW * MAX_ROWS);
-        let shown = self.shown();
+        let shown = &self.filtered;
         let mut used = 0;
         let mut first = shown.len();
         for (position, &index) in shown.iter().enumerate().rev() {
@@ -129,7 +189,12 @@ impl State {
     fn clear_rect(&self, width: i32) -> RECT {
         let right = width - self.px(PAD + 6);
         let top = (self.px(HEADER) - self.px(CLEAR_H)) / 2;
-        RECT { left: right - self.px(CLEAR_W), top, right, bottom: top + self.px(CLEAR_H) }
+        RECT {
+            left: right - self.px(CLEAR_W),
+            top,
+            right,
+            bottom: top + self.px(CLEAR_H),
+        }
     }
 
     fn height(&self) -> i32 {
@@ -146,13 +211,32 @@ fn tick_file() -> std::path::PathBuf {
     std::env::temp_dir().join("windots-clipboard.tick")
 }
 
-fn preview_of(text: &str, max: usize) -> String {
-    let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if line.chars().count() > max {
-        line.chars().take(max).collect::<String>() + "…"
-    } else {
-        line
+fn preview_of(chars: impl Iterator<Item = char>, max: usize) -> String {
+    let mut preview = String::new();
+    let mut count = 0;
+    let mut space = false;
+    for ch in chars {
+        if ch.is_whitespace() {
+            space = count > 0;
+            continue;
+        }
+        if space {
+            if count == max {
+                preview.push('…');
+                return preview;
+            }
+            preview.push(' ');
+            count += 1;
+            space = false;
+        }
+        if count == max {
+            preview.push('…');
+            return preview;
+        }
+        preview.push(ch);
+        count += 1;
     }
+    preview
 }
 
 /// The image scaled to fit `size` pixels, as a DIB, plus its full dimensions.
@@ -161,7 +245,10 @@ fn thumbnail(content: &DataPackageView, size: i32) -> Result<(Thumb, u32, u32)> 
     let decoder = BitmapDecoder::CreateAsync(&stream)?.join()?;
     let (w, h) = (decoder.PixelWidth()?, decoder.PixelHeight()?);
     let k = (size as f32 / w.max(h) as f32).min(1.0);
-    let (tw, th) = (((w as f32 * k) as u32).max(1), ((h as f32 * k) as u32).max(1));
+    let (tw, th) = (
+        ((w as f32 * k) as u32).max(1),
+        ((h as f32 * k) as u32).max(1),
+    );
     let transform = BitmapTransform::new()?;
     transform.SetScaledWidth(tw)?;
     transform.SetScaledHeight(th)?;
@@ -198,25 +285,52 @@ fn thumbnail(content: &DataPackageView, size: i32) -> Result<(Thumb, u32, u32)> 
         let mut bits = std::ptr::null_mut();
         let bitmap = CreateDIBSection(None, &info, DIB_RGB_COLORS, &mut bits, None, 0)?;
         std::ptr::copy_nonoverlapping(pixels.as_ptr(), bits as *mut u8, pixels.len());
-        Ok((Thumb { bitmap, width: tw as i32, height: th as i32 }, w, h))
+        Ok((
+            Thumb {
+                bitmap,
+                width: tw as i32,
+                height: th as i32,
+            },
+            w,
+            h,
+        ))
     }
 }
 
-fn load(preview: usize, thumb_size: i32) -> Result<Vec<Entry>> {
+fn load(preview: usize) -> Result<Vec<Entry>> {
     let found = Clipboard::GetHistoryItemsAsync()?.join()?;
-    if found.Status()? != ClipboardHistoryItemsResultStatus::Success {
-        return Ok(vec![]);
+    match found.Status()? {
+        ClipboardHistoryItemsResultStatus::Success => {}
+        ClipboardHistoryItemsResultStatus::ClipboardHistoryDisabled => {
+            return Err(Error::new(
+                E_FAIL,
+                "Enable clipboard history in Windows Settings",
+            ));
+        }
+        _ => {
+            return Err(Error::new(
+                E_ACCESSDENIED,
+                "Clipboard history access denied",
+            ));
+        }
     }
     let mut entries = vec![];
     for item in found.Items()? {
-        let content = item.Content()?;
-        if content.Contains(&StandardDataFormats::Bitmap()?)? {
-            if let Ok((thumb, w, h)) = thumbnail(&content, thumb_size) {
-                entries.push(Entry { label: format!("Image  {w}×{h}"), thumb: Some(thumb), item });
+        // A stale or unreadable item must not hide the rest of the history.
+        let entry = (|| -> Result<Entry> {
+            let content = item.Content()?;
+            if content.Contains(&StandardDataFormats::Bitmap()?)? {
+                return Ok(Entry::new(item, "Image".into(), true));
+            } else if content.Contains(&StandardDataFormats::Text()?)? {
+                let text = content.GetTextAsync()?.join()?;
+                let chars = char::decode_utf16(text.iter().copied())
+                    .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER));
+                return Ok(Entry::new(item, preview_of(chars, preview), false));
             }
-        } else if content.Contains(&StandardDataFormats::Text()?)? {
-            let text = content.GetTextAsync()?.join()?.to_string();
-            entries.push(Entry { label: preview_of(&text, preview), thumb: None, item });
+            Err(Error::new(E_FAIL, "Unsupported clipboard format"))
+        })();
+        if let Ok(entry) = entry {
+            entries.push(entry);
         }
     }
     Ok(entries)
@@ -224,11 +338,20 @@ fn load(preview: usize, thumb_size: i32) -> Result<Vec<Entry>> {
 
 fn choose(window: HWND, position: usize) {
     let item = STATE.with_borrow(|s| {
-        let index = *s.shown().get(position)?;
+        let index = *s.filtered.get(position)?;
         Some(s.entries[index].item.clone())
     });
-    if let Some(item) = item {
-        let _ = Clipboard::SetHistoryItemAsContent(&item);
+    if let Some(item) = item
+        && !matches!(
+            Clipboard::SetHistoryItemAsContent(&item),
+            Ok(SetHistoryItemAsContentStatus::Success)
+        )
+    {
+        STATE.with_borrow_mut(|s| {
+            s.notice = Some("Could not copy this item; try again".into())
+        });
+        refresh(window);
+        return;
     }
     unsafe {
         let _ = DestroyWindow(window);
@@ -237,11 +360,32 @@ fn choose(window: HWND, position: usize) {
 
 /// Clear the history (pinned items stay), then show what is left.
 fn clear_history(window: HWND) {
-    let _ = Clipboard::ClearHistory();
-    let (preview, size) = STATE.with_borrow(|s| (s.preview, s.px(THUMB)));
+    if !matches!(Clipboard::ClearHistory(), Ok(true)) {
+        STATE.with_borrow_mut(|s| {
+            s.notice = Some("Could not clear clipboard history".into())
+        });
+        refresh(window);
+        return;
+    }
+    reload(window);
+}
+
+fn reload(window: HWND) {
+    let preview = STATE.with_borrow(|s| s.preview);
+    let result = load(preview);
     STATE.with_borrow_mut(|s| {
-        s.entries = load(preview, size).unwrap_or_default();
+        match result {
+            Ok(entries) => {
+                s.entries = entries;
+                s.notice = None;
+            }
+            Err(error) => {
+                s.entries.clear();
+                s.notice = Some(error.message());
+            }
+        }
         (s.selected, s.scroll) = (0, 0);
+        s.refilter();
     });
     refresh(window);
 }
@@ -249,7 +393,7 @@ fn clear_history(window: HWND) {
 /// Keep the selection in view and resize the popup to the rows shown.
 fn refresh(window: HWND) {
     STATE.with_borrow_mut(|s| {
-        let count = s.shown().len();
+        let count = s.filtered.len();
         s.selected = s.selected.min(count.saturating_sub(1));
         s.scroll = s.scroll.min(s.max_scroll());
         if s.selected < s.scroll {
@@ -273,6 +417,59 @@ fn refresh(window: HWND) {
     unsafe {
         let _ = InvalidateRect(Some(window), None, false);
     }
+    schedule_thumbnail(window);
+}
+
+// Decode one visible image per timer tick, after the first list paint. Hidden
+// entries never pay the WinRT bitmap fetch/decode cost until scrolled into view.
+fn pending_thumbnail(s: &State) -> Option<usize> {
+    s.layout()
+        .iter()
+        .map(|row| s.filtered[row.0])
+        .find(|&index| {
+            let entry = &s.entries[index];
+            entry.is_image && !entry.thumbnail_attempted
+        })
+}
+
+fn schedule_thumbnail(window: HWND) {
+    unsafe {
+        if STATE.with_borrow(|s| pending_thumbnail(s).is_some()) {
+            SetTimer(Some(window), THUMB_TIMER, 16, None);
+        } else {
+            let _ = KillTimer(Some(window), THUMB_TIMER);
+        }
+    }
+}
+
+fn load_thumbnail(window: HWND) {
+    unsafe {
+        let _ = KillTimer(Some(window), THUMB_TIMER);
+    }
+    let next = STATE.with_borrow_mut(|s| {
+        let index = pending_thumbnail(s)?;
+        s.entries[index].thumbnail_attempted = true;
+        Some((index, s.entries[index].item.clone(), s.px(THUMB)))
+    });
+    if let Some((index, item, size)) = next {
+        let result = item.Content().and_then(|content| thumbnail(&content, size));
+        STATE.with_borrow_mut(|s| {
+            let entry = &mut s.entries[index];
+            match result {
+                Ok((thumb, w, h)) => {
+                    entry.label = format!("Image  {w}×{h}");
+                    entry.thumb = Some(thumb);
+                }
+                Err(_) => entry.label = "Image (preview unavailable)".into(),
+            }
+            // Keep the search key stable while thumbnails arrive, so asynchronous
+            // previews do not change the selection underneath a click.
+        });
+        unsafe {
+            let _ = InvalidateRect(Some(window), None, false);
+        }
+    }
+    schedule_thumbnail(window);
 }
 
 unsafe fn paint(window: HWND) {
@@ -296,7 +493,12 @@ unsafe fn paint(window: HWND) {
             let text = |label: &str, rect: &mut RECT, color, flags| {
                 SetTextColor(dc, color);
                 let mut wide: Vec<u16> = label.encode_utf16().collect();
-                DrawTextW(dc, &mut wide, rect, flags | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+                DrawTextW(
+                    dc,
+                    &mut wide,
+                    rect,
+                    flags | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
+                );
             };
             fill(&client, BG);
             let old_font = SelectObject(dc, s.font.into());
@@ -304,9 +506,21 @@ unsafe fn paint(window: HWND) {
 
             let margin = s.px(PAD + 6);
             let button = s.clear_rect(w);
-            let mut header = RECT { left: margin, top: 0, right: button.left - s.px(PAD), bottom: s.px(HEADER) };
-            if s.query.is_empty() {
-                text("Search clipboard history", &mut header, DIM, DT_END_ELLIPSIS);
+            let mut header = RECT {
+                left: margin,
+                top: 0,
+                right: button.left - s.px(PAD),
+                bottom: s.px(HEADER),
+            };
+            if let Some(notice) = s.notice.as_ref().filter(|_| !s.entries.is_empty()) {
+                text(notice, &mut header, TEXT, DT_END_ELLIPSIS);
+            } else if s.query.is_empty() {
+                text(
+                    "Search clipboard history",
+                    &mut header,
+                    DIM,
+                    DT_END_ELLIPSIS,
+                );
             } else {
                 text(&s.query, &mut header, TEXT, DT_END_ELLIPSIS);
             }
@@ -315,20 +529,51 @@ unsafe fn paint(window: HWND) {
                 let old_brush = SelectObject(dc, b.into());
                 let pen = SelectObject(dc, GetStockObject(NULL_PEN));
                 let arc = s.px(8);
-                let _ = RoundRect(dc, button.left, button.top, button.right, button.bottom, arc, arc);
+                let _ = RoundRect(
+                    dc,
+                    button.left,
+                    button.top,
+                    button.right,
+                    button.bottom,
+                    arc,
+                    arc,
+                );
                 SelectObject(dc, pen);
                 SelectObject(dc, old_brush);
                 let _ = DeleteObject(b.into());
             }
             let mut label = button;
-            text("Clear", &mut label, if s.clear_hover { TEXT } else { DIM }, DT_CENTER);
-            fill(&RECT { left: 0, top: s.px(HEADER) - 1, right: w, bottom: s.px(HEADER) }, EDGE);
+            text(
+                "Clear",
+                &mut label,
+                if s.clear_hover { TEXT } else { DIM },
+                DT_CENTER,
+            );
+            fill(
+                &RECT {
+                    left: 0,
+                    top: s.px(HEADER) - 1,
+                    right: w,
+                    bottom: s.px(HEADER),
+                },
+                EDGE,
+            );
 
             let list_top = s.px(HEADER + PAD);
-            let shown = s.shown();
+            let shown = &s.filtered;
             if shown.is_empty() {
-                let mut r = RECT { left: margin, top: list_top, right: w - margin, bottom: list_top + s.px(ROW) };
-                text("Nothing here", &mut r, DIM, DT_LEFT);
+                let mut r = RECT {
+                    left: margin,
+                    top: list_top,
+                    right: w - margin,
+                    bottom: list_top + s.px(ROW),
+                };
+                text(
+                    s.notice.as_deref().unwrap_or("Nothing here"),
+                    &mut r,
+                    DIM,
+                    DT_LEFT | DT_END_ELLIPSIS,
+                );
             }
             for (position, top, height) in s.layout() {
                 let entry = &s.entries[shown[position]];
@@ -343,12 +588,24 @@ unsafe fn paint(window: HWND) {
                     let old_brush = SelectObject(dc, b.into());
                     let pen = SelectObject(dc, GetStockObject(NULL_PEN));
                     let arc = s.px(10);
-                    let _ = RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, arc, arc);
+                    let _ = RoundRect(
+                        dc,
+                        rect.left,
+                        rect.top,
+                        rect.right,
+                        rect.bottom,
+                        arc,
+                        arc,
+                    );
                     SelectObject(dc, pen);
                     SelectObject(dc, old_brush);
                     let _ = DeleteObject(b.into());
                 }
-                let mut r = RECT { left: rect.left + s.px(PAD), right: rect.right - s.px(PAD), ..rect };
+                let mut r = RECT {
+                    left: rect.left + s.px(PAD),
+                    right: rect.right - s.px(PAD),
+                    ..rect
+                };
                 if let Some(thumb) = &entry.thumb {
                     let (x, y) = (r.left, rect.top + (height - thumb.height) / 2);
                     let mem = CreateCompatibleDC(Some(dc));
@@ -359,7 +616,19 @@ unsafe fn paint(window: HWND) {
                         AlphaFormat: AC_SRC_ALPHA as u8,
                         ..Default::default()
                     };
-                    let _ = AlphaBlend(dc, x, y, thumb.width, thumb.height, mem, 0, 0, thumb.width, thumb.height, blend);
+                    let _ = AlphaBlend(
+                        dc,
+                        x,
+                        y,
+                        thumb.width,
+                        thumb.height,
+                        mem,
+                        0,
+                        0,
+                        thumb.width,
+                        thumb.height,
+                        blend,
+                    );
                     SelectObject(mem, old);
                     let _ = DeleteDC(mem);
                     r.left += s.px(THUMB + PAD);
@@ -370,11 +639,21 @@ unsafe fn paint(window: HWND) {
             let visible = s.layout().len();
             if visible < shown.len() {
                 let list_h = h - list_top - s.px(PAD);
-                let bar_h = (list_h * visible as i32 / shown.len() as i32).max(s.px(24));
+                let bar_h =
+                    (list_h * visible as i32 / shown.len() as i32).max(s.px(24));
                 let travel = list_h - bar_h;
-                let top = list_top + travel * s.scroll as i32 / s.max_scroll().max(1) as i32;
+                let top =
+                    list_top + travel * s.scroll as i32 / s.max_scroll().max(1) as i32;
                 let x = w - s.px(7);
-                fill(&RECT { left: x, top, right: x + s.px(4), bottom: top + bar_h }, THUMB_BAR);
+                fill(
+                    &RECT {
+                        left: x,
+                        top,
+                        right: x + s.px(4),
+                        bottom: top + bar_h,
+                    },
+                    THUMB_BAR,
+                );
             }
             SelectObject(dc, old_font);
         });
@@ -387,9 +666,15 @@ unsafe fn paint(window: HWND) {
     }
 }
 
-unsafe extern "system" fn proc(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn proc(
+    window: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match message {
         WM_PAINT => unsafe { paint(window) },
+        WM_TIMER if wparam.0 == THUMB_TIMER => load_thumbnail(window),
         WM_ERASEBKGND => return LRESULT(1),
         WM_ACTIVATE if (wparam.0 & 0xffff) as u32 == WA_INACTIVE => unsafe {
             let _ = DestroyWindow(window);
@@ -401,36 +686,30 @@ unsafe extern "system" fn proc(window: HWND, message: u32, wparam: WPARAM, lpara
             PostQuitMessage(0);
         },
         WM_KEYDOWN => {
-            let count = STATE.with_borrow(|s| s.shown().len());
+            let count = STATE.with_borrow(|s| s.filtered.len());
             match VIRTUAL_KEY(wparam.0 as u16) {
                 VK_ESCAPE => unsafe {
                     let _ = DestroyWindow(window);
                 },
                 VK_RETURN => choose(window, STATE.with_borrow(|s| s.selected)),
                 VK_DOWN => {
-                    STATE.with_borrow_mut(|s| s.selected = (s.selected + 1).min(count.saturating_sub(1)));
+                    STATE.with_borrow_mut(|s| {
+                        s.selected = (s.selected + 1).min(count.saturating_sub(1))
+                    });
                     refresh(window);
                 }
                 VK_UP => {
-                    STATE.with_borrow_mut(|s| s.selected = s.selected.saturating_sub(1));
+                    STATE
+                        .with_borrow_mut(|s| s.selected = s.selected.saturating_sub(1));
                     refresh(window);
                 }
                 _ => {}
             }
         }
         WM_CHAR => {
-            match wparam.0 as u32 {
-                8 => STATE.with_borrow_mut(|s| {
-                    s.query.pop();
-                }),
-                c @ 32.. => {
-                    if let Some(c) = char::from_u32(c) {
-                        STATE.with_borrow_mut(|s| s.query.push(c));
-                    }
-                }
-                _ => {}
-            }
-            STATE.with_borrow_mut(|s| (s.selected, s.scroll) = (0, 0));
+            STATE.with_borrow_mut(|s| {
+                s.input_unit(wparam.0 as u16);
+            });
             refresh(window);
         }
         WM_MOUSEMOVE | WM_LBUTTONUP => {
@@ -450,22 +729,38 @@ unsafe extern "system" fn proc(window: HWND, message: u32, wparam: WPARAM, lpara
             }
             let hit = STATE.with_borrow(|s| {
                 let y = y - s.px(HEADER + PAD);
-                s.layout().iter().find(|r| y >= r.1 && y < r.1 + r.2).map(|r| r.0)
+                s.layout()
+                    .iter()
+                    .find(|r| y >= r.1 && y < r.1 + r.2)
+                    .map(|r| r.0)
             });
-            if let Some(row) = hit.filter(|_| !on_clear) {
-                if message == WM_LBUTTONUP {
-                    choose(window, row);
-                    return LRESULT(0);
-                }
-                STATE.with_borrow_mut(|s| s.selected = row);
+            if let Some(row) = hit.filter(|_| !on_clear)
+                && message == WM_LBUTTONUP
+            {
+                choose(window, row);
+                return LRESULT(0);
             }
-            STATE.with_borrow_mut(|s| s.clear_hover = on_clear);
-            refresh(window);
+            let changed = STATE.with_borrow_mut(|s| {
+                let selected = hit.filter(|_| !on_clear).unwrap_or(s.selected);
+                let changed = s.selected != selected || s.clear_hover != on_clear;
+                s.selected = selected;
+                s.clear_hover = on_clear;
+                changed
+            });
+            if changed {
+                unsafe {
+                    let _ = InvalidateRect(Some(window), None, false);
+                }
+            }
         }
         WM_MOUSEWHEEL => {
             let delta = (wparam.0 >> 16) as i16;
             STATE.with_borrow_mut(|s| {
-                s.scroll = if delta > 0 { s.scroll.saturating_sub(1) } else { (s.scroll + 1).min(s.max_scroll()) };
+                s.scroll = if delta > 0 {
+                    s.scroll.saturating_sub(1)
+                } else {
+                    (s.scroll + 1).min(s.max_scroll())
+                };
             });
             refresh(window);
         }
@@ -475,16 +770,21 @@ unsafe extern "system" fn proc(window: HWND, message: u32, wparam: WPARAM, lpara
 }
 
 fn main() -> Result<()> {
-    if let Ok(text) = std::fs::read_to_string(tick_file()) {
-        if let Ok(closed) = text.trim().parse::<u64>() {
-            if unsafe { GetTickCount64() }.saturating_sub(closed) < 400 {
-                return Ok(());
-            }
+    if let Ok(text) = std::fs::read_to_string(tick_file())
+        && let Ok(closed) = text.trim().parse::<u64>()
+    {
+        let now = unsafe { GetTickCount64() };
+        if now >= closed && now - closed < 400 {
+            return Ok(());
         }
     }
-    let preview = std::env::args().nth(1).and_then(|a| a.parse().ok()).unwrap_or(DEFAULT_PREVIEW);
+    let preview = std::env::args()
+        .nth(1)
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(DEFAULT_PREVIEW);
     unsafe {
-        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let _ =
+            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let instance: HINSTANCE = GetModuleHandleW(None)?.into();
         let class = w!("WindotsClipboard");
         RegisterClassW(&WNDCLASSW {
@@ -500,42 +800,153 @@ fn main() -> Result<()> {
         let mut cursor = POINT::default();
         GetCursorPos(&mut cursor)?;
         let monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
-        let mut info = MONITORINFO { cbSize: size_of::<MONITORINFO>() as u32, ..Default::default() };
+        let mut info = MONITORINFO {
+            cbSize: size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
         let _ = GetMonitorInfoW(monitor, &mut info);
-        let scale = GetDpiForSystem() as f32 / 96.0;
+        // Create the hidden window on the target monitor before querying its DPI.
+        let window = CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            class,
+            w!(""),
+            WS_POPUP,
+            cursor.x,
+            info.rcWork.top,
+            1,
+            1,
+            None,
+            None,
+            Some(instance),
+            None,
+        )?;
+        let scale = GetDpiForWindow(window).max(96) as f32 / 96.0;
         let font = CreateFontW(
-            -(15.0 * scale).round() as i32, 0, 0, 0, 400, 0, 0, 0,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-            0, w!("Segoe UI"),
+            -(15.0 * scale).round() as i32,
+            0,
+            0,
+            0,
+            400,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY,
+            0,
+            w!("Segoe UI"),
         );
-        STATE.with_borrow_mut(|s| (s.scale, s.font, s.preview) = (scale, font, preview));
+        STATE
+            .with_borrow_mut(|s| (s.scale, s.font, s.preview) = (scale, font, preview));
         let (width, height) = STATE.with_borrow(|s| (s.px(WIDTH), s.height()));
         let work = info.rcWork;
-        let x = (cursor.x - width / 2).clamp(work.left + 8, (work.right - width - 8).max(work.left));
+        let x = (cursor.x - width / 2)
+            .clamp(work.left + 8, (work.right - width - 8).max(work.left));
         let y = work.top + (6.0 * scale) as i32;
 
-        let window = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST, class, w!(""), WS_POPUP,
-            x, y, width, height, None, None, Some(instance), None,
+        SetWindowPos(
+            window,
+            None,
+            x,
+            y,
+            width,
+            height,
+            SWP_NOZORDER | SWP_NOACTIVATE,
         )?;
         let round = DWMWCP_ROUND;
-        let _ = DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &round as *const _ as _, 4);
-        let _ = DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &EDGE as *const _ as _, 4);
+        let _ = DwmSetWindowAttribute(
+            window,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &round as *const _ as _,
+            4,
+        );
+        let _ = DwmSetWindowAttribute(
+            window,
+            DWMWA_BORDER_COLOR,
+            &EDGE as *const _ as _,
+            4,
+        );
         let _ = ShowWindow(window, SW_SHOW);
-        let _ = SetForegroundWindow(window);
+        let focused =
+            SetForegroundWindow(window).as_bool() || GetForegroundWindow() == window;
         let _ = UpdateWindow(window);
 
         // Shown first, filled after: the popup appears at once, and WinRT wants
         // the calling app in the foreground.
-        let thumb_size = STATE.with_borrow(|s| s.px(THUMB));
-        STATE.with_borrow_mut(|s| s.entries = load(preview, thumb_size).unwrap_or_default());
+        if focused {
+            reload(window);
+        } else {
+            STATE.with_borrow_mut(|s| {
+                s.notice = Some("Could not focus clipboard; reopen the popup".into())
+            });
+        }
         refresh(window);
 
         let mut msg = MSG::default();
-        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+        loop {
+            let result = GetMessageW(&mut msg, None, 0, 0).0;
+            if result == -1 {
+                return Err(Error::from_thread());
+            }
+            if result == 0 {
+                break;
+            }
             let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bounded_previews_preserve_whitespace_and_unicode_behavior() {
+        for text in ["", "   ", "  one\t two\nthree  ", "é🙂\u{2003}β", "abc"] {
+            let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            for limit in 0..=normalized.chars().count() + 1 {
+                let mut expected: String = normalized.chars().take(limit).collect();
+                if normalized.chars().count() > limit {
+                    expected.push('…');
+                }
+                assert_eq!(preview_of(text.chars(), limit), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn previews_stop_reading_once_the_display_is_full() {
+        let chars = "a".repeat(61);
+        let mut reads = 0;
+        let preview = preview_of(chars.chars().inspect(|_| reads += 1), 60);
+        assert_eq!(preview, "a".repeat(60) + "…");
+        assert_eq!(reads, 61);
+    }
+
+    #[test]
+    fn search_accepts_utf16_and_backspaces_a_complete_character() {
+        let mut state = State::default();
+        for unit in "é🙂".encode_utf16() {
+            state.input_unit(unit);
+        }
+        assert_eq!(state.query, "é🙂");
+        state.input_unit(8);
+        assert_eq!(state.query, "é");
+    }
+
+    #[test]
+    fn malformed_surrogates_do_not_corrupt_following_input() {
+        let mut state = State::default();
+        for unit in [0xDC00, 0xD800, b'a' as u16, 0xDC00] {
+            state.input_unit(unit);
+        }
+        assert_eq!(state.query, "a");
+        for unit in "🙂".encode_utf16() {
+            state.input_unit(unit);
+        }
+        assert_eq!(state.query, "a🙂");
+    }
 }
