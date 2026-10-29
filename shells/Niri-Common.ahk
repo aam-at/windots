@@ -107,8 +107,17 @@ QuakeSlide(hwnd, down) {
         if !WinExist(hwnd)
             return
         DllCall("dwmapi\DwmFlush")
+        ; DwmFlush yields while Terminal can hide or recreate its quake window.
+        ; Recheck here, and handle the remaining check/use race at the API call.
+        if !WinExist(hwnd)
+            return
         p := Min((A_TickCount - t0) / dur, 1)
-        WinSetTransparent Round(255 * (down ? p : 1 - p)), hwnd
+        try WinSetTransparent Round(255 * (down ? p : 1 - p)), hwnd
+        catch OSError as err {
+            if err.Number = 1400
+                return
+            throw err
+        }
     } Until p = 1
 }
 

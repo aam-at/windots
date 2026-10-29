@@ -222,7 +222,7 @@ function Confirm-StopApp(
 
 function Set-ScoopAppRestartPaused([string]$App, [bool]$Paused) {
     $live = $liveApps | Where-Object ScoopApp -EQ $App
-    if (-not $live.RestartOnCrash) { return }
+    if (-not $live -or -not $live['RestartOnCrash']) { return }
     $directory = Join-Path $env:LOCALAPPDATA 'windots\restart'
     $path = Join-Path $directory "$($live.App).paused"
     if ($Paused) {
@@ -234,7 +234,7 @@ function Set-ScoopAppRestartPaused([string]$App, [bool]$Paused) {
 
 function Test-ScoopAppRestartSupervisor([string]$App) {
     $live = $liveApps | Where-Object ScoopApp -EQ $App
-    if (-not $live.RestartOnCrash) { return $false }
+    if (-not $live -or -not $live['RestartOnCrash']) { return $false }
     $pattern = "*Restart-OnCrash.ps1* -AppName $($live.App) *"
     [bool](Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" `
             -ErrorAction SilentlyContinue |
@@ -298,7 +298,8 @@ function Stop-ForUpdate([string]$App) {
         }
         return $true
     }
-    $pauseRestart = [bool](($liveApps | Where-Object ScoopApp -EQ $App).RestartOnCrash)
+    $live = $liveApps | Where-Object ScoopApp -EQ $App
+    $pauseRestart = [bool]($live -and $live['RestartOnCrash'])
     if (Confirm-StopApp $App $procs -PauseRestart:$pauseRestart) {
         $script:stoppedApps.Add($App)
         return $true

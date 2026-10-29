@@ -1,10 +1,10 @@
 {
-    "version": "2.1.42",
+    "version": "2.1.47",
     "description": "Cross-platform local MCP capabilities for ChatGPT with Chrome integration.",
     "homepage": "https://github.com/totec448-spec/chat-on-steroids",
     "license": "MIT",
-    "url": "https://github.com/totec448-spec/chat-on-steroids/releases/download/v2.1.42/Chat-On-Steroids-Setup-x64.exe",
-    "hash": "1303ae2a272ec553cee2e653febd7ba0312fad819915949166c0d5c6f1757eb5",
+    "url": "https://github.com/totec448-spec/chat-on-steroids/releases/download/v2.1.47/Chat-On-Steroids-Setup-x64.exe",
+    "hash": "54f3e46ee25813cd80b8284453ce24966e13e8555df0e07540530058080f521b",
     "installer": {
         "args": [
             "/S",
